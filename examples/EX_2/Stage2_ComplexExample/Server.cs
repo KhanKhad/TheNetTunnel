@@ -2,8 +2,9 @@
 using System.Net;
 using System.Threading;
 using TNT;
-using TNT.Exceptions.Local;
-using TNT.Tcp;
+using TNT.Core.Api;
+using TNT.Core.Exceptions.Local;
+using TNT.Core.Tcp;
 
 namespace EX_2.Stage2_ComplexExample;
 

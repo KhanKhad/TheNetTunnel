@@ -2,152 +2,155 @@
 using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
-using TNT.Exceptions.Local;
-using TNT.Presentation;
-using TNT.Transport;
+using TNT.Core.Exceptions.Local;
+using TNT.Core.Presentation;
+using TNT.Core.Transport;
 
-namespace TNT.Testing;
-
-public class TestChannel: IChannel
+namespace TNT.Core.Testing
 {
-    private readonly bool _threadQueue;
-    private bool _wasConnected;
-    private bool _allowReceive;
-    readonly ConcurrentQueue<byte[]> _receiveQueue = new ConcurrentQueue<byte[]>();
-    private  int _bytesReceived;
-    private int _bytesSent;
+    public class TestChannel: IChannel
+    {
+        private readonly bool _threadQueue;
+        private bool _wasConnected;
+        private bool _allowReceive;
+        private readonly ConcurrentQueue<byte[]> _receiveQueue = new ConcurrentQueue<byte[]>();
+        private  int _bytesReceived;
+        private int _bytesSent;
+        private readonly AutoResetEvent _newDataReveived = new AutoResetEvent(false);
+        private Thread _receiveThreadOrNull;
+        /// <summary>
+        /// Потокобезопасная имитация сетевого взаимодействия.
+        /// </summary>
+        public static TestChannel CreateThreadSafe()=> new TestChannel(threadQueue: true);
+        /// <summary>
+        /// Не потокобезопасен. Можно использовать только в однопоточной среде
+        /// </summary>
+        public static TestChannel CreateSingleThread() => new TestChannel(threadQueue: false);
 
-    public TestChannel(bool threadQueue = true)
-    {
-        _threadQueue = threadQueue;
-    }
-    public void ImmitateReceive(byte[] message)
-    {
-            
-        _receiveQueue.Enqueue(message);
-        if(_threadQueue)
+        private TestChannel(bool threadQueue = true)
         {
-            newDataReveived.Set();
+            _threadQueue = threadQueue;
         }
-        else
-            HandleReceiveQueue();
-    }
 
-    readonly AutoResetEvent newDataReveived = new AutoResetEvent(false);
-    Thread receiveThreadOrNull;
-    void ThreadVoid()
-    {
-        while (IsConnected)
+        public void ImmitateReceive(byte[] message)
         {
-            newDataReveived.WaitOne(100);
-            HandleReceiveQueue();
-        }
-    }
-
-    void HandleReceiveQueue()
-    {
-        _receiveQueue.TryDequeue(out var msg);
-        if(msg==null)
-            return;
-        if(!IsConnected)
-            return;
-        _bytesReceived += msg.Length;
-        OnReceive?.Invoke(this, msg);
-    }
-    public void ImmitateConnect()
-    {
-        if(IsConnected)
-            throw  new InvalidOperationException("Cannot to immitate connect while IsConnected = true");
-        _wasConnected = true;
-        IsConnected = true;
-    }
-
-    public void ImmitateDisconnect()
-    {
-        if (!IsConnected)
-            throw new InvalidOperationException("Cannot to immitate disconnect while IsConnected = false");
-        IsConnected = false;
-        OnDisconnect?.Invoke(this, null);
-    }
-
-    public event Action<object, byte[]> OnWrited;
-
-    public bool IsConnected { get; private set; }
-
-    public bool AllowReceive
-
-    {
-        get => _allowReceive;
-        set
-        {
-            if(_allowReceive==value)
-                return;
-                
-            _allowReceive = value;
-
-            if (_allowReceive)
+            _receiveQueue.Enqueue(message);
+            if(_threadQueue)
             {
-                if (!_threadQueue)
-                    HandleReceiveQueue();
-                else
-                {
-                    this.receiveThreadOrNull = new Thread((s) => ThreadVoid());
-                    receiveThreadOrNull.Start();
-                }
+                _newDataReveived.Set();
             }
-            AllowReceiveChanged?.Invoke(this,value);
+            else
+            {
+                HandleReceiveQueue();
+            }
         }
-    }
 
-    public event Action<IChannel, bool> AllowReceiveChanged; 
-    public event Action<object, byte[]> OnReceive;
-    public event Action<object, ErrorMessage> OnDisconnect;
-    public void Disconnect()
-    {
-        DisconnectBecauseOf(null);
-    }
-    public void DisconnectBecauseOf(ErrorMessage error)
-    {
-        if (IsConnected)
+        private void ThreadVoid()
         {
-            IsConnected = false;
-            OnDisconnect?.Invoke(this, error);
-        }
-    }
-    public Task<bool> TryWriteAsync(byte[] array)
-    {
-        return Task.Run(
-            () => {
-                if (IsConnected)
-                    Write(array, 0, array.Length);
-                return IsConnected;
+            while (IsConnected)
+            {
+                _newDataReveived.WaitOne(100);
+                while(!_receiveQueue.IsEmpty)
+                    HandleReceiveQueue();
             }
-        );
-    }
+        }
 
-    public void Write(byte[] array, int offset, int length)
-    {
-        if (!_wasConnected)
-            throw new ConnectionIsNotEstablishedYet();
-        if (!IsConnected)
-            throw new ConnectionIsLostException();
+        private void HandleReceiveQueue()
+        {
+            _receiveQueue.TryDequeue(out var msg);
+            if(msg==null)
+                return;
+            if(!IsConnected)
+                return;
+            _bytesReceived += msg.Length;
+            OnReceive?.Invoke(this, msg);
+        }
+        public void ImmitateConnect()
+        {
+            if(IsConnected)
+                throw  new InvalidOperationException("Cannot to immitate connect while IsConnected = true");
+            _wasConnected = true;
+            IsConnected = true;
+        }
 
-        Interlocked.Add(ref _bytesSent, length);
+        public void ImmitateDisconnect()
+        {
+            if (!IsConnected)
+                throw new InvalidOperationException("Cannot to immitate disconnect while IsConnected = false");
+            IsConnected = false;
+            OnDisconnect?.Invoke(this, null);
+        }
 
-        var buf = new byte[length];
-        Buffer.BlockCopy(array, offset, buf, 0, length);
+        public event Action<object, byte[]> OnWrited;
 
-        OnWrited?.Invoke(this, buf);
-    }
+        public bool IsConnected { get; private set; }
 
-    public int BytesReceived => _bytesReceived;
+        public bool AllowReceive
 
-    public int BytesSent => _bytesSent;
+        {
+            get => _allowReceive;
+            set
+            {
+                if(_allowReceive==value)
+                    return;
+                
+                _allowReceive = value;
 
-    public string RemoteEndpointName { get; }
-    public string LocalEndpointName { get; }
-    public Task WriteAsync(byte[] data)
-    {
-        return Task.Run(() => Write(data,0, data.Length));
+                if (_allowReceive)
+                {
+                    if (!_threadQueue)
+                        HandleReceiveQueue();
+                    else
+                    {
+                        this._receiveThreadOrNull = new Thread((s) => ThreadVoid());
+                        _receiveThreadOrNull.Start();
+                    }
+                }
+                AllowReceiveChanged?.Invoke(this,value);
+            }
+        }
+
+        public event Action<IChannel, bool> AllowReceiveChanged; 
+        public event Action<object, byte[]> OnReceive;
+        public event Action<object, ErrorMessage> OnDisconnect;
+        public void Disconnect()
+        {
+          DisconnectBecauseOf(null);
+        }
+        public void DisconnectBecauseOf(ErrorMessage error)
+        {
+            if (IsConnected)
+            {
+                IsConnected = false;
+                OnDisconnect?.Invoke(this, error);
+            }
+        }
+        
+        public void Write(byte[] array, int offset, int length)
+        {
+            if (!_wasConnected)
+                throw new ConnectionIsNotEstablishedYet();
+            if (!IsConnected)
+                throw new ConnectionIsLostException();
+
+            Interlocked.Add(ref _bytesSent, length);
+
+            var buf = new byte[length];
+            Buffer.BlockCopy(array, offset, buf, 0, length);
+
+            OnWrited?.Invoke(this, buf);
+        }
+
+        public int BytesReceived => _bytesReceived;
+
+        public int BytesSent => _bytesSent;
+
+        public string RemoteEndpointName { get; }
+        public string LocalEndpointName { get; }
+
+        public Task WriteAsync(byte[] data, int offset, int length)
+        {
+            return Task.Run(() => Write(data, offset, length));
+        }
     }
 }

@@ -1,13 +1,14 @@
 ﻿using System;
 using System.IO;
 using System.Net;
-using TNT.Api;
-using TNT.Presentation.ReceiveDispatching;
+using TNT.Core.Api;
+using TNT.Core.Presentation.ReceiveDispatching;
 using TNT.SpeedTest.Contracts;
 using TNT.SpeedTest.OutputBandwidth;
 using TNT.SpeedTest.TransactionBandwidth;
-using TNT.Testing;
-using TNT.Transport;
+using TNT.Core.Testing;
+using TNT.Core.Transport;
+using TNT.Core.Tcp;
 
 namespace TNT.SpeedTest.TestClient;
 

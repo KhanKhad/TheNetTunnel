@@ -1,71 +1,72 @@
 ﻿using System;
-using TNT.Exceptions.ContractImplementation;
-using TNT.Presentation;
 using System.Reflection;
+using TNT.Core.Exceptions.ContractImplementation;
+using TNT.Core.Presentation;
 
-namespace TNT.Contract.Origin;
-
-public static class OriginContractLinker
+namespace TNT.Core.Contract.Origin
 {
-    public static ContractInfo Link<TInterface>(TInterface contract, IInterlocutor interlocutor)
+    public static class OriginContractLinker
     {
-        var contractType = contract.GetType();
-
-        var interfaceType = typeof(TInterface);
-
-        ContractInfo contractMemebers = GetContractMemebers(contractType, interfaceType);
-        foreach (var method in contractMemebers.GetMethods())
+        public static ContractInfo Link<TInterface>(TInterface contract, IInterlocutor interlocutor)
         {
-            if (method.Value.ReturnParameter.ParameterType == typeof(void))
+            var contractType = contract.GetType();
+
+            var interfaceType = typeof(TInterface);
+
+            ContractInfo contractMemebers = GetContractMemebers(contractType, interfaceType);
+            foreach (var method in contractMemebers.GetMethods())
             {
-                //Say handler method:
-                interlocutor.SetIncomeSayCallHandler(method.Key, args => method.Value.Invoke(contract, args));
+                if (method.Value.ReturnParameter.ParameterType == typeof(void))
+                {
+                    //Say handler method:
+                    interlocutor.SetIncomeSayCallHandler(method.Key, args => method.Value.Invoke(contract, args));
+                }
+                else
+                {
+                    //Ask handler method:
+                    interlocutor.SetIncomeAskCallHandler(method.Key, args => method.Value.Invoke(contract, args));
+                }
             }
-            else
+            OriginCallbackDelegatesHandlerFactory.CreateFor(contractMemebers, contract, interlocutor);
+            return contractMemebers;
+        }
+
+        public static ContractInfo GetContractMemebers(Type contractType, Type interfaceType)
+        {
+            var contractMemebers = new ContractInfo(interfaceType);
+            foreach (var meth in interfaceType.GetMethods())
             {
-                //Ask handler method:
-                interlocutor.SetIncomeAskCallHandler(method.Key, args => method.Value.Invoke(contract, args));
+                if (meth.IsSpecialName)
+                    continue;
+
+                var overrided = ReflectionHelper.GetOverridedMethodOrNull(contractType, meth);
+
+                if (overrided == null)
+                    continue;
+
+                var attribute = meth.GetCustomAttribute<TntMessage>();
+                if (attribute == null)
+                    throw new ContractMemberAttributeMissingException(interfaceType, meth.Name);
+
+                contractMemebers.ThrowIfAlreadyContainsId(attribute.Id, overrided);
+                contractMemebers.AddInfo(attribute.Id, overrided);
             }
+            foreach (var propertyInfo in interfaceType.GetTypeInfo().GetProperties())
+            {
+                var attribute = propertyInfo.GetCustomAttribute<TntMessage>();
+
+                if (attribute == null)
+                    throw new ContractMemberAttributeMissingException(interfaceType, propertyInfo.Name);
+
+                var overrided = ReflectionHelper.GetOverridedPropertyOrNull(contractType, propertyInfo);
+                if (overrided == null)
+                    continue;
+
+                contractMemebers.ThrowIfAlreadyContainsId(attribute.Id, overrided);
+                contractMemebers.AddInfo(attribute.Id, overrided);
+            }
+
+            return contractMemebers;
         }
-        OriginCallbackDelegatesHandlerFactory.CreateFor(contractMemebers, contract, interlocutor);
-        return contractMemebers;
-    }
-
-    public static ContractInfo GetContractMemebers(Type contractType, Type interfaceType)
-    {
-        var contractMemebers = new ContractInfo(interfaceType);
-        foreach (var meth in interfaceType.GetMethods())
-        {
-            if (meth.IsSpecialName)
-                continue;
-
-            var overrided = ReflectionHelper.GetOverridedMethodOrNull(contractType, meth);
-
-            if (overrided == null)
-                continue;
-
-            var attribute = meth.GetCustomAttribute<TntMessage>();
-            if (attribute == null)
-                throw new ContractMemberAttributeMissingException(interfaceType, meth.Name);
-
-            contractMemebers.ThrowIfAlreadyContainsId(attribute.Id, overrided);
-            contractMemebers.AddInfo(attribute.Id, overrided);
-        }
-        foreach (var propertyInfo in interfaceType.GetTypeInfo().GetProperties())
-        {
-            var attribute = propertyInfo.GetCustomAttribute<TntMessage>();
-
-            if (attribute == null)
-                throw new ContractMemberAttributeMissingException(interfaceType, propertyInfo.Name);
-
-            var overrided = ReflectionHelper.GetOverridedPropertyOrNull(contractType, propertyInfo);
-            if (overrided == null)
-                continue;
-
-            contractMemebers.ThrowIfAlreadyContainsId(attribute.Id, overrided);
-            contractMemebers.AddInfo(attribute.Id, overrided);
-        }
-
-        return contractMemebers;
     }
 }

@@ -3,8 +3,8 @@ using System.Linq;
 using CommonTestTools;
 using NUnit.Framework;
 using TNT;
-using TNT.Api;
-using TNT.Testing;
+using TNT.Core.Api;
+using TNT.Core.Testing;
 
 namespace Tnt.LongTests;
 
@@ -25,7 +25,7 @@ public class MockConnectionPair<TProxyContractInterface, TOriginContractInterfac
     public MockConnectionPair(PresentationBuilder<TOriginContractInterface> originBuilder,
         PresentationBuilder<TProxyContractInterface> proxyBuider, bool connect = true)
     {
-        ClientChannel = new TestChannel();
+        ClientChannel = TestChannel.CreateThreadSafe();
 
         Server = new TestChannelServer<TOriginContractInterface>(originBuilder);
         ProxyConnection = proxyBuider.UseChannel(ClientChannel).Build();
@@ -38,13 +38,13 @@ public class MockConnectionPair<TProxyContractInterface, TOriginContractInterfac
         var serverBuilder = TntBuilder
             .UseContract<TOriginContractInterface, TOriginContractType>()
             //  .UseReceiveDispatcher<NotThreadDispatcher>()
-            .SetMaxAnsDelay(200000);
+            .SetMaxAnsTimeout(200000);
 
-        ClientChannel = new TestChannel();
+        ClientChannel = TestChannel.CreateThreadSafe();
         var clientBuilder = TntBuilder
             .UseContract<TProxyContractInterface>()
             // .UseReceiveDispatcher<NotThreadDispatcher>()
-            .SetMaxAnsDelay(200000);
+            .SetMaxAnsTimeout(200000);
         Server = new TestChannelServer<TOriginContractInterface>(serverBuilder);
         ProxyConnection = clientBuilder.UseChannel(ClientChannel).Build();
 

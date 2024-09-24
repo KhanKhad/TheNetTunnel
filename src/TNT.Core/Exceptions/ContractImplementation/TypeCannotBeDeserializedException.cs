@@ -1,14 +1,15 @@
 ﻿using System;
 
-namespace TNT.Exceptions.ContractImplementation;
-
-public class TypeCannotBeDeserializedException : Exception
+namespace TNT.Core.Exceptions.ContractImplementation
 {
-    private readonly Type _t;
-
-    public TypeCannotBeDeserializedException(Type t) :
-        base("Type " + t.Name + " cannot be deseserialized.")
+    public class TypeCannotBeDeserializedException : Exception
     {
-        _t = t;
+        private readonly Type _t;
+
+        public TypeCannotBeDeserializedException(Type t) :
+            base("Type " + t.Name + " cannot be deseserialized.")
+        {
+            _t = t;
+        }
     }
 }

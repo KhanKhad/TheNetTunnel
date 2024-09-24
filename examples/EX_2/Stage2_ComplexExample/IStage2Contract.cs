@@ -1,6 +1,7 @@
 using System;
 using ProtoBuf;
 using TNT;
+using TNT.Core.Contract;
 
 namespace EX_2.Stage2_ComplexExample;
 

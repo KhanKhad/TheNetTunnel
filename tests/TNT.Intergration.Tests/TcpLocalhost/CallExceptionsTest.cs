@@ -2,10 +2,11 @@
 using CommonTestTools;
 using CommonTestTools.Contracts;
 using NUnit.Framework;
-using TNT.Exceptions.Local;
-using TNT.Exceptions.Remote;
-using TNT.Presentation.ReceiveDispatching;
-using TNT.Tcp;
+using TNT.Core.Api;
+using TNT.Core.Exceptions.Local;
+using TNT.Core.Exceptions.Remote;
+using TNT.Core.Presentation.ReceiveDispatching;
+using TNT.Core.Tcp;
 
 namespace TNT.IntegrationTests.TcpLocalhost;
 

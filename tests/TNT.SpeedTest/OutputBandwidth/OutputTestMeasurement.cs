@@ -1,5 +1,5 @@
-﻿using TNT.SpeedTest.Contracts;
-using TNT.Transport;
+﻿using TNT.Core.Transport;
+using TNT.SpeedTest.Contracts;
 
 namespace TNT.SpeedTest.OutputBandwidth;
 

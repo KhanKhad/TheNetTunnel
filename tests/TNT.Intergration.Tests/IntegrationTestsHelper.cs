@@ -3,10 +3,10 @@ using System.Collections.Generic;
 using System.IO;
 using CommonTestTools.Contracts;
 using Moq;
-using TNT.Api;
+using TNT.Core.Api;
 using TNT.IntegrationTests.Serialization;
-using TNT.Presentation.Deserializers;
-using TNT.Presentation.Serializers;
+using TNT.Core.Presentation.Deserializers;
+using TNT.Core.Presentation.Serializers;
 
 namespace TNT.IntegrationTests;
 

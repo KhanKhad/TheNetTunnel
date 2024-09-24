@@ -1,7 +1,8 @@
 using CommonTestTools.Contracts;
 using NUnit.Framework;
-using TNT.Exceptions.ContractImplementation;
-using TNT.Testing;
+using TNT.Core.Api;
+using TNT.Core.Exceptions.ContractImplementation;
+using TNT.Core.Testing;
 
 namespace TNT.Core.Tests.FullStack;
 
@@ -11,7 +12,7 @@ public class ConnectionBuilderTest
     [Test]
     public void ProxyBuilder_ChannelConnectedBefore_SayCalled_DataSent()
     {
-        var channel = new TestChannel();
+        var channel = TestChannel.CreateThreadSafe();
         channel.ImmitateConnect();
 
         var proxyConnection = TntBuilder
@@ -29,7 +30,7 @@ public class ConnectionBuilderTest
     [Test]
     public void ProxyBuilder_SayCalled_DataSent()
     {
-        var channel = new TestChannel();
+        var channel = TestChannel.CreateThreadSafe();
         var proxyConnection = TntBuilder
             .UseContract<ITestContract>()
             .UseChannel(channel)
@@ -45,7 +46,7 @@ public class ConnectionBuilderTest
     [Test]
     public void ProxyBuilderCreatesWithCorrectConnection()
     {
-        var channel = new TestChannel();
+        var channel = TestChannel.CreateThreadSafe();
         var proxyConnection = TntBuilder
             .UseContract<ITestContract>()
             .UseChannel(channel)
@@ -55,7 +56,7 @@ public class ConnectionBuilderTest
     [Test]
     public void ProxyBuilderBuilds_ChannelAllowReceiveIsTrue()
     {
-        var channel = new TestChannel();
+        var channel = TestChannel.CreateThreadSafe();
         channel.ImmitateConnect();
         var proxyConnection = TntBuilder
             .UseContract<ITestContract>()
@@ -68,7 +69,7 @@ public class ConnectionBuilderTest
 
     public void ProxyBuilder_UseContractInitalization_CalledBeforeBuildDone()
     {
-        var channel = new TestChannel();
+        var channel = TestChannel.CreateThreadSafe();
         ITestContract initializationArgument = null;
         var proxyConnection = TntBuilder.UseContract<ITestContract>()
             .UseContractInitalization((i,c)=> initializationArgument = i)
@@ -81,9 +82,9 @@ public class ConnectionBuilderTest
 
     public void ConnectionDisposes_channelBecomesDisconnected()
     {
-        var channel = new TestChannel();
+        var channel = TestChannel.CreateThreadSafe();
         using (var proxyConnection = TntBuilder.UseContract<ITestContract>()
-                   .UseChannel(new TestChannel())
+                   .UseChannel(channel)
                    .Build())
         {
             proxyConnection.Channel.ImmitateConnect();    
@@ -93,7 +94,7 @@ public class ConnectionBuilderTest
     [Test]
     public void OriginContract_CreatesByType_ContractCreated()
     {
-        var channel = new TestChannel();
+        var channel = TestChannel.CreateThreadSafe();
             
         var proxyConnection = TntBuilder
             .UseContract<ITestContract, TestContractMock>()
@@ -104,9 +105,11 @@ public class ConnectionBuilderTest
     [Test]
     public void OriginContract_CreatesByFactory_ContractCreated()
     {
+        var channel = TestChannel.CreateThreadSafe();
+
         var proxyConnection = TntBuilder
             .UseContract<ITestContract, TestContractMock>()
-            .UseChannel(new TestChannel())
+            .UseChannel(channel)
             .Build();
 
         Assert.IsNotNull(proxyConnection.Contract);
@@ -114,9 +117,11 @@ public class ConnectionBuilderTest
     [Test]
     public void OriginContractAsInterface_CreatesByFactory_ContractCreated()
     {
+        var channel = TestChannel.CreateThreadSafe();
+
         var proxyConnection = TntBuilder
             .UseContract<ITestContract, TestContractMock>()
-            .UseChannel(new TestChannel())
+            .UseChannel(channel)
             .Build();
 
         Assert.IsInstanceOf<ITestContract>(proxyConnection.Contract);
@@ -125,10 +130,12 @@ public class ConnectionBuilderTest
     [Test]
     public void OriginContractAsSingleTone_CreatesByFactory_ContractCreated()
     {
+        var channel = TestChannel.CreateThreadSafe();
+
         var contract = new TestContractMock();
         var proxyConnection = TntBuilder
             .UseContract<ITestContract>(contract)
-            .UseChannel(new TestChannel())
+            .UseChannel(channel)
             .Build();
         Assert.AreEqual(contract, proxyConnection.Contract);
     }
@@ -136,18 +143,22 @@ public class ConnectionBuilderTest
     [Test]
     public void UnserializeableContract_CreateT_throwsException()
     {
+        var channel = TestChannel.CreateThreadSafe();
+
         var builder = TntBuilder
             .UseContract<IUnserializeableContract>()
-            .UseChannel(new TestChannel());
+            .UseChannel(channel);
          
         Assert.Throws<TypeCannotBeSerializedException>(()=>builder.Build());
     }
     [Test]
     public void UnDeserializeableContract_CreateT_throwsException()
     {
+        var channel = TestChannel.CreateThreadSafe();
+
         var builder = TntBuilder
             .UseContract<IUnDeserializeableContract>()
-            .UseChannel(new TestChannel());
+            .UseChannel(channel);
 
         Assert.Throws<TypeCannotBeDeserializedException>(() => builder.Build());
     }

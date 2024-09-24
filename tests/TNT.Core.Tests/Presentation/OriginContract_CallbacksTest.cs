@@ -2,7 +2,7 @@
 using CommonTestTools;
 using CommonTestTools.Contracts;
 using NUnit.Framework;
-using TNT.Contract.Origin;
+using TNT.Core.Contract.Origin;
 
 namespace TNT.Core.Tests.Presentation;
 

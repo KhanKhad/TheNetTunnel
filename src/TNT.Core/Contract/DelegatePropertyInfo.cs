@@ -1,11 +1,12 @@
 ﻿using System;
 using System.Reflection;
 
-namespace TNT.Contract;
-
-public class DelegatePropertyInfo
+namespace TNT.Core.Contract
 {
-    public MethodInfo DelegateInvokeMethodInfo { get; set; }
-    public Type[] ParameterTypes { get; set; }
-    public Type ReturnType { get; set; }
+    public class DelegatePropertyInfo
+    {
+        public MethodInfo DelegateInvokeMethodInfo { get; set; }
+        public Type[] ParameterTypes { get; set; }
+        public Type ReturnType { get; set; }
+    }
 }

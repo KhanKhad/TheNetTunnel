@@ -2,9 +2,10 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
-using TNT.Presentation;
-using TNT.Presentation.Serializers;
-using TNT.Transport;
+using TNT.Core.Presentation;
+using TNT.Core.Presentation.Serializers;
+using TNT.Core.Testing;
+using TNT.Core.Transport;
 
 namespace Tnt.LongTests;
 
@@ -14,7 +15,7 @@ public class ConcurrentSenderTest
     [TestCase(1000000, 100)]
     public void Sends(int length, int concurrentLevel)
     {
-        var channel = new TNT.Testing.TestChannel(false);
+        var channel = TestChannel.CreateSingleThread();
         channel.ImmitateConnect();
 
         var transporter = new Transporter(channel);

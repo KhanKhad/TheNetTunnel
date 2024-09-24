@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Net;
-using TNT;
+using TNT.Core.Tcp;
+using TNT.Core.Api;
+using TNT.Core.Contract;
 
 namespace EX_1;
 
@@ -14,15 +16,21 @@ static class Program
         server.StartListening();
 
         Console.WriteLine("Type your messages:");
-        while (true)
-        {
-            var message = Console.ReadLine();
-            using var client = TntBuilder.UseContract<IExampleContract>()
-                .CreateTcpClientConnection(IPAddress.Loopback, 12345);
-            client.Contract.Send("Superman", message);
-        }
 
-        server.Close();
+        try
+        {
+            while (true)
+            {
+                var message = Console.ReadLine();
+                using var client = TntBuilder.UseContract<IExampleContract>()
+                    .CreateTcpClientConnection(IPAddress.Loopback, 12345);
+                client.Contract.Send("Superman", message);
+            }
+        }
+        finally
+        {
+            server.Close();
+        }
     }
 
 }

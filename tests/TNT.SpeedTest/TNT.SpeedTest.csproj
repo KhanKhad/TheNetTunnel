@@ -7,9 +7,5 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\TNT.Core\TNT.Core.csproj" />
   </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="protobuf-net" Version="2.4.0" />
-  </ItemGroup>
   
 </Project>

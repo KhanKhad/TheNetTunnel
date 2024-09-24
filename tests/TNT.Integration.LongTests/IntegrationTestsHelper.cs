@@ -8,9 +8,9 @@ using CommonTestTools.Contracts;
 using Moq;
 using Tnt.LongTests.ContractMocks;
 using TNT;
-using TNT.Api;
-using TNT.Presentation.Deserializers;
-using TNT.Presentation.Serializers;
+using TNT.Core.Api;
+using TNT.Core.Presentation.Deserializers;
+using TNT.Core.Presentation.Serializers;
 
 namespace Tnt.LongTests;
 

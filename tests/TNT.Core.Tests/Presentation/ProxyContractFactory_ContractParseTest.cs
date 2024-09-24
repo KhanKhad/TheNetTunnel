@@ -1,8 +1,8 @@
 ﻿using CommonTestTools;
 using CommonTestTools.Contracts;
 using NUnit.Framework;
-using TNT.Contract.Proxy;
-using TNT.Exceptions.ContractImplementation;
+using TNT.Core.Contract.Proxy;
+using TNT.Core.Exceptions.ContractImplementation;
 
 namespace TNT.Core.Tests.Presentation;
 

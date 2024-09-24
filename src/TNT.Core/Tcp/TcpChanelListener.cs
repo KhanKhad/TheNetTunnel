@@ -2,66 +2,64 @@ using System;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
-using TNT.Api;
+using TNT.Core.Api;
 
-namespace TNT.Tcp;
-
-public class TcpChanelListener : IChannelListener<TcpChannel>
+namespace TNT.Core.Tcp
 {
-    private readonly IPEndPoint _endpoint;
-
-    private TcpListener _listener = null;
-
-    public TcpChanelListener(IPEndPoint endpoint)
+    public class TcpChanelListener : IChannelListener<TcpChannel>
     {
-        _endpoint = endpoint;
-    }
+        private readonly IPEndPoint _endpoint;
 
-    public bool IsListening
-    {
-        get => _listener!= null;
-        set
+        private TcpListener _listener = null;
+
+        public TcpChanelListener(IPEndPoint endpoint)
         {
-            if(IsListening == value)
-                return;
-            if (value)
+            _endpoint = endpoint;
+        }
+
+        public bool IsListening
+        {
+            get => _listener!= null;
+            set
             {
-                _listener = new TcpListener(_endpoint);
-                _listener.Start();
-                var task = Listen();
-            }
-            else
-            {
-                _listener.Stop();
-                _listener = null;
+                if(IsListening == value) return;
+                if (value)
+                {
+                    _listener = new TcpListener(_endpoint);
+                    _listener.Start();
+
+                    var task = Listen();
+                }
+                else
+                {
+                    _listener.Stop();
+                    _listener = null;
+                }
             }
         }
-    }
 
-    async Task Listen()
-    {
-            
-        while (true)
+        private async Task Listen()
         {
-            var listener = _listener;
-            TcpClient client = null;
-            try
+            while (true)
             {
-                if (_listener == null)
+                var listener = _listener;
+                TcpClient client;
+                try
+                {
+                    if (_listener == null) return;
+                    client = await listener.AcceptTcpClientAsync();
+                }
+                catch (Exception)
+                {
                     return;
-                client = await listener.AcceptTcpClientAsync();
+                }
+                if (_listener == null) return;
+                var channel = new TcpChannel(client);
+                Accepted?.Invoke(this, channel);
             }
-            catch (ObjectDisposedException)
-            {
-                return;
-            }
-            if (_listener == null)
-                return;
-            var channel = new TcpChannel(client);
-            Accepted?.Invoke(this, channel);
         }
+
+        public event Action<IChannelListener<TcpChannel>, TcpChannel> Accepted;
+
     }
-
-    public event Action<IChannelListener<TcpChannel>, TcpChannel> Accepted;
-
 }

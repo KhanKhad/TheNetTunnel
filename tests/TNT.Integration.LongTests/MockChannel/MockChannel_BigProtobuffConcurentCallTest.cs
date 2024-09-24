@@ -4,10 +4,9 @@ using System.Threading.Tasks;
 using CommonTestTools;
 using NUnit.Framework;
 using Tnt.LongTests.ContractMocks;
-using TNT;
-using TNT.Api;
-using TNT.Presentation;
-using TNT.Testing;
+using TNT.Core.Api;
+using TNT.Core.Presentation;
+using TNT.Core.Testing;
 
 namespace Tnt.LongTests.MockChannel;
 
@@ -114,10 +113,10 @@ public class MockChannel_BigProtobuffConcurrentCallTest
 
         var origin = TntBuilder
             .UseContract<ISingleMessageContract<Company>, SingleMessageContract<Company>>()
-            .SetMaxAnsDelay(5 * 60 * 1000);
+            .SetMaxAnsTimeout(5 * 60 * 1000);
         var proxy = TntBuilder
             .UseContract<ISingleMessageContract<Company>>()
-            .SetMaxAnsDelay(5 * 60 * 1000);
+            .SetMaxAnsTimeout(5 * 60 * 1000);
 
         using var mockPair = new MockConnectionPair
         <ISingleMessageContract<Company>,
@@ -191,10 +190,10 @@ public class MockChannel_BigProtobuffConcurrentCallTest
     {
         var origin = TntBuilder
             .UseContract<ISingleMessageContract<Company>, SingleMessageContract<Company>>()
-            .SetMaxAnsDelay(5 * 60 * 1000);
+            .SetMaxAnsTimeout(5 * 60 * 1000);
         var proxy = TntBuilder
             .UseContract<ISingleMessageContract<Company>>()
-            .SetMaxAnsDelay(5 * 60 * 1000);
+            .SetMaxAnsTimeout(5 * 60 * 1000);
         using var tcpPair = new MockConnectionPair
         <ISingleMessageContract<Company>,
             ISingleMessageContract<Company>,
@@ -219,10 +218,10 @@ public class MockChannel_BigProtobuffConcurrentCallTest
     {
         var origin = TntBuilder
             .UseContract<ISingleMessageContract<Company>, SingleMessageContract<Company>>()
-            .SetMaxAnsDelay(5 * 60 * 1000);
+            .SetMaxAnsTimeout(5 * 60 * 1000);
         var proxy = TntBuilder
             .UseContract<ISingleMessageContract<Company>>()
-            .SetMaxAnsDelay(5 * 60 * 1000);
+            .SetMaxAnsTimeout(5 * 60 * 1000);
         using var tcpPair = new MockConnectionPair
         <ISingleMessageContract<Company>,
             ISingleMessageContract<Company>,

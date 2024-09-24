@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using TNT.Presentation;
+using TNT.Core.Presentation;
 
 namespace CommonTestTools;
 

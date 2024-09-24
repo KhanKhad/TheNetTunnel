@@ -1,23 +1,24 @@
 ﻿using System;
 
-namespace TNT.Exceptions.Local;
-
-public abstract class TntCallException: Exception
+namespace TNT.Core.Exceptions.Local
 {
-    protected TntCallException(
-        bool isFatal, 
-        short? messageId, 
-        short? askId, 
-        string message,
-        Exception innerException  = null)
-        :base(message, innerException)
+    public abstract class TntCallException: Exception
     {
-        IsFatal = isFatal;
-        MessageId = messageId;
-        AskId = askId;
-    }
+        protected TntCallException(
+            bool isFatal, 
+            short? messageId, 
+            short? askId, 
+            string message,
+            Exception innerException  = null)
+            :base(message, innerException)
+        {
+            IsFatal = isFatal;
+            MessageId = messageId;
+            AskId = askId;
+        }
 
-    public bool IsFatal { get; }
-    public short? MessageId { get; }
-    public short? AskId { get; }
+        public bool IsFatal { get; }
+        public short? MessageId { get; }
+        public short? AskId { get; }
+    }
 }

@@ -1,7 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Threading;
 using TNT.SpeedTest.Contracts;
-using TNT.Transport;
+using TNT.Core.Transport;
 
 namespace TNT.SpeedTest;
 

@@ -3,87 +3,93 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 
-namespace TNT.Presentation.Deserializers;
-
-public class ArrayDeserializer<T>: DeserializerBase<T> where T: class, IEnumerable
+namespace TNT.Core.Presentation.Deserializers
 {
-	public ArrayDeserializer(DeserializerFactory deserializerFactory)
+	public class ArrayDeserializer<T>: DeserializerBase<T> where T: class, IEnumerable
 	{
-		Size = null;
-		var eType = typeof(T).GetElementType ();
-		var gt = typeof(ArrayGenericDeserializer<>).MakeGenericType (eType);
-		genericDeserializer = Activator.CreateInstance (gt, deserializerFactory) as IArrayGenericDeserializer; 
+		public ArrayDeserializer(DeserializerFactory deserializerFactory)
+		{
+			Size = null;
+			var eType = typeof(T).GetElementType ();
+			var gt = typeof(ArrayGenericDeserializer<>).MakeGenericType (eType);
+			genericDeserializer = Activator.CreateInstance (gt, deserializerFactory) as IArrayGenericDeserializer; 
+		}
+
+		#region implemented abstract members of DeserializerBase
+
+		public override T DeserializeT (System.IO.Stream stream, int size)
+		{
+			return (T)genericDeserializer.Deserialize (stream, size);
+		}
+
+		#endregion
+
+	    readonly IArrayGenericDeserializer genericDeserializer;
+
 	}
 
-	#region implemented abstract members of DeserializerBase
-
-	public override T DeserializeT (System.IO.Stream stream, int size)
+	interface IArrayGenericDeserializer
 	{
-		return (T)genericDeserializer.Deserialize (stream, size);
+		object Deserialize (Stream stream,  int length);
 	}
 
-	#endregion
-
-	readonly IArrayGenericDeserializer genericDeserializer;
-
-}
-
-interface IArrayGenericDeserializer
-{
-	object Deserialize (Stream stream,  int length);
-}
-
-class ArrayGenericDeserializer<Telement>:IArrayGenericDeserializer 
-{
-	public ArrayGenericDeserializer(DeserializerFactory deserializerFactory)
+	class ArrayGenericDeserializer<Telement> : IArrayGenericDeserializer
 	{
-		memberDeserializer = deserializerFactory.Create (typeof(Telement)) as IDeserializer<Telement>;
+		private readonly byte[] _headBuffer4 = new byte[4];
 
-		if (memberDeserializer.Size.HasValue) {
-			FixSize = true;
-			memberSize = memberDeserializer.Size.Value;
+		public ArrayGenericDeserializer(DeserializerFactory deserializerFactory)
+		{
+			memberDeserializer = deserializerFactory.Create(typeof(Telement)) as IDeserializer<Telement>;
+
+			if (memberDeserializer.Size.HasValue)
+			{
+				FixSize = true;
+				memberSize = memberDeserializer.Size.Value;
+			}
+		}
+
+		IDeserializer<Telement> memberDeserializer;
+		int memberSize;
+		bool FixSize = false;
+
+		public object Deserialize(Stream stream, int lenght)
+		{
+			if (FixSize)
+				return DeserializeFix(stream, lenght);
+			else
+				return DeserializeDyn(stream, lenght);
+		}
+
+		Telement[] DeserializeFix(Stream stream, int lenght)
+		{
+			int ansLenght = (lenght) / memberSize;
+			Telement[] ans = new Telement[ansLenght];
+			for (int i = 0; i < ansLenght; i++)
+				ans[i] = memberDeserializer.DeserializeT(stream, memberSize);
+			return ans;
+		}
+
+		Telement[] DeserializeDyn(Stream stream, int lenght)
+		{
+			List<Telement> ans = new List<Telement>();
+
+			int sPos = (int)stream.Position;
+			while (stream.Position < sPos + lenght)
+			{
+
+				stream.Read(_headBuffer4, 0, 4);
+
+				var eSize = BitConverter.ToInt32(_headBuffer4, 0);//Every element has 4byte size head
+				if (eSize > stream.Length - stream.Position)
+					throw new Exception("invalid array member size");
+
+				var e = memberDeserializer.DeserializeT(stream, eSize);
+
+				ans.Add(e);
+			}
+
+			return ans.ToArray();
 		}
 	}
-
-	readonly IDeserializer<Telement> memberDeserializer;
-	readonly int memberSize;
-	readonly bool FixSize = false;
-
-	public object  Deserialize (Stream stream,  int lenght)
-	{
-		if (FixSize)
-			return DeserializeFix (stream, lenght);
-		else
-			return DeserializeDyn (stream, lenght);
-	}
-
-	Telement[] DeserializeFix(Stream stream, int lenght)
-	{
-		int ansLenght = (lenght) / memberSize;
-		Telement[] ans = new Telement[ansLenght];
-		for (int i = 0; i < ansLenght; i++)
-			ans[i] =memberDeserializer.DeserializeT (stream, memberSize);
-		return ans;
-	}
-
-	Telement[] DeserializeDyn(Stream stream, int lenght)
-	{
-		List<Telement> ans = new List<Telement> ();
-		byte[] arr = new byte[4];
-		int sPos = (int)stream.Position;
-		while(stream.Position< sPos+lenght) {
-
-			stream.Read (arr, 0, 4);
-
-			var eSize = BitConverter.ToInt32 (arr,0);//Every element has 4byte size head
-			if (eSize > stream.Length - stream.Position)
-				throw new Exception ("invalid array member size");
-
-			var e = memberDeserializer.DeserializeT (stream, eSize);
-			
-			ans.Add (e);
-
-		}
-		return ans.ToArray ();
-	}
 }
+

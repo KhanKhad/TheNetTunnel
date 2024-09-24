@@ -1,6 +1,7 @@
 ﻿
 
 using System;
+using TNT.Core.Contract;
 
 namespace TNT.SpeedTest.Contracts;
 

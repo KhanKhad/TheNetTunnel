@@ -1,225 +1,265 @@
 ﻿using System;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
-using TNT.Exceptions.Local;
-using TNT.Presentation;
-using TNT.Transport;
+using TNT.Core.Exceptions.Local;
+using TNT.Core.Presentation;
+using TNT.Core.Transport;
 
-namespace TNT.Tcp;
-
-public class TcpChannel : IChannel
+namespace TNT.Core.Tcp
 {
-    private bool _wasConnected = false;
-
-    private bool allowReceive = false;
-    /// <summary>
-    /// Actualy bool type. 
-    /// </summary>
-    private int disconnectIsHandled = 0;
-    private bool readWasStarted = false;
-    private int _bytesReceived;
-    private int _bytesSent;
-
-    public TcpChannel(IPAddress address, int port) 
+    public class TcpChannel : IChannel
     {
-        Client = new TcpClient();
-        Client.ConnectAsync(address, port).Wait();
-        _wasConnected = Client.Connected;
-        SetEndPoints();
-    }
-    public TcpChannel(TcpClient client)
-    {
-        Client = client;
-        _wasConnected = client.Connected;
-        SetEndPoints();
-    }
-    
-    public TcpChannel()
-    {
-        Client = new TcpClient();
-    }
+        private bool _wasConnected = false;
 
-    public int BytesReceived => _bytesReceived;
+        private bool allowReceive = false;
 
-    public int BytesSent => _bytesSent;
+        /// <summary>
+        /// Actualy bool type. 
+        /// </summary>
+        private int disconnectIsHandled = 0;
+        private CancellationToken _disconnectCancellationToken;
+        private CancellationTokenSource _disconnectToken;
 
-    public string RemoteEndpointName { get; private set; }
-    public string LocalEndpointName { get; private set; }
+        private bool readWasStarted = false;
+        private int _bytesReceived = 0;
+        private int _bytesSent;
 
-    public bool IsConnected => Client != null && Client.Connected;
-
-    /// <summary>
-    /// Can LClient-user can handle messages now?.
-    /// </summary>
-    public bool AllowReceive
-    {
-        get => allowReceive;
-        set
+        public TcpChannel(IPAddress address, int port) : this(new TcpClient(new IPEndPoint(address, port)))
         {
-            if (allowReceive != value)
+
+        }
+
+        public TcpChannel(TcpClient client)
+        {
+            Client = client;
+            _wasConnected = client.Connected;
+            SetEndPoints();
+        }
+
+        public TcpChannel()
+        {
+            Client = new TcpClient();
+        }
+
+        public int BytesReceived => _bytesReceived;
+
+        public int BytesSent => _bytesSent;
+
+        public string RemoteEndpointName { get; private set; }
+        public string LocalEndpointName { get; private set; }
+
+        public bool IsConnected => Client != null && Client.Connected;
+
+        /// <summary>
+        /// Can LClient-user can handle messages now?.
+        /// </summary>
+        public bool AllowReceive
+        {
+            get => allowReceive;
+            set
             {
+                if (allowReceive == value)
+                    return;
                 allowReceive = value;
                 if (value)
                 {
                     if (!readWasStarted)
                     {
                         readWasStarted = true;
-                        NetworkStream networkStream = Client.GetStream();
-                        var recTask = Receiving(networkStream);
+                        _buffer = new byte[Client.ReceiveBufferSize];
+                        _disconnectToken = new CancellationTokenSource();
+                        _disconnectCancellationToken = _disconnectToken.Token;
+                        //start async read operation.
+                        //IOException
+                        _ = ReadAsync(_disconnectToken.Token);
                     }
                 }
                 if (!value)
                 {
-                    throw new InvalidOperationException("Recceiving cannot be stoped");
+                    throw new InvalidOperationException("Receiving cannot be stoped");
                 }
             }
         }
-    }
 
-    async Task Receiving(NetworkStream stream )
-    {
-        byte[] buffer = new byte[Client.ReceiveBufferSize];
-        try
-        { 
-            while (true)
-            {
-                var bytesToRead =  await stream.ReadAsync(buffer, 0, buffer.Length);
 
-                if (bytesToRead == 0)
-                {
-                    Disconnect();
-                    return;
-                }
-                var readed = new byte[bytesToRead];
-                Buffer.BlockCopy(buffer, 0, readed, 0, bytesToRead);
+        public TcpClient Client { get; }
 
-                unchecked
-                {
-                    _bytesReceived += bytesToRead;
-                }
-                OnReceive?.Invoke(this, readed);
-            }
-        }
-        catch(Exception e)
+        public event Action<object, byte[]> OnReceive;
+        public event Action<object, ErrorMessage> OnDisconnect;
+        private byte[] _buffer;
+        public async Task ConnectAsync(IPEndPoint endPoint)
         {
-            Disconnect();
+            await Client.ConnectAsync(endPoint.Address, endPoint.Port);
+            _wasConnected = IsConnected;
+            AllowReceive = true;
+            SetEndPoints();
         }
-    }
+        public void Connect(IPEndPoint endPoint)
+        {
+            this.Client.Connect(endPoint);
+            _wasConnected = IsConnected;
+            AllowReceive = true;
+            SetEndPoints();
+        }
 
-    public TcpClient Client { get; }
+        public void DisconnectBecauseOf(ErrorMessage errorOrNull)
+        {
+            //Thread race state. 
+            //AsyncWrite, AsyncRead and main disconnect reason are in concurrence
 
-    public event Action<object, byte[]> OnReceive;
-    public event Action<object, ErrorMessage> OnDisconnect;
+            if (Interlocked.CompareExchange(ref disconnectIsHandled, 1, 0) == 1)
+                return;
 
-    public void Connect(IPEndPoint endPoint)
-    {
-        this.Client.ConnectAsync(endPoint.Address, endPoint.Port).Wait();
-        _wasConnected = IsConnected;
-        AllowReceive = true;
-        SetEndPoints();
-    }
-    public void DisconnectBecauseOf(ErrorMessage errorOrNull)
-    {
-        //Thread race state. 
-        //AsyncWrite, AsyncRead and main disconnect reason are in concurrence
+            allowReceive = false;
+            _disconnectToken.Cancel();
+            _disconnectToken.Dispose();
+            _disconnectToken = null;
+            if (Client.Connected)
+            {
+                try
+                {
+                    Client.Close();
+                }
+                catch
+                {
+                    /* ignored*/
+                }
+            }
+            OnDisconnect?.Invoke(this, errorOrNull);
+        }
 
-        //if(disconnectIsHandled==0) disconnectIsHandled = 1; 
-        //else return;
-        if (Interlocked.CompareExchange(ref disconnectIsHandled, 1, 0) == 1)
-            return;
+        public void Disconnect()
+        {
+            DisconnectBecauseOf(null);
+        }
 
-        allowReceive = false;
+        /// <summary>
+        /// Writes the data to underlying channel
+        /// </summary>
+        ///<exception cref="ConnectionIsLostException"></exception>
+        ///<exception cref="ArgumentNullException"></exception>
+        public async Task WriteAsync(byte[] data, int offset, int length)
+        {
+            if (!_wasConnected)
+                throw new ConnectionIsNotEstablishedYet("tcp channel was not connected yet");
 
-        if (Client.Connected)
+            if (!Client.Connected)
+            {
+                DisconnectBecauseOf(new ErrorMessage()
+                {
+                    ErrorType = Exceptions.Remote.ErrorType.ConnectionAlreadyLost,
+                    AdditionalExceptionInformation = "Connection already lost"
+                });
+                return;
+            }
+
+            try
+            {
+                var networkStream = Client.GetStream();
+                //According to msdn, the WriteAsync call is thread-safe.
+                //No need to use lock
+                await networkStream.WriteAsync(data, offset, length, _disconnectCancellationToken).ConfigureAwait(false);
+                Interlocked.Add(ref _bytesSent, length);
+            }
+            catch (Exception e)
+            {
+                Disconnect();
+                throw new ConnectionIsLostException(innerException: e,
+                    message: "Write operation was failed");
+            }
+        }
+
+        public void Write(byte[] data, int offset, int length)
+        {
+            if (!_wasConnected)
+                throw new ConnectionIsNotEstablishedYet("tcp channel was not connected yet");
+
+            if (!Client.Connected)
+            {
+                DisconnectBecauseOf(new ErrorMessage()
+                {
+                    ErrorType = Exceptions.Remote.ErrorType.ConnectionAlreadyLost,
+                    AdditionalExceptionInformation = "Connection already lost"
+                });
+                return;
+            }
+
+            try
+            {
+                var networkStream = Client.GetStream();
+                //According to msdn, the WriteAsync call is thread-safe.
+                //No need to use lock
+                _ = WriteAsync(data, offset, length);
+
+                Interlocked.Add(ref _bytesSent, length);
+            }
+            catch (Exception e)
+            {
+                Disconnect();
+                throw new ConnectionIsLostException(innerException: e,
+                    message: "Write operation was failed");
+            }
+        }
+
+        private async Task ReadAsync(CancellationToken token)
         {
             try
             {
-                Client.Dispose();
+                var networkStream = Client.GetStream();
+                while (true)
+                {
+                    if (!Client.Connected)
+                        return;
+
+                    var bytesToRead = await networkStream.ReadAsync(_buffer, token).ConfigureAwait(false);
+                    if (bytesToRead == 0)
+                        throw new InvalidOperationException("Socket is closed");
+
+                    unchecked
+                    {
+                        _bytesReceived += bytesToRead;
+                    }
+
+                    var readed = _buffer.AsSpan(0, bytesToRead).ToArray();
+
+                    OnReceive?.Invoke(this, readed);
+                }
             }
-            catch { /* ignored*/ }
-        }
-        OnDisconnect?.Invoke(this, errorOrNull);
-    }
-    public void Disconnect()
-    {
-        DisconnectBecauseOf(null);
-    }
-
-    readonly object locker = new object();
-    public  Task WriteAsync(byte[] data)
-    {
-        if (!_wasConnected)
-            throw new ConnectionIsNotEstablishedYet("tcp channel was not connected yet");
-
-        if (!Client.Connected)
-            throw new ConnectionIsLostException("tcp channel is not connected");
-
-        try
-        {
-            lock (locker)
+            catch
             {
-                NetworkStream networkStream = Client.GetStream();
-
-                //According to msdn, the WriteAsync call is thread-safe.
-                //No need to use lock
-                var ans = networkStream.WriteAsync(data, 0, data.Length);
-
-                Interlocked.Add(ref _bytesSent, data.Length);
-                return ans;
+                Disconnect();
             }
         }
-        catch (Exception e)
+
+        private void SetEndPoints()
         {
-            Disconnect();
-            throw new ConnectionIsLostException(innerException: e,
-                message: "Write operation was failed");
+            if (!IsConnected) return;
+
+            RemoteEndpointName = EndPointToText(Client.Client.RemoteEndPoint);
+            LocalEndpointName  = EndPointToText(Client.Client.LocalEndPoint);
         }
-    }
 
-    readonly object writeLocker = new object();
-    /// <summary>
-    /// Writes the data to underlying channel
-    /// </summary>
-    ///<exception cref="ConnectionIsLostException"></exception>
-    ///<exception cref="ArgumentNullException"></exception>
-    public void Write(byte[] data, int offset, int length)
-    {
-        if (!_wasConnected)
-            throw new ConnectionIsNotEstablishedYet("tcp channel was not connected yet");
-
-        if (!Client.Connected)
-            throw new ConnectionIsLostException("tcp channel is not connected");
-
-        try
+        private string EndPointToText(EndPoint endPoint)
         {
+            var endPointText = endPoint.ToString();
+            var resultChars = new char[endPointText.Length];
+            var forbiddenSymbols = new [] { 'f', '[', ']', ':'};
 
-            NetworkStream networkStream = Client.GetStream();
-            Task writeTask = null;
-            lock (writeLocker)
+            for (var i = 0; i < endPointText.Length; i++)
             {
-                writeTask = networkStream.WriteAsync(data, offset, length);
-                writeTask.Wait();
+                if (endPointText[i] == ']')
+                {
+                    resultChars[i] = ':';
+                }
+                else if (!forbiddenSymbols.Contains(endPointText[i]))
+                {
+                    resultChars[i] = endPointText[i];
+                }
             }
-            Interlocked.Add(ref _bytesSent, length);
-        }
-        catch (Exception e)
-        {
-            Disconnect();
-            throw new ConnectionIsLostException(innerException: e,
-                message: "Write operation was failed");
-        }
-    }
-
-    readonly object _writeLocker = new object();
-
-    void SetEndPoints()
-    {
-        if (IsConnected)
-        {
-            RemoteEndpointName = Client.Client.RemoteEndPoint.ToString();
-            LocalEndpointName = Client.Client.LocalEndPoint.ToString();
+            return new string(resultChars);
         }
     }
 }

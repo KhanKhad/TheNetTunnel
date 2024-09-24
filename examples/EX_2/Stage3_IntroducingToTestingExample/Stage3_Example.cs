@@ -1,7 +1,9 @@
 ﻿using System;
 using TNT;
-using TNT.Presentation.ReceiveDispatching;
-using TNT.Testing;
+using TNT.Core.Api;
+using TNT.Core.Contract;
+using TNT.Core.Presentation.ReceiveDispatching;
+using TNT.Core.Testing;
 
 namespace EX_2.Stage3_IntroducingToTestingExample;
 
@@ -25,7 +27,7 @@ public class Stage3_Example
 
         var clientConnection = TntBuilder
             .UseContract<IStage3EchoContract>()
-            .UseChannel(new TestChannel())
+            .UseChannel(TestChannel.CreateThreadSafe())
             .Build();
         //Immitate connection:
         server.TestListener.ImmitateAccept(clientConnection.Channel);

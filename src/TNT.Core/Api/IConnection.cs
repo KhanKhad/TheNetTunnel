@@ -1,14 +1,12 @@
 ﻿using System;
-using TNT.Transport;
+using TNT.Core.Transport;
 
-namespace TNT.Api;
-
-public interface IConnection<out TContract, out TChannel> : IDisposable
-    where TChannel : IChannel
+namespace TNT.Core.Api
 {
-    TChannel Channel { get; }
-    
-    TContract Contract { get; }
-
-    void Dispose();
+    public interface IConnection<out TContract, out TChannel> : IDisposable
+        where TChannel : IChannel
+    {
+        TChannel Channel { get; }
+        TContract Contract { get; }
+    }
 }

@@ -1,10 +1,11 @@
-namespace TNT.Exceptions.Remote;
-
-public class RemoteContractImplementationException : RemoteException
+namespace TNT.Core.Exceptions.Remote
 {
-    public RemoteContractImplementationException(short messageId, short? askId, bool isFatal,   string message = null) 
-        : base(ErrorType.ContractSignatureError, isFatal, messageId, askId, message)
+    public class RemoteContractImplementationException : RemoteException
     {
-    }
+        public RemoteContractImplementationException(short messageId, short? askId, bool isFatal,   string message = null) 
+            : base(ErrorType.ContractSignatureError, isFatal, messageId, askId, message)
+        {
+        }
 
+    }
 }

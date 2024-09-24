@@ -1,15 +1,16 @@
-namespace TNT.Presentation;
-
-public class RequestMessage
+namespace TNT.Core.Presentation
 {
-    public RequestMessage(short typeId, short? askId, object[] arguments)
+    public class RequestMessage
     {
-        Arguments = arguments;
-        TypeId = typeId;
-        AskId = askId;
-    }
+        public RequestMessage(short typeId, short? askId, object[] arguments)
+        {
+            Arguments = arguments;
+            TypeId = typeId;
+            AskId = askId;
+        }
 
-    public short TypeId { get; }
-    public short? AskId { get; }
-    public object[] Arguments { get; }
+        public short TypeId { get; }
+        public short? AskId { get; }
+        public object[] Arguments { get; }
+    }
 }

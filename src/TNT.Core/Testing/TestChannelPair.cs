@@ -1,46 +1,47 @@
-﻿namespace TNT.Testing;
-
-public class TestChannelPair
+﻿namespace TNT.Core.Testing
 {
-    public TestChannelPair(TestChannel channelA, TestChannel channelB)
+    public class TestChannelPair
     {
-        ChannelA = channelA;
-        ChannelB = channelB;
-        _fromAToB = new OneSideConnection(ChannelA, channelB);
-        _fromBToA = new OneSideConnection(ChannelB, channelA);
-    }
+        public TestChannelPair(TestChannel cahnnelA, TestChannel channelB)
+        {
+            ChannelA = cahnnelA;
+            ChannelB = channelB;
+            FromAToB = new OneSideConnection(ChannelA, channelB);
+            FromBToA = new OneSideConnection(ChannelB, cahnnelA);
+        }
 
-    private readonly OneSideConnection _fromAToB;
-    private readonly OneSideConnection _fromBToA;
+        private OneSideConnection FromAToB;
+        private OneSideConnection FromBToA;
         
-    public TestChannel ChannelA { get; }
-    public TestChannel ChannelB { get; }
+        public TestChannel ChannelA { get; }
+        public TestChannel ChannelB { get; }
 
-    public bool IsConnected { get; private set; }
+        public bool IsConnected { get; private set; }
 
-    public void Connect()
-    {
-        ChannelA.ImmitateConnect();
-        ChannelB.ImmitateConnect();
-        _fromAToB.Start();
-        _fromBToA.Start();
-        IsConnected = true;
-    }
+        public void Connect()
+        {
+            ChannelA.ImmitateConnect();
+            ChannelB.ImmitateConnect();
+            FromAToB.Start();
+            FromBToA.Start();
+            IsConnected = true;
+        }
 
-    public void ConnectAndStartReceiving()
-    {
-        Connect();
-        ChannelB.AllowReceive = true;
-        ChannelA.AllowReceive = true;
-    }
+        public void ConnectAndStartReceiving()
+        {
+            Connect();
+            ChannelB.AllowReceive = true;
+            ChannelA.AllowReceive = true;
+        }
 
-    public void Disconnect()
-    {
-        _fromAToB.Stop();
-        _fromBToA.Stop();
-        ChannelB.ImmitateDisconnect();
-        ChannelA.ImmitateDisconnect();
-        IsConnected = false;
+        public void Disconnect()
+        {
+            FromAToB.Stop();
+            FromBToA.Stop();
+            ChannelB.ImmitateDisconnect();
+            ChannelA.ImmitateDisconnect();
+            IsConnected = false;
 
+        }
     }
 }

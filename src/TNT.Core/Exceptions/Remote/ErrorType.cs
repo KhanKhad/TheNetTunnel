@@ -1,8 +1,11 @@
-﻿namespace TNT.Exceptions.Remote;
-
-public enum ErrorType
+﻿namespace TNT.Core.Exceptions.Remote
 {
-    UnhandledUserExceptionError = 3,
-    SerializationError = 5,
-    ContractSignatureError = 6,
+    public enum ErrorType
+    {
+        UnhandledUserExceptionError    = 3,
+        SerializationError             = 5,
+        ContractSignatureError         = 6,
+        MaxNumberOfConnectionsExceeded = 7,
+        ConnectionAlreadyLost          = 8,
+    }
 }

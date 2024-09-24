@@ -3,8 +3,9 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Net.Sockets;
-using TNT.Tcp;
-using TNT.Transport;
+using TNT.Core.Transport;
+using TNT.Core.Testing;
+using TNT.Core.Tcp;
 
 namespace Tnt.LongTests;
 
@@ -15,7 +16,7 @@ public class TransporterConcurrentTest
     // [TestCase(1000000, 100)]
     public void SendsAndReceivesViaMockConnection(int length, int ConcurrentLevel)
     {
-        var pair = TNT.Testing.TntTestHelper.CreateChannelPair();
+        var pair = TntTestHelper.CreateThreadSafeChannelPair();
 
         pair.ConnectAndStartReceiving();
 

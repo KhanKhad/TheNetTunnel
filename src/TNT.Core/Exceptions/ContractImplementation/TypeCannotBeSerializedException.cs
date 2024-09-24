@@ -1,16 +1,17 @@
 ﻿using System;
 
-namespace TNT.Exceptions.ContractImplementation;
-
-public class TypeCannotBeSerializedException : Exception
+namespace TNT.Core.Exceptions.ContractImplementation
 {
-    private readonly Type _t;
-
-    public TypeCannotBeSerializedException(Type t) :
-        base("Type " + t.Name + " cannot be seserialized.")
+    public class TypeCannotBeSerializedException : Exception
     {
-        _t = t;
-    }
+        private readonly Type _t;
 
-    public Type TypeCannotBeSerialized => _t;
+        public TypeCannotBeSerializedException(Type t) :
+            base("Type " + t.Name + " cannot be seserialized.")
+        {
+            _t = t;
+        }
+
+        public Type TypeCannotBeSerialized => _t;
+    }
 }

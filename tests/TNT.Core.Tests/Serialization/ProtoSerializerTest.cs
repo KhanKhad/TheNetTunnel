@@ -2,8 +2,8 @@
 using System.Linq;
 using NUnit.Framework;
 using ProtoBuf;
-using TNT.Presentation.Deserializers;
-using TNT.Presentation.Serializers;
+using TNT.Core.Presentation.Deserializers;
+using TNT.Core.Presentation.Serializers;
 
 namespace TNT.Core.Tests.Serialization;
 

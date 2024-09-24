@@ -2,7 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Net.Sockets;
-using TNT.Tcp;
+using TNT.Core.Tcp;
 
 namespace Tnt.LongTests;
 

@@ -1,33 +1,34 @@
 ﻿using System;
 
-namespace TNT.Presentation.Serializers;
-
-public class SerializationRule
+namespace TNT.Core.Presentation.Serializers
 {
-    private readonly Predicate<Type> _rule;
-    private readonly Func<Type, SerializerFactory, ISerializer> _serializerLocator;
-
-    public SerializationRule(Predicate<Type> rule, Func<Type, SerializerFactory, ISerializer> serializerLocator)
+    public class SerializationRule
     {
-        _rule = rule;
-        _serializerLocator = serializerLocator;
-    }
+        private readonly Predicate<Type> _rule;
+        private readonly Func<Type, SerializerFactory, ISerializer> _serializerLocator;
 
-    public SerializationRule(Predicate<Type> rule, Func<Type, ISerializer> serializerLocator)
-    {
-        _rule = rule;
-        _serializerLocator = (t,f)=> serializerLocator(t);
-    }
+        public SerializationRule(Predicate<Type> rule, Func<Type, SerializerFactory, ISerializer> serializerLocator)
+        {
+            _rule = rule;
+            _serializerLocator = serializerLocator;
+        }
 
-    public static SerializationRule Create<T>(ISerializer<T> serializer)
-    {
-        return new SerializationRule((t)=> t == typeof(T),(t)=>serializer);
-    }
+        public SerializationRule(Predicate<Type> rule, Func<Type, ISerializer> serializerLocator)
+        {
+            _rule = rule;
+            _serializerLocator = (t,f)=> serializerLocator(t);
+        }
 
-    public Predicate<Type> Rule => _rule;
+        public static SerializationRule Create<T>(ISerializer<T> serializer)
+        {
+            return new SerializationRule((t)=> t == typeof(T),(t)=>serializer);
+        }
 
-    public ISerializer GetSerializer(Type type, SerializerFactory factory)
-    {
-        return _serializerLocator(type, factory);
+        public Predicate<Type> Rule => _rule;
+
+        public ISerializer GetSerializer(Type type, SerializerFactory factory)
+        {
+            return _serializerLocator(type, factory);
+        }
     }
 }

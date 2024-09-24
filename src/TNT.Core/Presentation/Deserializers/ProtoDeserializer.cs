@@ -1,21 +1,20 @@
 ﻿using ProtoBuf;
-using ProtoBuf.Meta;
 
-namespace TNT.Presentation.Deserializers;
-
-public class ProtoDeserializer<T>: DeserializerBase<T>
-	where T: new()
+namespace TNT.Core.Presentation.Deserializers
 {
-	private TypeModel _model;
+	public class ProtoDeserializer<T>: DeserializerBase<T>
+        where T: new()
+    {
+	    public ProtoDeserializer()
+		{
+			Size = null;
+        }
 
-	public ProtoDeserializer()
-	{
-		Size = null;
-	}
-
-	public override T DeserializeT (System.IO.Stream stream, int size)
-	{
-		var ans = ProtoBuf.Serializer.DeserializeWithLengthPrefix<T>(stream, PrefixStyle.Fixed32);
-		return ans;
+		public override T DeserializeT (System.IO.Stream stream, int size)
+		{
+            var ans = ProtoBuf.Serializer.DeserializeWithLengthPrefix<T>(stream, PrefixStyle.Fixed32);
+            return ans;
+		}
 	}
 }
+

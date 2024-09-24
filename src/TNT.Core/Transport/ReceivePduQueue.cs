@@ -2,97 +2,98 @@
 using System.IO;
 using System.Linq;
 
-namespace TNT.Transport;
-
-public class ReceivePduQueue
+namespace TNT.Core.Transport
 {
-    private const int LengthHeadeLength = sizeof(int);
-
-    private readonly Queue<MemoryStream> _queue = new Queue<MemoryStream>();
-
-    private MemoryStream _collectingPacket = null;
-    private int _awaitedLength = 0;
-    private readonly List<byte> _undoneheader = new List<byte>(LengthHeadeLength);
-    void Enqueue(byte[] data, int offset)
+    public class ReceivePduQueue
     {
-        if(data.Length==offset)
-            return;
+        private const int LengthHeadeLength = sizeof(int);
 
-        if (_collectingPacket != null)
+        private readonly Queue<MemoryStream> _queue = new Queue<MemoryStream>();
+
+        private MemoryStream _collectingPacket = null;
+        private int _awaitedLength = 0;
+        private readonly List<byte> _undoneheader = new List<byte>(LengthHeadeLength);
+        void Enqueue(byte[] data, int offset)
         {
-            ContinueHandlePacket(data, offset);
-            return;
-        }
+            if(data.Length==offset)
+                return;
 
-        int left = data.Length - offset;
-
-        if (_undoneheader.Count == 0)
-        {
-            if (left >= LengthHeadeLength)
+            if (_collectingPacket != null)
             {
-                _awaitedLength = data.ToStruct<int>(offset);
-                StartHandlePacket(data, offset + LengthHeadeLength);
+                ContinueHandlePacket(data, offset);
+                return;
+            }
+
+            int left = data.Length - offset;
+
+            if (_undoneheader.Count == 0)
+            {
+                if (left >= LengthHeadeLength)
+                {
+                    _awaitedLength = data.ToStruct<int>(offset);
+                    StartHandlePacket(data, offset + LengthHeadeLength);
+                }
+                else
+                {
+                    _undoneheader.AddRange(data.Skip(offset));
+                }
+                return;
+            }
+
+            var awaitOfHead = LengthHeadeLength - _undoneheader.Count;
+            if (awaitOfHead <= left)
+            {
+                _undoneheader.AddRange(data.Skip(offset).Take(awaitOfHead));
+                _awaitedLength = _undoneheader.ToArray().ToStruct<int>(0);
+                _undoneheader.Clear();
+                StartHandlePacket(data, offset + awaitOfHead);
             }
             else
             {
                 _undoneheader.AddRange(data.Skip(offset));
             }
-            return;
         }
 
-        var awaitOfHead = LengthHeadeLength - _undoneheader.Count;
-        if (awaitOfHead <= left)
+        private void StartHandlePacket(byte[] data, int offset)
         {
-            _undoneheader.AddRange(data.Skip(offset).Take(awaitOfHead));
-            _awaitedLength = _undoneheader.ToArray().ToStruct<int>(0);
-            _undoneheader.Clear();
-            StartHandlePacket(data, offset + awaitOfHead);
+            _collectingPacket = new MemoryStream(_awaitedLength);
+            ContinueHandlePacket(data, offset);
         }
-        else
+
+        private void ContinueHandlePacket(byte[] data, int dataOffset)
         {
-            _undoneheader.AddRange(data.Skip(offset));
+            int dataLeft = data.Length - dataOffset;
+
+            if (dataLeft < _awaitedLength)
+            {
+                _collectingPacket.Write(data, dataOffset, dataLeft);
+                _awaitedLength -= dataLeft;
+            }
+            else
+            {
+                //packet finished.
+                _collectingPacket.Write(data, dataOffset, _awaitedLength);
+                _collectingPacket.Position = 0;
+                _queue.Enqueue(_collectingPacket);
+                _collectingPacket = null;
+                var nextPackOffset = dataOffset + _awaitedLength;
+                _awaitedLength = 0;
+                Enqueue(data, nextPackOffset);
+            }
         }
-    }
 
-    private void StartHandlePacket(byte[] data, int offset)
-    {
-        _collectingPacket = new MemoryStream(_awaitedLength);
-        ContinueHandlePacket(data, offset);
-    }
-
-    private void ContinueHandlePacket(byte[] data, int dataOffset)
-    {
-        int dataLeft = data.Length - dataOffset;
-
-        if (dataLeft < _awaitedLength)
+        public void Enqueue(byte[] data)
         {
-            _collectingPacket.Write(data, dataOffset, dataLeft);
-            _awaitedLength -= dataLeft;
+            Enqueue(data, 0);
         }
-        else
-        {
-            //packet finished.
-            _collectingPacket.Write(data, dataOffset, _awaitedLength);
-            _collectingPacket.Position = 0;
-            _queue.Enqueue(_collectingPacket);
-            _collectingPacket = null;
-            var nextPackOffset = dataOffset + _awaitedLength;
-            _awaitedLength = 0;
-            Enqueue(data, nextPackOffset);
-        }
-    }
-
-    public void Enqueue(byte[] data)
-    {
-        Enqueue(data, 0);
-    }
         
-    public bool IsEmpty => _queue.Count == 0;
+        public bool IsEmpty => _queue.Count == 0;
 
-    public MemoryStream DequeueOrNull()
-    {
-        if(_queue.Count>0)
-            return _queue.Dequeue();
-        return null;
+        public MemoryStream DequeueOrNull()
+        {
+            if(_queue.Count>0)
+                return _queue.Dequeue();
+            return null;
+        }
     }
 }

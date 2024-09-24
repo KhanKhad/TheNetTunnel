@@ -1,12 +1,13 @@
 ﻿using System;
 using System.Reflection;
 
-namespace TNT.Presentation;
-
-public static class PresentationHelper
+namespace TNT.Core.Presentation
 {
-    public static bool IsNulable(this Type type)
+    public static class PresentationHelper
     {
-        return type.GetTypeInfo().IsGenericType && type.GetGenericTypeDefinition() == typeof(Nullable<>);
+        public static bool IsNulable(this Type type)
+        {
+            return type.GetTypeInfo().IsGenericType && type.GetGenericTypeDefinition() == typeof(Nullable<>);
+        }
     }
 }

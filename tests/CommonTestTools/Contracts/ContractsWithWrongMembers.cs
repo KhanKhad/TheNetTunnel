@@ -1,5 +1,5 @@
 ﻿using System;
-using TNT;
+using TNT.Core.Contract;
 
 namespace CommonTestTools.Contracts;
 

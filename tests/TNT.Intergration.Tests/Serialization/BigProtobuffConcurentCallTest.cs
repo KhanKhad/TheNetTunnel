@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using CommonTestTools;
 using NUnit.Framework;
-using TNT.Api;
-using TNT.Presentation;
-using TNT.Tcp;
+using TNT.Core.Api;
+using TNT.Core.Presentation;
+using TNT.Core.Tcp;
 
 namespace TNT.IntegrationTests.Serialization;
 
@@ -123,10 +123,10 @@ public class BigProtobuffConcurrentCallTest
 
         var origin = TntBuilder
             .UseContract<ISingleMessageContract<Company>, SingleMessageContract<Company>>()
-            .SetMaxAnsDelay(5 * 60 * 1000);
+            .SetMaxAnsTimeout(5 * 60 * 1000);
         var proxy = TntBuilder
             .UseContract<ISingleMessageContract<Company>>()
-            .SetMaxAnsDelay(5 * 60 * 1000);
+            .SetMaxAnsTimeout(5 * 60 * 1000);
 
         using var tcpPair = new TcpConnectionPair
         <ISingleMessageContract<Company>,
@@ -208,10 +208,10 @@ public class BigProtobuffConcurrentCallTest
     {
         var origin = TntBuilder
             .UseContract<ISingleMessageContract<Company>, SingleMessageContract<Company>>()
-            .SetMaxAnsDelay(5 * 60 * 1000);
+            .SetMaxAnsTimeout(5 * 60 * 1000);
         var proxy = TntBuilder
             .UseContract<ISingleMessageContract<Company>>()
-            .SetMaxAnsDelay(5 * 60 * 1000);
+            .SetMaxAnsTimeout(5 * 60 * 1000);
         using var tcpPair = new TcpConnectionPair
         <ISingleMessageContract<Company>,
             ISingleMessageContract<Company>,
@@ -236,10 +236,10 @@ public class BigProtobuffConcurrentCallTest
     {
         var origin = TntBuilder
             .UseContract<ISingleMessageContract<Company>, SingleMessageContract<Company>>()
-            .SetMaxAnsDelay(5 * 60 * 1000);
+            .SetMaxAnsTimeout(5 * 60 * 1000);
         var proxy = TntBuilder
             .UseContract<ISingleMessageContract<Company>>()
-            .SetMaxAnsDelay(5 * 60 * 1000);
+            .SetMaxAnsTimeout(5 * 60 * 1000);
         using var tcpPair = new TcpConnectionPair
         <ISingleMessageContract<Company>,
             ISingleMessageContract<Company>,

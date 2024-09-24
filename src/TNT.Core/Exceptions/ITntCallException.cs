@@ -1,8 +1,9 @@
-﻿namespace TNT.Exceptions;
-
-public interface ITntCallException
+﻿namespace TNT.Core.Exceptions
 {
-    bool IsFatal { get; }
-    short? MessageId { get; }
-    short? AskId { get; }
+    public interface ITntCallException
+    {
+        bool IsFatal { get; }
+        short? MessageId { get; }
+        short? AskId { get; }
+    }
 }

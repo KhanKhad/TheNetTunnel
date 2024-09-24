@@ -1,11 +1,13 @@
-﻿namespace TNT.Exceptions.Local;
-
-public class ConnectionIsNotEstablishedYet: ConnectionIsLostException
+﻿namespace TNT.Core.Exceptions.Local
 {
-    public ConnectionIsNotEstablishedYet(
-        string message = null, short? messageId = null, short? askId = null)
-        :base(message,messageId, askId)
+    
+    public class ConnectionIsNotEstablishedYet: ConnectionIsLostException
     {
+        public ConnectionIsNotEstablishedYet(
+            string message = null, short? messageId = null, short? askId = null)
+            :base(message,messageId, askId)
+        {
 
+        }
     }
 }

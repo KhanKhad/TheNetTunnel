@@ -5,8 +5,8 @@ using CommonTestTools;
 using CommonTestTools.Contracts;
 using NUnit.Framework;
 using TNT;
-using TNT.Api;
-using TNT.Tcp;
+using TNT.Core.Api;
+using TNT.Core.Tcp;
 
 namespace Tnt.LongTests;
 
@@ -41,13 +41,13 @@ public class TcpConnectionPair<TProxyContractInterface, TOriginContractInterface
         Server = TntBuilder
             .UseContract<TOriginContractInterface, TOriginContractType>()
             //  .UseReceiveDispatcher<NotThreadDispatcher>()
-            .SetMaxAnsDelay(200000)
+            .SetMaxAnsTimeout(200000)
             .CreateTcpServer(IPAddress.Loopback, 12345);
         ClientChannel = new TcpChannel();
         ProxyConnection = TntBuilder
             .UseContract<TProxyContractInterface>()
             // .UseReceiveDispatcher<NotThreadDispatcher>()
-            .SetMaxAnsDelay(200000)
+            .SetMaxAnsTimeout(200000)
             .UseChannel(ClientChannel)
             .Build();
            

@@ -1,18 +1,19 @@
 ﻿using System.IO;
 
-namespace TNT.Presentation.Serializers;
-
-public class ByteArraySerializer : SerializerBase<byte[]>
+namespace TNT.Core.Presentation.Serializers
 {
-    public ByteArraySerializer()
+    public class ByteArraySerializer :  SerializerBase<byte[]>
     {
-        Size = null;
-    }
+        public ByteArraySerializer()
+        {
+            Size = null;
+        }
 
-    public override void SerializeT(byte[] obj, MemoryStream stream)
-    {
-        if (obj == null)
-            return;
-        stream.Write(obj,0, obj.Length);
+        public override void SerializeT(byte[] obj, MemoryStream stream)
+        {
+            if (obj == null)
+                return;
+            stream.Write(obj,0, obj.Length);
+        }
     }
 }

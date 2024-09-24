@@ -2,6 +2,8 @@
 using CommonTestTools;
 using NUnit.Framework;
 using Tnt.LongTests.ContractMocks;
+using TNT.Core.Presentation.Deserializers;
+using TNT.Core.Presentation.Serializers;
 
 namespace Tnt.LongTests.Serialization;
 
@@ -53,10 +55,10 @@ public class ProtobuffBigSerializationTest
     {
         var company = IntegrationTestsHelper.CreateCompany(companySize);
         using var stream = new MemoryStream();
-        var serializer = new TNT.Presentation.Serializers.ProtoSerializer<Company>();
+        var serializer = new ProtoSerializer<Company>();
         serializer.SerializeT(company, stream);
         stream.Position = 0;
-        var deserializer = new TNT.Presentation.Deserializers.ProtoDeserializer<Company>();
+        var deserializer = new ProtoDeserializer<Company>();
         var deserialized = deserializer.DeserializeT(stream, (int)stream.Length);
         company.AssertIsSameTo(deserialized);
     }

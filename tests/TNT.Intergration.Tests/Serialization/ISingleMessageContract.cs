@@ -1,3 +1,5 @@
+using TNT.Core.Contract;
+
 namespace TNT.IntegrationTests.Serialization;
 
 public interface ISingleMessageContract<TMessageArg>

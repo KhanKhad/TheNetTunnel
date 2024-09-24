@@ -4,9 +4,9 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using NUnit.Framework;
-using TNT.Exceptions.ContractImplementation;
-using TNT.Presentation.Deserializers;
-using TNT.Presentation.Serializers;
+using TNT.Core.Exceptions.ContractImplementation;
+using TNT.Core.Presentation.Deserializers;
+using TNT.Core.Presentation.Serializers;
 
 namespace TNT.Core.Tests.Serialization;
 

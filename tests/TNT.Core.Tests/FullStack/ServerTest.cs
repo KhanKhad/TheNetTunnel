@@ -1,8 +1,8 @@
 ﻿using System.Linq;
 using CommonTestTools.Contracts;
 using NUnit.Framework;
-using TNT.Api;
-using TNT.Testing;
+using TNT.Core.Api;
+using TNT.Core.Testing;
 
 namespace TNT.Core.Tests.FullStack;
 
@@ -17,7 +17,7 @@ public class ServerTest
         BeforeConnectEventArgs<ITestContract, TestChannel> connectionArgs = null;
         server.BeforeConnect  += (sender, args) => connectionArgs = args;
 
-        var clientChannel = new TestChannel();
+        var clientChannel = TestChannel.CreateThreadSafe();
         var proxyConnection = TntBuilder.UseContract<ITestContract>().UseChannel(clientChannel).Build();
 
         server.TestListener.ImmitateAccept(clientChannel);
@@ -32,7 +32,7 @@ public class ServerTest
         server.StartListening(); 
         IConnection<ITestContract, TestChannel> incomeContractConnection = null;
         server.AfterConnect += (sender, income) => incomeContractConnection = income;
-        var clientChannel = new TestChannel();
+        var clientChannel = TestChannel.CreateThreadSafe();
         var proxyConnection = TntBuilder.UseContract<ITestContract>().UseChannel(clientChannel).Build();
         server.TestListener.ImmitateAccept(clientChannel);
         Assert.IsNotNull(incomeContractConnection, "AfterConnect not raised");
@@ -44,7 +44,7 @@ public class ServerTest
     {
         var server = new TestChannelServer<ITestContract>(TntBuilder.UseContract<ITestContract, TestContractMock>());
         server.StartListening();
-        var clientChannel = new TestChannel();
+        var clientChannel = TestChannel.CreateThreadSafe();
         TntBuilder.UseContract<ITestContract>().UseChannel(clientChannel).Build();
         server.TestListener.ImmitateAccept(clientChannel);
         Assert.IsTrue(server.GetAllConnections().First().Channel.AllowReceive);
@@ -58,7 +58,7 @@ public class ServerTest
         ClientDisconnectEventArgs<ITestContract, TestChannel> disconnectedConnection = null;
             
         server.Disconnected += (sender, args) => disconnectedConnection = args;
-        var clientChannel = new TestChannel();
+        var clientChannel = TestChannel.CreateThreadSafe();
         var proxyConnection = TntBuilder.UseContract<ITestContract>().UseChannel(clientChannel).Build();
         var pair = server.TestListener.ImmitateAccept(clientChannel);
 

@@ -1,8 +1,9 @@
-﻿namespace TNT.Exceptions.Remote;
-
-public enum RemoteExceptionId
+﻿namespace TNT.Core.Exceptions.Remote
 {
-    RemoteSideUnhandledException = 3,
-    RemoteSideSerializationException = 5,
-    RemoteContractImplementationException = 6,
+    public enum RemoteExceptionId
+    {
+        RemoteSideUnhandledException = 3,
+        RemoteSideSerializationException = 5,
+        RemoteContractImplementationException = 6,
+    }
 }

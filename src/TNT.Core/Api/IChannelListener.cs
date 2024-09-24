@@ -1,10 +1,11 @@
 ﻿using System;
-using TNT.Transport;
+using TNT.Core.Transport;
 
-namespace TNT.Api;
-
-public interface IChannelListener<out TChannel> where TChannel : IChannel
+namespace TNT.Core.Api
 {
-    bool IsListening { get; set; }
-    event Action<IChannelListener<TChannel>, TChannel> Accepted;
+    public interface IChannelListener<out TChannel> where TChannel : IChannel
+    {
+        bool IsListening { get; set; }
+        event Action<IChannelListener<TChannel>, TChannel> Accepted;
+    }
 }

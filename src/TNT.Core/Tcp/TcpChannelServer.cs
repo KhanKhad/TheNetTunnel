@@ -1,18 +1,19 @@
 ﻿using System.Net;
-using TNT.Api;
+using TNT.Core.Api;
 
-namespace TNT.Tcp;
-
-public class TcpChannelServer<TContract> : ChannelServer<TContract, TcpChannel> 
-    where TContract : class
+namespace TNT.Core.Tcp
 {
-    public IPEndPoint EndPoint { get; }
-
-    public TcpChannelServer(
-        PresentationBuilder<TContract> connectionBuilder, 
-        IPEndPoint endPoint 
-    ) : base(connectionBuilder, new TcpChanelListener(endPoint))
+    public class TcpChannelServer<TContract> : ChannelServer<TContract, TcpChannel> 
+        where TContract : class
     {
-        EndPoint = endPoint;
+        public IPEndPoint EndPoint { get; }
+
+        public TcpChannelServer(
+            PresentationBuilder<TContract> connectionBuilder, 
+            IPEndPoint endPoint 
+        ) : base(connectionBuilder, new TcpChanelListener(endPoint))
+        {
+            EndPoint = endPoint;
+        }
     }
 }

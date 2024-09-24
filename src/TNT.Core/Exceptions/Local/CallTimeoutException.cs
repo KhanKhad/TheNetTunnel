@@ -1,17 +1,18 @@
 ﻿using System;
 
-namespace TNT.Exceptions.Local;
-
-public class CallTimeoutException: Exception
+namespace TNT.Core.Exceptions.Local
 {
-    public short MessageId { get; }
-    public short AskId { get; }
-
-    public CallTimeoutException(short messageId, short askId)
-        : base("Anwer timeout elasped", null)
+    public class CallTimeoutException: Exception
     {
-        MessageId = messageId;
-        AskId = askId;
-    }
+        public short MessageId { get; }
+        public short AskId { get; }
 
+        public CallTimeoutException(short messageId, short askId)
+            : base("Answer timeout elapsed", null)
+        {
+            MessageId = messageId;
+            AskId = askId;
+        }
+
+    }
 }

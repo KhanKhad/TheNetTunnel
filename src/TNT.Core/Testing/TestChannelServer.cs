@@ -1,13 +1,14 @@
-﻿using TNT.Api;
+﻿using TNT.Core.Api;
 
-namespace TNT.Testing;
-
-public class TestChannelServer<TContract>: ChannelServer<TContract,TestChannel> 
-    where TContract : class
+namespace TNT.Core.Testing
 {
-    public TestChannelListener TestListener { get;  }
-    public TestChannelServer(PresentationBuilder<TContract> channelBuilder) : base(channelBuilder, new TestChannelListener())
+    public class TestChannelServer<TContract>: ChannelServer<TContract,TestChannel> 
+        where TContract : class
     {
-        TestListener = this.Listener as TestChannelListener;
+        public TestChannelListener TestListener { get;  }
+        public TestChannelServer(PresentationBuilder<TContract> channelBuilder) : base(channelBuilder, new TestChannelListener())
+        {
+            TestListener = this.Listener as TestChannelListener;
+        }
     }
 }

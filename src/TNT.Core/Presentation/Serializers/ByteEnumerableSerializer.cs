@@ -1,20 +1,21 @@
 ﻿using System.Collections.Generic;
 using System.IO;
 
-namespace TNT.Presentation.Serializers;
-
-public class ByteEnumerableSerializer : SerializerBase<IEnumerable<byte>>
+namespace TNT.Core.Presentation.Serializers
 {
-    public ByteEnumerableSerializer()
+    public class ByteEnumerableSerializer : SerializerBase<IEnumerable<byte>>
     {
-        Size = null;
-    }
+        public ByteEnumerableSerializer()
+        {
+            Size = null;
+        }
 
-    public override void SerializeT(IEnumerable<byte> obj, MemoryStream stream)
-    {
-        if (obj == null)
-            return;
-        foreach (var b in obj)
-            stream.WriteByte(b);
+        public override void SerializeT(IEnumerable<byte> obj, MemoryStream stream)
+        {
+            if (obj == null)
+                return;
+            foreach (var b in obj)
+                stream.WriteByte(b);
+        }
     }
 }

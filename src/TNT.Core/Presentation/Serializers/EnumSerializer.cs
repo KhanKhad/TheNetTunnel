@@ -1,26 +1,29 @@
 ﻿using System;
 using System.Reflection;
 
-namespace TNT.Presentation.Serializers;
-
-public class EnumSerializer<T> : SerializerBase<T> 
-    where T: struct 
+namespace TNT.Core.Presentation.Serializers
 {
-    private readonly ISerializer primitive;
+    public class EnumSerializer<T> : SerializerBase<T> 
+        where T: struct 
+    {
+        private readonly ISerializer primitive;
         
-    public EnumSerializer()
-    {
-        if(!(typeof(T).GetTypeInfo().IsEnum))
-            throw  new InvalidOperationException("Type \""+typeof(T)+"\" must be enum type");
-        var underLying = Enum.GetUnderlyingType(typeof(T));
+        public EnumSerializer()
+        {
+            if(!(typeof(T).GetTypeInfo().IsEnum))
+                throw  new InvalidOperationException("Type \""+typeof(T)+"\" must be enum type");
+            var underLying = Enum.GetUnderlyingType(typeof(T));
 
-        var serializerType = typeof(ValueTypeSerializer<>).MakeGenericType(underLying);
-        primitive = (ISerializer)Activator.CreateInstance(serializerType);
-        Size      = primitive.Size;
+            var serializerType = typeof(ValueTypeSerializer<>).MakeGenericType(underLying);
+            primitive = (ISerializer)Activator.CreateInstance(serializerType);
+            Size      = primitive.Size;
+        }
+
+        public override void SerializeT(T obj, System.IO.MemoryStream stream)
+        {
+            primitive.Serialize(obj, stream);
+        }
     }
 
-    public override void SerializeT(T obj, System.IO.MemoryStream stream)
-    {
-        primitive.Serialize(obj, stream);
-    }
 }
+

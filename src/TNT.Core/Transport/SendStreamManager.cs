@@ -1,25 +1,28 @@
 using System.IO;
 
-namespace TNT.Transport;
-
-public class SendStreamManager
+namespace TNT.Core.Transport
 {
-    public MemoryStream CreateStreamForSend()
+    public class SendStreamManager
     {
-        var stream = new MemoryStream(1024);
+        private static readonly byte[] _reservedEmptyBuffer = new byte[sizeof(uint)];
 
-        if (ReservedHeadLength > 0)
-            stream.Write(new byte[ReservedHeadLength], 0, ReservedHeadLength);
-        return stream;
-    }
-    public int ReservedHeadLength => sizeof(uint);
+        public MemoryStream CreateStreamForSend()
+        {
+            var stream = new MemoryStream(1024);
 
-    public void PrepareForSending(MemoryStream message)
-    {
-        message.Position = 0;
-        uint len = (uint)(message.Length - ReservedHeadLength);
-        message.WriteInt(len);
+            if (ReservedHeadLength > 0)
+                stream.Write(_reservedEmptyBuffer, 0, ReservedHeadLength);
+            return stream;
+        }
+        public int ReservedHeadLength => sizeof(uint);
 
-        message.Position = 0;
+        public void PrepareForSending(MemoryStream message)
+        {
+            message.Position = 0;
+            uint len = (uint)(message.Length - ReservedHeadLength);
+            message.WriteInt(len);
+
+            message.Position = 0;
+        }
     }
 }

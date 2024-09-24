@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Linq;
 using NUnit.Framework;
-using TNT.Transport;
+using TNT.Core.Transport;
 
 namespace TNT.Core.Tests;
 

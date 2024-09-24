@@ -1,4 +1,5 @@
 using TNT;
+using TNT.Core.Contract;
 
 namespace Tnt.LongTests.ContractMocks;
 

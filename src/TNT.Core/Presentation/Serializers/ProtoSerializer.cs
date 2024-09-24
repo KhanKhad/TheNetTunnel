@@ -1,39 +1,36 @@
 ﻿using System;
-using ProtoBuf.Meta;
 
-namespace TNT.Presentation.Serializers;
-
-public class ProtoSerializer<T> : SerializerBase<T>
+namespace TNT.Core.Presentation.Serializers
 {
-    private TypeModel _model;
-    public ProtoSerializer()
+    public class ProtoSerializer<T> : SerializerBase<T>
     {
-        Size = null;
-        var model = TypeModel.Create();
-        model.Add(typeof(T), true);
-        _model = model.Compile();
-    }
+        public ProtoSerializer()
+        {
+            Size = null;
+        }
 
-    public override void SerializeT(T obj, System.IO.MemoryStream stream)
-    {
-        //write length prefix
-        var postion = stream.Position;
-        stream.Write(new byte[4],0,4);
+        public override void SerializeT(T obj, System.IO.MemoryStream stream)
+        {
+            //write length prefix
+            var postion = stream.Position;
+            stream.Write(Tools.ZeroBuffer4, 0, 4);
 
-        //protobuf-serializer writes length prefix too slowly
-        ProtoBuf.Serializer.SerializeWithLengthPrefix(stream, obj, ProtoBuf.PrefixStyle.None);
+            //protobuf-serializer writes length prefix too slowly
+            ProtoBuf.Serializer.SerializeWithLengthPrefix<T>(stream, obj, ProtoBuf.PrefixStyle.None);
 
-        //roll stream back and write the length
-        var resultPostion = stream.Position;
-        var length = resultPostion - postion - 4;
-        stream.Position = postion;
-        stream.Write(BitConverter.GetBytes(length),0,4);
-        //return stream position
-        stream.Position = resultPostion;
-    }
+            //roll stream back and write the length
+            var resultPostion = stream.Position;
+            var length = resultPostion - postion - 4;
+            stream.Position = postion;
+            stream.Write(BitConverter.GetBytes(length), 0, 4);
+            //return stream position
+            stream.Position = resultPostion;
+        }
 
-    public override void Serialize(object obj, System.IO.MemoryStream stream)
-    {
-        SerializeT((T) obj, stream);
+        public override void Serialize(object obj, System.IO.MemoryStream stream)
+        {
+            SerializeT((T) obj, stream);
+        }
     }
 }
+

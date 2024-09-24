@@ -1,108 +1,153 @@
 ﻿using System;
 using System.Linq;
-using TNT.Contract;
-using TNT.Contract.Origin;
-using TNT.Contract.Proxy;
-using TNT.Presentation;
-using TNT.Presentation.Deserializers;
-using TNT.Presentation.Serializers;
-using TNT.Transport;
+using System.Threading.Tasks;
+using TNT.Core.Contract;
+using TNT.Core.Contract.Origin;
+using TNT.Core.Contract.Proxy;
+using TNT.Core.Presentation;
+using TNT.Core.Presentation.Deserializers;
+using TNT.Core.Presentation.Serializers;
+using TNT.Core.Transport;
 
-namespace TNT.Api;
-
-public class ConnectionBuilder<TContract, TChannel> 
-    where TChannel : IChannel
-    where TContract: class 
+namespace TNT.Core.Api
 {
-    private readonly PresentationBuilder<TContract> _contractBuilder;
-    private readonly Func<TChannel> _channelFactory;
-
-    public  ConnectionBuilder(PresentationBuilder<TContract> contractBuilder, Func<TChannel> channelFactory)
+    public class ConnectionBuilder<TContract, TChannel> 
+            where TChannel : IChannel
+            where TContract: class 
     {
-        _contractBuilder = contractBuilder;
-        _channelFactory = channelFactory;
-    }
-    public IConnection<TContract, TChannel> Build()
-    {
-        var channel = _channelFactory();
+        private readonly PresentationBuilder<TContract> _contractBuilder;
+        private readonly Func<TChannel>                 _channelFactory;
+        private readonly Func<Task<TChannel>>      _channelFactoryAsync;
 
-        var light = new Transporter( channel);
-            
-        TContract contract = null;
-        if (_contractBuilder.OriginContractFactory == null)
-            contract = CreateProxyContract(light);
-        else
-            contract = CreateOriginContract(light);
-
-        _contractBuilder.ContractInitializer(contract, channel);
-
-        if(channel.IsConnected)
-            channel.AllowReceive = true;
-
-        return new Connection<TContract, TChannel>(contract, channel, _contractBuilder.ContractFinalizer);
-    }
-    private TContract CreateOriginContract(Transporter light)
-    {
-        var memebers = ProxyContractFactory.ParseContractInterface(typeof(TContract));
-        var dispatcher = _contractBuilder.ReceiveDispatcherFactory();
-        var inputMessages = memebers.GetMethods().Select(m => new MessageTypeInfo
+        public  ConnectionBuilder(PresentationBuilder<TContract> contractBuilder, Func<TChannel> channelFactory)
         {
-            ReturnType = m.Value.ReturnType,
-            ArgumentTypes = m.Value.GetParameters().Select(p => p.ParameterType).ToArray(),
-            MessageId = (short)m.Key
-        });
-
-        var outputMessages = memebers.GetProperties().Select(m => new MessageTypeInfo
+            _contractBuilder = contractBuilder;
+            _channelFactory  = channelFactory;
+        }
+        public ConnectionBuilder(PresentationBuilder<TContract> contractBuilder, Func<Task<TChannel>> channelFactory)
         {
-            ArgumentTypes = ReflectionHelper.GetDelegateInfoOrNull(m.Value.PropertyType).ParameterTypes,
-            ReturnType = ReflectionHelper.GetDelegateInfoOrNull(m.Value.PropertyType).ReturnType,
-            MessageId = (short)m.Key
-        });
-
-        var messenger = new Messenger(
-            light,
-            SerializerFactory.CreateDefault(_contractBuilder.UserSerializationRules.ToArray()),
-            DeserializerFactory.CreateDefault(_contractBuilder.UserDeserializationRules.ToArray()),
-            outputMessages: outputMessages.ToArray(),
-            inputMessages: inputMessages.ToArray()
-        );
-
-        var interlocutor = new Interlocutor(messenger, dispatcher, _contractBuilder.MaxAnswerTimeoutDelay);
-
-        TContract contract = _contractBuilder.OriginContractFactory(light.Channel);
-        OriginContractLinker.Link(contract, interlocutor);
-        return contract;
-    }
-    private TContract CreateProxyContract(Transporter light)
-    {
-        var memebers = ProxyContractFactory.ParseContractInterface(typeof(TContract));
-        var dispatcher = _contractBuilder.ReceiveDispatcherFactory();
-
-        var outputMessages = memebers.GetMethods().Select(m => new MessageTypeInfo
+            _contractBuilder = contractBuilder;
+            _channelFactoryAsync = channelFactory;
+        }
+        public async Task<IConnection<TContract, TChannel>> BuildAsync()
         {
-            ReturnType = m.Value.ReturnType,
-            ArgumentTypes = m.Value.GetParameters().Select(p => p.ParameterType).ToArray(),
-            MessageId = (short)m.Key
-        });
+            TChannel channel;
 
-        var inputMessages = memebers.GetProperties().Select(m => new MessageTypeInfo
+            if (_channelFactoryAsync != null)
+            {
+                channel = await _channelFactoryAsync();
+            }
+            else
+            {
+                channel = _channelFactory();
+            }
+
+            var light = new Transporter(channel);
+
+            TContract contract = _contractBuilder.OriginContractFactory == null
+                ? CreateProxyContract(light)
+                : CreateOriginContract(light);
+
+            _contractBuilder.ContractInitializer(contract, channel);
+
+            if (channel.IsConnected)
+                channel.AllowReceive = true;
+
+            return new Connection<TContract, TChannel>(contract, channel, _contractBuilder.ContractFinalizer);
+        }
+        public IConnection<TContract, TChannel> Build()
         {
-            ArgumentTypes = ReflectionHelper.GetDelegateInfoOrNull(m.Value.PropertyType).ParameterTypes,
-            ReturnType = ReflectionHelper.GetDelegateInfoOrNull(m.Value.PropertyType).ReturnType,
-            MessageId = (short)m.Key
-        });
+            TChannel channel;
 
-        var messenger = new Messenger(
-            light,
-            SerializerFactory.CreateDefault(_contractBuilder.UserSerializationRules.ToArray()),
-            DeserializerFactory.CreateDefault(_contractBuilder.UserDeserializationRules.ToArray()),
-            outputMessages: outputMessages.ToArray(),
-            inputMessages: inputMessages.ToArray()
-        );
+            if (_channelFactory != null)
+            {
+                channel = _channelFactory();
+            }
+            else
+            {
+                var task = _channelFactoryAsync();
+                task.Wait();
+                channel = task.Result;
+            }
 
-        var interlocutor = new Interlocutor(messenger, dispatcher, _contractBuilder.MaxAnswerTimeoutDelay);
+            var light   = new Transporter(channel);
 
-        var contract = ProxyContractFactory.CreateProxyContract<TContract>(interlocutor);
-        return contract;
+            TContract contract = _contractBuilder.OriginContractFactory == null
+                ? CreateProxyContract(light)
+                : CreateOriginContract(light);
+
+            _contractBuilder.ContractInitializer(contract, channel);
+
+            if (channel.IsConnected)
+                channel.AllowReceive = true;
+
+            return new Connection<TContract, TChannel>(contract, channel, _contractBuilder.ContractFinalizer);
+        }
+
+        private TContract CreateOriginContract(Transporter light)
+        {
+            var memebers = ProxyContractFactory.ParseContractInterface(typeof(TContract));
+            var dispatcher = _contractBuilder.ReceiveDispatcherFactory();
+            var inputMessages = memebers.GetMethods().Select(m => new MessageTypeInfo
+            {
+                ReturnType = m.Value.ReturnType,
+                ArgumentTypes = m.Value.GetParameters().Select(p => p.ParameterType).ToArray(),
+                MessageId = (short)m.Key
+            });
+
+            var outputMessages = memebers.GetProperties().Select(m => new MessageTypeInfo
+            {
+                ArgumentTypes = ReflectionHelper.GetDelegateInfoOrNull(m.Value.PropertyType).ParameterTypes,
+                ReturnType = ReflectionHelper.GetDelegateInfoOrNull(m.Value.PropertyType).ReturnType,
+                MessageId = (short)m.Key
+            });
+
+            var messenger = new Messenger(
+                light,
+                SerializerFactory.CreateDefault(_contractBuilder.UserSerializationRules.ToArray()),
+                DeserializerFactory.CreateDefault(_contractBuilder.UserDeserializationRules.ToArray()),
+                outputMessages: outputMessages.ToArray(),
+                inputMessages:  inputMessages.ToArray()
+            );
+
+            var interlocutor = new Interlocutor(messenger, dispatcher, _contractBuilder.MaxAnswerTimeoutDelay);
+
+            TContract contract = _contractBuilder.OriginContractFactory(light.Channel);
+            OriginContractLinker.Link(contract, interlocutor);
+            return contract;
+        }
+        private TContract CreateProxyContract(Transporter light)
+        {
+            var memebers   = ProxyContractFactory.ParseContractInterface(typeof(TContract));
+            var dispatcher = _contractBuilder.ReceiveDispatcherFactory();
+
+            var outputMessages = memebers.GetMethods().Select(m => new MessageTypeInfo
+            {
+                ReturnType    = m.Value.ReturnType,
+                ArgumentTypes = m.Value.GetParameters().Select(p => p.ParameterType).ToArray(),
+                MessageId     = (short)m.Key
+            });
+
+            var inputMessages = memebers.GetProperties().Select(m => new MessageTypeInfo
+            {
+                ArgumentTypes = ReflectionHelper.GetDelegateInfoOrNull(m.Value.PropertyType).ParameterTypes,
+                ReturnType    = ReflectionHelper.GetDelegateInfoOrNull(m.Value.PropertyType).ReturnType,
+                MessageId     = (short)m.Key
+            });
+
+            var messenger = new Messenger(
+                light,
+                SerializerFactory.CreateDefault(_contractBuilder.UserSerializationRules.ToArray()),
+                DeserializerFactory.CreateDefault(_contractBuilder.UserDeserializationRules.ToArray()),
+                outputMessages: outputMessages.ToArray(),
+                inputMessages: inputMessages.ToArray()
+            );
+
+            var interlocutor = new Interlocutor(messenger, dispatcher, _contractBuilder.MaxAnswerTimeoutDelay);
+
+            var contract = ProxyContractFactory.CreateProxyContract<TContract>(interlocutor);
+            return contract;
+        }
+        
     }
 }

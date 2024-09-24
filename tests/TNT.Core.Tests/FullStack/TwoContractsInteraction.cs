@@ -3,8 +3,9 @@ using System.Linq;
 using CommonTestTools;
 using CommonTestTools.Contracts;
 using NUnit.Framework;
-using TNT.Presentation.ReceiveDispatching;
-using TNT.Testing;
+using TNT.Core.Api;
+using TNT.Core.Presentation.ReceiveDispatching;
+using TNT.Core.Testing;
 
 namespace TNT.Core.Tests.FullStack;
 
@@ -48,7 +49,7 @@ public class TwoContractsInteraction
         });
 
 
-        var channelPair = TntTestHelper.CreateChannelPair();
+        var channelPair = TntTestHelper.CreateThreadSafeChannelPair();
 
         var proxyConnection = TntBuilder
             .UseContract<ITestContract>()
@@ -75,7 +76,7 @@ public class TwoContractsInteraction
     public void ProxyAskCall_ReturnsSettedValue(string returnedValue)
     {
           
-        var channelPair = TntTestHelper.CreateChannelPair();
+        var channelPair = TntTestHelper.CreateThreadSafeChannelPair();
 
         var proxyConnection = TntBuilder
             .UseContract<ITestContract>()
@@ -100,7 +101,7 @@ public class TwoContractsInteraction
     [Test]
     public void ConveyourDispatcher_NetworkDeadlockNotHappens()
     {
-        var channelPair = TntTestHelper.CreateChannelPair();
+        var channelPair = TntTestHelper.CreateThreadSafeChannelPair();
         var proxyConnection = TntBuilder
             .UseContract<ITestContract>()
             //On income ask request, calling rpc ask. 

@@ -1,64 +1,66 @@
 ﻿using System.Collections.Concurrent;
 using System.IO;
-using TNT.Transport;
+using TNT.Core.Transport;
 
-namespace TNT.Testing;
-
-class OneSideConnection
+namespace TNT.Core.Testing
 {
-    public TestChannel CahnnelFrom { get; }
-    public TestChannel ChannelTo { get; }
-    public bool IsStarted { get; set; }
-    private ConcurrentQueue<byte[]> _receiveBuffer = new ConcurrentQueue<byte[]>();
-
-    public OneSideConnection(TestChannel cahnnelFrom, TestChannel channelTo)
+    class OneSideConnection
     {
-        ChannelTo = channelTo;
-        CahnnelFrom = cahnnelFrom;
-    }
+        public TestChannel CahnnelFrom { get; }
+        public TestChannel ChannelTo { get; }
+        public bool IsStarted { get; set; }
+        private ConcurrentQueue<byte[]> _receiveBuffer = new ConcurrentQueue<byte[]>();
 
-    private void ChannelTo_AllowReceiveChanged(IChannel arg1, bool allowReceive)
-    {
-        if (allowReceive)
-            WriteAll();
-    }
-
-    private void CahnnelFrom_OnWrited(object arg1, byte[] arg2)
-    {
-        if (!ChannelTo.IsConnected)
-            throw new IOException("Remote Test Channel is Disconnected");
-        if (!CahnnelFrom.IsConnected)
-            throw new IOException("Test Channel is Disconnected");
-        _receiveBuffer.Enqueue(arg2);
-
-        if (ChannelTo.AllowReceive)
+        public OneSideConnection(TestChannel cahnnelFrom, TestChannel channelTo)
         {
-            WriteAll();
+            ChannelTo = channelTo;
+            CahnnelFrom = cahnnelFrom;
         }
-    }
 
-    private void WriteAll()
-    {
-        while (!_receiveBuffer.IsEmpty)
+        private void ChannelTo_AllowReceiveChanged(IChannel arg1, bool allowReceive)
         {
-            _receiveBuffer.TryDequeue(out var msg);
-            ChannelTo.ImmitateReceive(msg);
+            if (allowReceive)
+                WriteAll();
         }
-    }
 
-    public void Start()
-    {
-        IsStarted = true;
-        CahnnelFrom.OnWrited += CahnnelFrom_OnWrited;
-        ChannelTo.AllowReceiveChanged += ChannelTo_AllowReceiveChanged;
-    }
+        private void CahnnelFrom_OnWrited(object arg1, byte[] arg2)
+        {
+            if (!ChannelTo.IsConnected)
+                throw new IOException("Remote Test Channel is Disconnected");
+            if (!CahnnelFrom.IsConnected)
+                throw new IOException("Test Channel is Disconnected");
+            _receiveBuffer.Enqueue(arg2);
 
-    public void Stop()
-    {
-        _receiveBuffer = new ConcurrentQueue<byte[]>();
+            if (ChannelTo.AllowReceive)
+            {
+                WriteAll();
+            }
+        }
 
-        IsStarted = false;
-        CahnnelFrom.OnWrited -= CahnnelFrom_OnWrited;
-        ChannelTo.AllowReceiveChanged -= ChannelTo_AllowReceiveChanged;
+        private void WriteAll()
+        {
+            while (!_receiveBuffer.IsEmpty)
+            {
+                byte[] msg;
+                _receiveBuffer.TryDequeue(out msg);
+                ChannelTo.ImmitateReceive(msg);
+            }
+        }
+
+        public void Start()
+        {
+            IsStarted = true;
+            CahnnelFrom.OnWrited += CahnnelFrom_OnWrited;
+            ChannelTo.AllowReceiveChanged += ChannelTo_AllowReceiveChanged;
+        }
+
+        public void Stop()
+        {
+            _receiveBuffer = new ConcurrentQueue<byte[]>();
+
+            IsStarted = false;
+            CahnnelFrom.OnWrited -= CahnnelFrom_OnWrited;
+            ChannelTo.AllowReceiveChanged -= ChannelTo_AllowReceiveChanged;
+        }
     }
 }

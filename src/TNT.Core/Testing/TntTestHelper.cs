@@ -1,19 +1,18 @@
-﻿namespace TNT.Testing;
-
-public static class TntTestHelper
+﻿namespace TNT.Core.Testing
 {
-    public static TestChannelPair CreateChannelPair()
+    public static class TntTestHelper
     {
-        return  new TestChannelPair(new TestChannel(true), new TestChannel(true));
-    }
-    
-    public static TestChannelPair CreateThreadlessChannelPair()
-    {
-        return new TestChannelPair(new TestChannel(false), new TestChannel(false));
-    }
-    
-    public static TestChannelPair CreateChannelPair(TestChannel cahnnelA, TestChannel channelB)
-    {
-        return  new TestChannelPair(cahnnelA, channelB);
+        public static TestChannelPair CreateThreadSafeChannelPair()
+        {
+            return  new TestChannelPair(TestChannel.CreateThreadSafe(), TestChannel.CreateThreadSafe());
+        }
+        public static TestChannelPair CreateThreadlessChannelPair()
+        {
+            return new TestChannelPair(TestChannel.CreateSingleThread(), TestChannel.CreateSingleThread());
+        }
+        public static TestChannelPair CreateChannelPair(TestChannel cahnnelA, TestChannel channelB)
+        {
+            return  new TestChannelPair(cahnnelA, channelB);
+        }
     }
 }

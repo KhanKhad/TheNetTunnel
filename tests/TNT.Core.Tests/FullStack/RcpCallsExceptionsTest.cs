@@ -2,10 +2,11 @@
 using CommonTestTools;
 using CommonTestTools.Contracts;
 using NUnit.Framework;
-using TNT.Exceptions.Local;
-using TNT.Exceptions.Remote;
-using TNT.Presentation.ReceiveDispatching;
-using TNT.Testing;
+using TNT.Core.Api;
+using TNT.Core.Exceptions.Local;
+using TNT.Core.Exceptions.Remote;
+using TNT.Core.Presentation.ReceiveDispatching;
+using TNT.Core.Testing;
 
 namespace TNT.Core.Tests.FullStack;
 
@@ -15,7 +16,7 @@ public class RcpCallsExceptionsTest
     [Test]
     public void ProxyConnectionIsNotEstablishedYet_SayCallThrows()
     {
-        var channel = new TestChannel();
+        var channel = TestChannel.CreateThreadSafe();
         var proxyConnection = TntBuilder
             .UseContract<ITestContract>()
             .UseReceiveDispatcher<NotThreadDispatcher>()
@@ -29,7 +30,7 @@ public class RcpCallsExceptionsTest
     [Test]
     public void ProxyConnectionIsNotEstablishedYet_AskCallThrows()
     {
-        var channel = new TestChannel();
+        var channel = TestChannel.CreateThreadSafe();
         var proxyConnection = TntBuilder
             .UseContract<ITestContract>()
             .UseReceiveDispatcher<NotThreadDispatcher>()
@@ -42,7 +43,7 @@ public class RcpCallsExceptionsTest
     [Test]
     public void ProxyConnectionIsLost_SayCallThrows()
     {
-        var channel = new TestChannel();
+        var channel = TestChannel.CreateThreadSafe();
         var proxyConnection = TntBuilder
             .UseContract<ITestContract>()
             .UseReceiveDispatcher<NotThreadDispatcher>()
@@ -56,7 +57,7 @@ public class RcpCallsExceptionsTest
     [Test]
     public void ProxyConnectionIsLost_AskCallThrows()
     {
-        var channel = new TestChannel();
+        var channel = TestChannel.CreateThreadSafe();
         var proxyConnection = TntBuilder
             .UseContract<ITestContract>()
             .UseReceiveDispatcher<NotThreadDispatcher>()
@@ -74,7 +75,7 @@ public class RcpCallsExceptionsTest
     [Test]
     public void Proxy_AskMissingCord_Throws()
     {
-        var channelPair = TntTestHelper.CreateChannelPair();
+        var channelPair = TntTestHelper.CreateThreadSafeChannelPair();
         var proxyConnection = TntBuilder
             .UseContract<ITestContract>()
             .UseReceiveDispatcher<NotThreadDispatcher>()
@@ -94,7 +95,7 @@ public class RcpCallsExceptionsTest
     [Test]
     public void Proxy_SayMissingCord_NotThrows()
     {
-        var channelPair = TntTestHelper.CreateChannelPair();
+        var channelPair = TntTestHelper.CreateThreadSafeChannelPair();
         var proxyConnection = TntBuilder
             .UseContract<ITestContract>()
             .UseReceiveDispatcher<NotThreadDispatcher>()
@@ -113,7 +114,7 @@ public class RcpCallsExceptionsTest
     [Test]
     public void Origin_SayMissingCord_NotThrows()
     {
-        var channelPair = TntTestHelper.CreateChannelPair();
+        var channelPair = TntTestHelper.CreateThreadSafeChannelPair();
 
         var proxyConnection = TntBuilder
             .UseContract<IEmptyContract>()
@@ -133,7 +134,7 @@ public class RcpCallsExceptionsTest
     [Test]
     public void Proxy_SayWithException_CallNotThrows()
     {
-        var channelPair = TntTestHelper.CreateChannelPair();
+        var channelPair = TntTestHelper.CreateThreadSafeChannelPair();
         var proxyConnection = TntBuilder
             .UseContract<IExceptionalContract>()
             .UseReceiveDispatcher<NotThreadDispatcher>()
@@ -152,7 +153,7 @@ public class RcpCallsExceptionsTest
     [Test]
     public void Proxy_AskWithException_Throws()
     {
-        var channelPair = TntTestHelper.CreateChannelPair();
+        var channelPair = TntTestHelper.CreateThreadSafeChannelPair();
         var proxyConnection = TntBuilder
             .UseContract<IExceptionalContract>()
             .UseReceiveDispatcher<NotThreadDispatcher>()
@@ -172,7 +173,7 @@ public class RcpCallsExceptionsTest
     [Test]
     public void Origin_SayExceptioanlCallback_NotThrows()
     {
-        var channelPair = TntTestHelper.CreateChannelPair();
+        var channelPair = TntTestHelper.CreateThreadSafeChannelPair();
 
         var proxyConnection = TntBuilder
             .UseContract<ITestContract>()
@@ -199,7 +200,7 @@ public class RcpCallsExceptionsTest
     [Test]
     public void Origin_AskExceptioanlCallback_Throws()
     {
-        var channelPair = TntTestHelper.CreateChannelPair();
+        var channelPair = TntTestHelper.CreateThreadSafeChannelPair();
 
         var proxyConnection = TntBuilder
             .UseContract<ITestContract>()
@@ -223,7 +224,7 @@ public class RcpCallsExceptionsTest
     [Test]
     public void Origin_AsksNotImplemented_returnsDefault()
     {
-        var channelPair = TntTestHelper.CreateChannelPair();
+        var channelPair = TntTestHelper.CreateThreadSafeChannelPair();
 
         var proxyConnection = TntBuilder
             .UseContract<ITestContract>()
@@ -246,7 +247,7 @@ public class RcpCallsExceptionsTest
     [Test]
     public void Disconnected_duringOriginAsk_throws()
     {
-        var channelPair = TntTestHelper.CreateChannelPair();
+        var channelPair = TntTestHelper.CreateThreadSafeChannelPair();
 
         var originConnection = TntBuilder
             .UseContract<ITestContract, TestContractMock>()

@@ -1,13 +1,15 @@
-﻿namespace TNT.Presentation.Deserializers;
-
-public abstract class DeserializerBase<T> : IDeserializer<T>
+﻿namespace TNT.Core.Presentation.Deserializers
 {
-    public abstract T DeserializeT(System.IO.Stream stream, int size);
-
-    public virtual object Deserialize(System.IO.Stream stream, int size)
+    public abstract class DeserializerBase<T> : IDeserializer<T>
     {
-        return DeserializeT(stream, size);
-    }
+        public abstract T DeserializeT(System.IO.Stream stream, int size);
 
-    public int? Size { get; protected set; }
+        public virtual object Deserialize(System.IO.Stream stream, int size)
+        {
+            return DeserializeT(stream, size);
+        }
+
+        public int? Size { get; protected set; }
+    }
 }
+
