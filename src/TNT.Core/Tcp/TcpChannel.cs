@@ -114,9 +114,14 @@ namespace TNT.Core.Tcp
                 return;
 
             allowReceive = false;
-            _disconnectToken.Cancel();
-            _disconnectToken.Dispose();
-            _disconnectToken = null;
+
+            if (_disconnectToken != null)
+            {
+                _disconnectToken.Cancel();
+                _disconnectToken.Dispose();
+                _disconnectToken = null;
+            }
+            
             if (Client.Connected)
             {
                 try
@@ -147,14 +152,7 @@ namespace TNT.Core.Tcp
                 throw new ConnectionIsNotEstablishedYet("tcp channel was not connected yet");
 
             if (!Client.Connected)
-            {
-                DisconnectBecauseOf(new ErrorMessage()
-                {
-                    ErrorType = Exceptions.Remote.ErrorType.ConnectionAlreadyLost,
-                    AdditionalExceptionInformation = "Connection already lost"
-                });
-                return;
-            }
+                throw new ConnectionIsLostException("tcp channel is not connected");
 
             try
             {
@@ -166,7 +164,16 @@ namespace TNT.Core.Tcp
             }
             catch (Exception e)
             {
-                Disconnect();
+                if (e is ConnectionIsLostException)
+                {
+                    DisconnectBecauseOf(new ErrorMessage()
+                    {
+                        ErrorType = Exceptions.Remote.ErrorType.ConnectionAlreadyLost,
+                        AdditionalExceptionInformation = "Connection is already lost"
+                    });
+                }
+                else Disconnect();
+
                 throw new ConnectionIsLostException(innerException: e,
                     message: "Write operation was failed");
             }
@@ -178,14 +185,7 @@ namespace TNT.Core.Tcp
                 throw new ConnectionIsNotEstablishedYet("tcp channel was not connected yet");
 
             if (!Client.Connected)
-            {
-                DisconnectBecauseOf(new ErrorMessage()
-                {
-                    ErrorType = Exceptions.Remote.ErrorType.ConnectionAlreadyLost,
-                    AdditionalExceptionInformation = "Connection already lost"
-                });
-                return;
-            }
+                throw new ConnectionIsLostException("tcp channel is not connected");
 
             try
             {
@@ -198,7 +198,16 @@ namespace TNT.Core.Tcp
             }
             catch (Exception e)
             {
-                Disconnect();
+                if(e is ConnectionIsLostException)
+                {
+                    DisconnectBecauseOf(new ErrorMessage()
+                    {
+                        ErrorType = Exceptions.Remote.ErrorType.ConnectionAlreadyLost,
+                        AdditionalExceptionInformation = "Connection is already lost"
+                    });
+                }
+                else Disconnect();
+
                 throw new ConnectionIsLostException(innerException: e,
                     message: "Write operation was failed");
             }
