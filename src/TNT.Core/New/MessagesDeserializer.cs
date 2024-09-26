@@ -10,9 +10,16 @@ using TNT.Core.Presentation;
 
 namespace TNT.Core.New
 {
-    public static class MessagesDeserializer
+    public class MessagesDeserializer
     {
-        public static MessageDeserializeResult Deserialize(MemoryStream message)
+        private NewReflectionHelper _reflectionHelper;
+
+        public MessagesDeserializer(NewReflectionHelper reflectionHelper)
+        {
+            _reflectionHelper = reflectionHelper;
+        }
+
+        public MessageDeserializeResult Deserialize(MemoryStream message)
         {
             if (!message.TryReadShort(out var id))
             {
@@ -26,7 +33,7 @@ namespace TNT.Core.New
                 };
             }
 
-            _inputSayMessageDeserializeInfos.TryGetValue(id, out var sayDeserializer);
+            _reflectionHelper._inputSayMessageDeserializeInfos.TryGetValue(id, out var sayDeserializer);
 
             if (sayDeserializer == null)
             {
@@ -72,13 +79,13 @@ namespace TNT.Core.New
             {
                 if (id < 0)
                 {
-                    var error = new ErrorMessage(id,
+                    var errorEx = new ErrorMessage(id,
                         askId, ErrorType.SerializationError, "Answer deserialization failed: " + ex.Message);
 
                     return new MessageDeserializeResult()
                     {
                         DeserializeResult = DeserializeResults.ExternalError,
-                        ErrorMessageOrNull = error,
+                        ErrorMessageOrNull = errorEx,
                         NeedToDisconnect = true,
                     };
                 }
@@ -98,9 +105,19 @@ namespace TNT.Core.New
 
             if (id < 0)
             {
-                //input answer message handling
-                OnAns?.Invoke(this, id, askId.Value, deserialized.Single());
+                var ansMsg = new ResponseMessage()
+                {
+                    Id = id,
+                    AskId = askId.Value,
+                    Answer = deserialized.Single()
+                };
 
+                //input answer message handling
+                return new MessageDeserializeResult()
+                {
+                    DeserializeResult = DeserializeResults.Response,
+                    MessageOrNull = ansMsg,
+                };
             }
             else if (id == Messenger.ExceptionMessageTypeId)
             {
@@ -115,8 +132,14 @@ namespace TNT.Core.New
             }
             else
             {
+                var requestMsg = new RequestMessage(id, askId, deserialized);
+
                 //input ask / say messageHandling
-                OnRequest?.Invoke(this, new RequestMessage(id, askId, deserialized));
+                return new MessageDeserializeResult()
+                {
+                    DeserializeResult = DeserializeResults.Request,
+                    MessageOrNull = requestMsg,
+                };
             }
         }
     }
@@ -132,6 +155,13 @@ namespace TNT.Core.New
         {
 
         }
+    }
+
+    public class ResponseMessage
+    {
+        public short Id { get; set; }
+        public short AskId { get; set; }
+        public object Answer { get; set; }
     }
 
     public enum DeserializeResults

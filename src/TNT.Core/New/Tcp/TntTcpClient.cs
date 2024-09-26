@@ -95,6 +95,25 @@ namespace TNT.Core.New.Tcp
             }
         }
 
+        public void Write(byte[] data)
+        {
+            try
+            {
+                if (!Client.Connected)
+                    throw new ConnectionIsLostException("tcp channel is not connected");
+
+                var networkStream = Client.GetStream();
+
+                networkStream.Write(data);
+
+                _bytesSent += data.Length;
+            }
+            catch
+            {
+                Disconnect();
+            }
+        }
+
         public async Task WriteAsync(byte[] data)
         {
             try

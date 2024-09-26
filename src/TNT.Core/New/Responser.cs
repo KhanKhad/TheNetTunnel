@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -23,11 +24,21 @@ namespace TNT.Core.New
            = new ConcurrentDictionary<int, Func<object[], object>>();
 
         private readonly ReceivePduQueue _receiveMessageAssembler;
+        private NewReflectionHelper _reflectionHelper;
+
+        private MessagesDeserializer _messagesDeserializer;
+        private MessagesSerializer _messagesSerializer;
+
+        private ConcurrentDictionary<short, TaskCompletionSource<object>> MessageAwaiters;
 
 
-        public Responser(TntTcpClient channel)
+        public Responser(NewReflectionHelper reflectionHelper, MessagesSerializer messagesSerializer, TntTcpClient channel)
         {
             Channel = channel;
+            _reflectionHelper = reflectionHelper;
+
+            MessageAwaiters = new ConcurrentDictionary<short, TaskCompletionSource<object>>();
+            _messagesDeserializer = new MessagesDeserializer(reflectionHelper);
             _receiveMessageAssembler = new ReceivePduQueue();
         }
 
@@ -38,16 +49,15 @@ namespace TNT.Core.New
             _ = ReadChannelAsync();
         }
 
-        public Task<object> GetAsyncMessageAwaiter(int askId)
+        public Task<object> GetAsyncMessageAwaiter(short askId)
         {
-            return Task.FromResult(new object());
-        }
+            var tks = new TaskCompletionSource<object>();
 
-        public object GetMessageAwaiter(int askId)
-        {
-            return new object();
-        }
+            if (MessageAwaiters.TryAdd(askId, tks))
+                return tks.Task;
 
+            else throw new Exception("Same askId was already added");
+        }
 
         private async Task ReadChannelAsync()
         {
@@ -66,25 +76,107 @@ namespace TNT.Core.New
                     if (message == null)
                         break;
 
-                    NewMessageReceived(message);
+                    await NewMessageReceivedAsync(message);
                 }
             }
         }
 
-        private void NewMessageReceived(MemoryStream message)
+        private async Task NewMessageReceivedAsync(MemoryStream message)
         {
-            var result = MessagesDeserializer.Deserialize(message);
-
+            var result = _messagesDeserializer.Deserialize(message);
 
             switch (result.DeserializeResult)
             {
                 case DeserializeResults.InternalError:
-                    break;
                 case DeserializeResults.ExternalError:
+
+                    var error = result.ErrorMessageOrNull;
+
+                    var errorMessage = _messagesSerializer.SerializeErrorMessage(error);
+
+                    await Channel.WriteAsync(errorMessage.ToArray());
+
+                    if(result.NeedToDisconnect)
+                        Channel.Disconnect();
+
                     break;
+
+
+
                 case DeserializeResults.Request:
+
+                    var requestMessage = (RequestMessage)result.MessageOrNull;
+
+                    try
+                    {
+                        if (requestMessage.AskId.HasValue)
+                        {
+                            _askSubscribtion.TryGetValue(requestMessage.TypeId, out var askHandler);
+
+                            if (askHandler == null)
+                            {
+                                var errorMsg = 
+                                    new ErrorMessage(
+                                        messageId: requestMessage.TypeId,
+                                        askId: requestMessage.AskId,
+                                        type: ErrorType.ContractSignatureError,
+                                        additionalExceptionInformation: $"ask {requestMessage.TypeId} not implemented");
+                                
+                                var newErrorMessage = _messagesSerializer.SerializeErrorMessage(errorMsg);
+
+                                await Channel.WriteAsync(newErrorMessage.ToArray());
+                            }
+
+                            var answer = askHandler.Invoke(requestMessage.Arguments);
+
+
+
+                            _messenger.Ans((short)-requestMessage.TypeId, requestMessage.AskId.Value, answer);
+                        }
+                        else
+                        {
+                            _saySubscribtion.TryGetValue(requestMessage.TypeId, out var sayHandler);
+                            sayHandler?.Invoke(requestMessage.Arguments);
+                        }
+                    }
+                    catch (LocalSerializationException serializationException)
+                    {
+                        Debug.WriteLine(serializationException.ToString());
+
+                        _messenger.HandleRequestProcessingError(
+                            new ErrorMessage(
+                                message.TypeId,
+                                message.AskId,
+                                ErrorType.SerializationError,
+                                serializationException.ToString()), true);
+                    }
+                    catch (Exception e)
+                    {
+                        Debug.WriteLine($"UnhandledUserExceptionError: {e}");
+
+                        _messenger.HandleRequestProcessingError(
+                            new ErrorMessage(
+                                message.TypeId,
+                                message.AskId,
+                                ErrorType.UnhandledUserExceptionError,
+                                $"UnhandledException: {e.GetBaseException()}"), false);
+                    }
+
                     break;
+
+
+
                 case DeserializeResults.Response:
+
+                    var responseMessage = (ResponseMessage)result.MessageOrNull;
+
+                    var askId = responseMessage.AskId;
+
+                    if(MessageAwaiters.TryRemove(askId, out var messageAwaiter))
+                    {
+                        messageAwaiter.SetResult(responseMessage.Answer);
+                    }
+
                     break;
             }
         }

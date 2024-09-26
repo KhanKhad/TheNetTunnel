@@ -1,9 +1,12 @@
 ﻿using System;
 using System.Linq;
+using System.Net;
 using System.Threading.Tasks;
 using TNT.Core.Contract;
 using TNT.Core.Contract.Origin;
 using TNT.Core.Contract.Proxy;
+using TNT.Core.New;
+using TNT.Core.New.Tcp;
 using TNT.Core.Presentation;
 using TNT.Core.Presentation.Deserializers;
 using TNT.Core.Presentation.Serializers;
@@ -73,8 +76,8 @@ namespace TNT.Core.Api
             var light   = new Transporter(channel);
 
             TContract contract = _contractBuilder.OriginContractFactory == null
-                ? CreateProxyContract(light)
-                : CreateOriginContract(light);
+                ? CreateProxyContract(light, channel)
+                : CreateOriginContract(light, channel);
 
             _contractBuilder.ContractInitializer(contract, channel);
 
@@ -84,7 +87,7 @@ namespace TNT.Core.Api
             return new Connection<TContract, TChannel>(contract, channel, _contractBuilder.ContractFinalizer);
         }
 
-        private TContract CreateOriginContract(Transporter light)
+        private TContract CreateOriginContract(Transporter light, TChannel channel)
         {
             var memebers = ProxyContractFactory.ParseContractInterface(typeof(TContract));
             var dispatcher = _contractBuilder.ReceiveDispatcherFactory();
@@ -97,10 +100,16 @@ namespace TNT.Core.Api
 
             var outputMessages = memebers.GetProperties().Select(m => new MessageTypeInfo
             {
-                ArgumentTypes = ReflectionHelper.GetDelegateInfoOrNull(m.Value.PropertyType).ParameterTypes,
-                ReturnType = ReflectionHelper.GetDelegateInfoOrNull(m.Value.PropertyType).ReturnType,
+                ArgumentTypes = Contract.ReflectionHelper.GetDelegateInfoOrNull(m.Value.PropertyType).ParameterTypes,
+                ReturnType = Contract.ReflectionHelper.GetDelegateInfoOrNull(m.Value.PropertyType).ReturnType,
                 MessageId = (short)m.Key
             });
+
+            var reflectionBuilder = new NewReflectionHelper(
+                SerializerFactory.CreateDefault(_contractBuilder.UserSerializationRules.ToArray()),
+                DeserializerFactory.CreateDefault(_contractBuilder.UserDeserializationRules.ToArray()),
+                outputMessages: outputMessages.ToArray(),
+                inputMessages: inputMessages.ToArray());
 
             var messenger = new Messenger(
                 light,
@@ -112,11 +121,13 @@ namespace TNT.Core.Api
 
             var interlocutor = new Interlocutor(messenger, dispatcher, _contractBuilder.MaxAnswerTimeoutDelay);
 
+            var newInterlocutor = new NewInterlocutor(reflectionBuilder, new TntTcpClient(new IPEndPoint(IPAddress.Loopback, 124)));
+
             TContract contract = _contractBuilder.OriginContractFactory(light.Channel);
             OriginContractLinker.Link(contract, interlocutor);
             return contract;
         }
-        private TContract CreateProxyContract(Transporter light)
+        private TContract CreateProxyContract(Transporter light, TChannel channel)
         {
             var memebers   = ProxyContractFactory.ParseContractInterface(typeof(TContract));
             var dispatcher = _contractBuilder.ReceiveDispatcherFactory();
