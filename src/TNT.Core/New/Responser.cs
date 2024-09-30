@@ -44,42 +44,24 @@ namespace TNT.Core.New
 
         public TntTcpClient Channel { get; }
 
-        public void Start()
+
+        public bool CreateResponseIfRequired(MessageDeserializeResult deserializeResult, out NewTntMessage result)
         {
-            _ = ReadChannelAsync();
-        }
+            result = new NewTntMessage();
 
-        public Task<object> GetAsyncMessageAwaiter(short askId)
-        {
-            var tks = new TaskCompletionSource<object>();
 
-            if (MessageAwaiters.TryAdd(askId, tks))
-                return tks.Task;
-
-            else throw new Exception("Same askId was already added");
-        }
-
-        private async Task ReadChannelAsync()
-        {
-            var reader = Channel.ResponsesChannel.Reader;
-
-            await foreach (var response in reader.ReadAllAsync().ConfigureAwait(false)) 
+            if (!deserializeResult.IsSuccessful)
             {
-                var data = response.Bytes;
+                var error = deserializeResult.ErrorMessageOrNull;
 
-                _receiveMessageAssembler.Enqueue(data);
+                if(deserializeResult.NeedToDisconnect)
+                    result.MessageType = TntMessageType.FatalFailedResponseMessage;
+                else result.MessageType = TntMessageType.FailedResponseMessage;
 
-                while (true)
-                {
-                    var message = _receiveMessageAssembler.DequeueOrNull();
-                    
-                    if (message == null)
-                        break;
-
-                    await NewMessageReceivedAsync(message);
-                }
             }
+
         }
+
 
         private async Task NewMessageReceivedAsync(MemoryStream message)
         {
@@ -87,7 +69,7 @@ namespace TNT.Core.New
 
             switch (result.DeserializeResult)
             {
-                case DeserializeResults.InternalError:
+                case DeserializeResults.Error:
                 case DeserializeResults.ExternalError:
 
                     var error = result.ErrorMessageOrNull;

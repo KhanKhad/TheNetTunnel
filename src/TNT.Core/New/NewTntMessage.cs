@@ -1,0 +1,33 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace TNT.Core.New
+{
+    public class NewTntMessage
+    {
+        public NewTntMessage() 
+        {
+
+        }
+
+        public short MessageId;
+        public TntMessageType MessageType;
+        public short AskId;
+        public object Result;
+    }
+
+    public enum TntMessageType : byte
+    {
+        Unknown = 0,
+
+        PingMessage = 1,
+        PingResponseMessage = 2,
+
+        RequestMessage = 3,
+
+        SuccessfulResponseMessage = 4,
+        FailedResponseMessage = 5,
+        FatalFailedResponseMessage = 6,
+    }
+}

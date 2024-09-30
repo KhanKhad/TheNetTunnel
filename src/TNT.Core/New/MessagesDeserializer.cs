@@ -1,10 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
-using System.Threading.Channels;
-using TNT.Core.Exceptions.Local;
 using TNT.Core.Exceptions.Remote;
 using TNT.Core.Presentation;
 
@@ -19,156 +15,129 @@ namespace TNT.Core.New
             _reflectionHelper = reflectionHelper;
         }
 
-        public MessageDeserializeResult Deserialize(MemoryStream message)
+        public MessageDeserializeResult Deserialize(MemoryStream streamMessage)
         {
-            if (!message.TryReadShort(out var id))
+            if (!streamMessage.TryReadShort(out var messageContractId))
             {
-                var error = new ErrorMessage(null, null, ErrorType.SerializationError, "Messae type id missed");
+                var error = new ErrorMessage(null, null, ErrorType.SerializationError, "Message contract id is missed");
 
                 return new MessageDeserializeResult()
                 {
-                    DeserializeResult = DeserializeResults.InternalError,
                     ErrorMessageOrNull = error,
                     NeedToDisconnect = true,
                 };
             }
 
-            _reflectionHelper._inputSayMessageDeserializeInfos.TryGetValue(id, out var sayDeserializer);
-
-            if (sayDeserializer == null)
+            if (!streamMessage.TryReadShort(out var messageType))
             {
-                var error = new ErrorMessage(id, message.TryReadShort(),
-                        ErrorType.ContractSignatureError,
-                        $"Message type id {id} is not implemented");
-                
+                var error = new ErrorMessage(
+                            messageContractId, null,
+                            ErrorType.SerializationError,
+                            "MessageType is missed");
+
                 return new MessageDeserializeResult()
                 {
-                    DeserializeResult = DeserializeResults.InternalError,
                     ErrorMessageOrNull = error,
-                    NeedToDisconnect = false,
+                    NeedToDisconnect = true,
                 };
             }
 
-            short? askId = null;
-            if (id < 0 || sayDeserializer.HasReturnType)
+            if (!streamMessage.TryReadShort(out var askId))
             {
-                askId = message.TryReadShort();
-
-                if (!askId.HasValue)
-                {
-                    var error = new ErrorMessage(
-                            id, null,
+                var error = new ErrorMessage(
+                            messageContractId, null,
                             ErrorType.SerializationError,
-                            "Ask Id missed");
+                            "Ask Id is missed");
 
-                    return new MessageDeserializeResult()
-                    {
-                        DeserializeResult = DeserializeResults.InternalError,
-                        ErrorMessageOrNull = error,
-                        NeedToDisconnect = true,
-                    };
-                }
+                return new MessageDeserializeResult()
+                {
+                    ErrorMessageOrNull = error,
+                    NeedToDisconnect = true,
+                };
             }
+
+            _reflectionHelper._inputSayMessageDeserializeInfos.TryGetValue(messageContractId, out var sayDeserializer);
+
+            if (sayDeserializer == null)
+            {
+                var error = new ErrorMessage(messageContractId, streamMessage.TryReadShort(),
+                        ErrorType.ContractSignatureError,
+                        $"Message with contract id {messageContractId} is not implemented");
+                
+                return new MessageDeserializeResult()
+                {
+                    ErrorMessageOrNull = error,
+                };
+            }
+
             object[] deserialized;
 
             try
             {
-                deserialized = sayDeserializer.Deserialize(message);
+                deserialized = sayDeserializer.Deserialize(streamMessage);
             }
             catch (Exception ex)
             {
-                if (id < 0)
+                ErrorMessage error;
+
+                if (messageContractId < 0)
                 {
-                    var errorEx = new ErrorMessage(id,
-                        askId, ErrorType.SerializationError, "Answer deserialization failed: " + ex.Message);
-
-                    return new MessageDeserializeResult()
-                    {
-                        DeserializeResult = DeserializeResults.ExternalError,
-                        ErrorMessageOrNull = errorEx,
-                        NeedToDisconnect = true,
-                    };
+                    error = new ErrorMessage(messageContractId, askId,
+                        ErrorType.SerializationError, "Answer deserialization failed: " + ex.Message);
                 }
-
-                var error = new ErrorMessage(
-                        id, askId,
-                        ErrorType.SerializationError,
-                        $"Message type id{id} with could not be deserialized. InnerException: {ex}");
+                else
+                {
+                    error = new ErrorMessage(messageContractId, askId,
+                        ErrorType.SerializationError, $"Message with contract id {messageContractId} cannot be deserialized. InnerException: {ex}");
+                }
 
                 return new MessageDeserializeResult()
                 {
-                    DeserializeResult = DeserializeResults.ExternalError,
                     ErrorMessageOrNull = error,
                     NeedToDisconnect = true,
                 };
             }
 
-            if (id < 0)
+            if(deserialized.Length != 1)
             {
-                var ansMsg = new ResponseMessage()
-                {
-                    Id = id,
-                    AskId = askId.Value,
-                    Answer = deserialized.Single()
-                };
-
-                //input answer message handling
-                return new MessageDeserializeResult()
-                {
-                    DeserializeResult = DeserializeResults.Response,
-                    MessageOrNull = ansMsg,
-                };
-            }
-            else if (id == Messenger.ExceptionMessageTypeId)
-            {
-                var error = (ErrorMessage)deserialized.First();
+                var error = new ErrorMessage(messageContractId, streamMessage.TryReadShort(),
+                        ErrorType.SerializationError,
+                        $"Message with contract {messageContractId} is bad");
 
                 return new MessageDeserializeResult()
                 {
-                    DeserializeResult = DeserializeResults.ExternalError,
                     ErrorMessageOrNull = error,
-                    NeedToDisconnect = error.Exception.IsFatal,
                 };
             }
-            else
-            {
-                var requestMsg = new RequestMessage(id, askId, deserialized);
 
-                //input ask / say messageHandling
-                return new MessageDeserializeResult()
-                {
-                    DeserializeResult = DeserializeResults.Request,
-                    MessageOrNull = requestMsg,
-                };
-            }
+            var tntMessage = new NewTntMessage()
+            {
+                MessageId = messageContractId,
+                MessageType = (TntMessageType)messageType,
+                AskId = askId,
+                Result = deserialized.Single(),
+            };
+
+            var result = new MessageDeserializeResult()
+            {
+                IsSuccessful = true,
+                MessageOrNull = tntMessage,
+            };
+
+            return result;
         }
     }
 
     public class MessageDeserializeResult
     {
-        public object MessageOrNull {  get; set; }
+        public NewTntMessage MessageOrNull {  get; set; }
         public ErrorMessage ErrorMessageOrNull { get; set; }
         public bool NeedToDisconnect {  get; set; }
-        public DeserializeResults DeserializeResult {  get; set; }
+        public bool IsSuccessful {  get; set; }
 
         public MessageDeserializeResult()
         {
 
         }
-    }
-
-    public class ResponseMessage
-    {
-        public short Id { get; set; }
-        public short AskId { get; set; }
-        public object Answer { get; set; }
-    }
-
-    public enum DeserializeResults
-    {
-        InternalError,
-        ExternalError,
-        Request,
-        Response
     }
 }
