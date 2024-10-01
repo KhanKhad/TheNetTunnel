@@ -21,6 +21,75 @@ namespace TNT.Core.New
             _reflectionHelper = reflectionHelper;
         }
 
+        public MemoryStream SerializeTntMessage(NewTntMessage tntMessage)
+        {
+            var stream = new MemoryStream(1024);
+
+            stream.Write(_reservedEmptyBuffer, 0, ReservedHeadLength);
+
+            var messageId = tntMessage.MessageId;
+            var messageType = tntMessage.MessageType;
+            
+            Tools.WriteShort(messageId, to: stream);
+            Tools.WriteShort((short)messageType, to: stream);
+            Tools.WriteShort(tntMessage.AskId, to: stream);
+
+            try
+            {
+                switch (messageType)
+                {
+                    case TntMessageType.PingMessage:
+                    case TntMessageType.PingResponseMessage:
+
+                        var pingVal = (short)tntMessage.Result;
+                        Tools.WriteShort(pingVal, to: stream);
+
+                        break;
+
+                    case TntMessageType.RequestMessage:
+
+                        var rqserializer = _reflectionHelper._outputSayMessageSerializes[messageId];
+
+                        var values = (object[])tntMessage.Result;
+
+                        if (values.Length == 1)
+                            rqserializer.Serialize(values[0], stream);
+                        else if (values.Length > 1)
+                            rqserializer.Serialize(values, stream);
+
+                        break;
+
+                    case TntMessageType.SuccessfulResponseMessage:
+
+                        var rsserializer = _reflectionHelper._outputSayMessageSerializes[messageId];
+                        rsserializer.Serialize(tntMessage.Result, stream);
+
+                        break;
+
+                    case TntMessageType.FailedResponseMessage:
+                    case TntMessageType.FatalFailedResponseMessage:
+
+                        var error = (ErrorMessage)tntMessage.Result;
+                        new ErrorMessageSerializer().SerializeT(error, stream);
+
+                        break;
+
+
+                    case TntMessageType.Unknown:
+                    default:
+                        throw new Exception("Unknown message type");
+                }
+            }
+            catch (Exception ex) 
+            {
+                //??
+                throw ex;
+            }
+
+            return stream;
+        }
+
+
         public MemoryStream SerializeSayMessage(short id, object[] values)
         {
             var stream = new MemoryStream(1024);

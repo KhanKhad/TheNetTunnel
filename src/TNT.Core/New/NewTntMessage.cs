@@ -17,7 +17,7 @@ namespace TNT.Core.New
         public object Result;
     }
 
-    public enum TntMessageType : byte
+    public enum TntMessageType : short
     {
         Unknown = 0,
 

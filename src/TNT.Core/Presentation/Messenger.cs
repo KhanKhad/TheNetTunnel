@@ -147,7 +147,7 @@ namespace TNT.Core.Presentation
             {
                 HandleRequestProcessingError(
                     new ErrorMessage(
-                        null, null,
+                        0, 0,
                         ErrorType.SerializationError,
                         "Messae type id missed"), true);
 
@@ -158,7 +158,7 @@ namespace TNT.Core.Presentation
             if (sayDeserializer == null)
             {
                 HandleRequestProcessingError(
-                    new ErrorMessage(id, data.TryReadShort(),
+                    new ErrorMessage(id, data.TryReadShort() ?? 0,
                         ErrorType.ContractSignatureError,
                         $"Message type id {id} is not implemented"), false);
                 return;
@@ -172,7 +172,7 @@ namespace TNT.Core.Presentation
                 {
                     HandleRequestProcessingError(
                         new ErrorMessage(
-                            id, null,
+                            id, 0,
                             ErrorType.SerializationError,
                             "Ask Id missed"), true);
                     return;
@@ -197,7 +197,7 @@ namespace TNT.Core.Presentation
                 }
                 HandleRequestProcessingError(
                     new ErrorMessage(
-                        id, askId,
+                        id, askId ?? 0,
                         ErrorType.SerializationError,
                         $"Message type id{id} with could not be deserialized. InnerException: {ex}"), true);
                 return;

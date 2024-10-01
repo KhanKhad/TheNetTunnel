@@ -49,8 +49,14 @@ namespace TNT.Core.New.Tcp
             ResponsesChannel = Channel.CreateBounded<TcpData>(3);
         }
 
+        private volatile bool _alreadyStarted;
         public void Start()
         {
+            if (_alreadyStarted)
+                return;
+
+            _alreadyStarted = true;
+
             _ = InternalStartAsync();
         }
 
@@ -97,11 +103,11 @@ namespace TNT.Core.New.Tcp
 
         public void Write(byte[] data)
         {
+            if (!Client.Connected)
+                throw new ConnectionIsLostException("tcp channel is not connected");
+
             try
             {
-                if (!Client.Connected)
-                    throw new ConnectionIsLostException("tcp channel is not connected");
-
                 var networkStream = Client.GetStream();
 
                 networkStream.Write(data);
@@ -116,11 +122,11 @@ namespace TNT.Core.New.Tcp
 
         public async Task WriteAsync(byte[] data)
         {
+            if (!Client.Connected)
+                throw new ConnectionIsLostException("tcp channel is not connected");
+
             try
             {
-                if (!Client.Connected)
-                    throw new ConnectionIsLostException("tcp channel is not connected");
-
                 var networkStream = Client.GetStream();
                 //According to msdn, the WriteAsync call is thread-safe.
                 //No need to use lock

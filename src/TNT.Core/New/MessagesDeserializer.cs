@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using TNT.Core.Exceptions.Remote;
 using TNT.Core.Presentation;
+using TNT.Core.Presentation.Deserializers;
 
 namespace TNT.Core.New
 {
@@ -19,7 +20,7 @@ namespace TNT.Core.New
         {
             if (!streamMessage.TryReadShort(out var messageContractId))
             {
-                var error = new ErrorMessage(null, null, ErrorType.SerializationError, "Message contract id is missed");
+                var error = new ErrorMessage(0, 0, ErrorType.SerializationError, "Message contract id is missed");
 
                 return new MessageDeserializeResult()
                 {
@@ -31,7 +32,7 @@ namespace TNT.Core.New
             if (!streamMessage.TryReadShort(out var messageType))
             {
                 var error = new ErrorMessage(
-                            messageContractId, null,
+                            messageContractId, 0,
                             ErrorType.SerializationError,
                             "MessageType is missed");
 
@@ -45,7 +46,7 @@ namespace TNT.Core.New
             if (!streamMessage.TryReadShort(out var askId))
             {
                 var error = new ErrorMessage(
-                            messageContractId, null,
+                            messageContractId, 0,
                             ErrorType.SerializationError,
                             "Ask Id is missed");
 
@@ -56,75 +57,159 @@ namespace TNT.Core.New
                 };
             }
 
-            _reflectionHelper._inputSayMessageDeserializeInfos.TryGetValue(messageContractId, out var sayDeserializer);
-
-            if (sayDeserializer == null)
+            switch ((TntMessageType)messageType)
             {
-                var error = new ErrorMessage(messageContractId, streamMessage.TryReadShort(),
+                #region Ping
+                case TntMessageType.PingMessage:
+                case TntMessageType.PingResponseMessage:
+
+                    if (!streamMessage.TryReadShort(out var pingStatus))
+                    {
+                        var perror = new ErrorMessage(
+                                    messageContractId, 0,
+                                    ErrorType.SerializationError,
+                                    "No ping status in ping message");
+
+                        return new MessageDeserializeResult()
+                        {
+                            ErrorMessageOrNull = perror,
+                            NeedToDisconnect = true,
+                        };
+                    }
+                    else //successfully read ping reply/response
+                    {
+                        return new MessageDeserializeResult()
+                        {
+                            IsSuccessful = true,
+                            MessageOrNull = new NewTntMessage()
+                            {
+                                MessageId = messageContractId,
+                                MessageType = (TntMessageType)messageType,
+                                AskId = askId,
+                                Result = pingStatus,
+                            },
+                        };
+                    }
+                #endregion
+
+                #region Request/Response
+                case TntMessageType.RequestMessage:
+                case TntMessageType.SuccessfulResponseMessage:
+
+                    if(!_reflectionHelper._inputSayMessageDeserializeInfos.TryGetValue(messageContractId, out var deserializer))
+                    {
+                        var rError = new ErrorMessage(messageContractId, askId,
                         ErrorType.ContractSignatureError,
                         $"Message with contract id {messageContractId} is not implemented");
-                
-                return new MessageDeserializeResult()
-                {
-                    ErrorMessageOrNull = error,
-                };
-            }
 
-            object[] deserialized;
+                        return new MessageDeserializeResult()
+                        {
+                            ErrorMessageOrNull = rError,
+                        };
+                    }
+                    else
+                    {
+                        try
+                        {
+                            var deserialized = deserializer.Deserialize(streamMessage);
+                            
+                            NewTntMessage tntMessage;
 
-            try
-            {
-                deserialized = sayDeserializer.Deserialize(streamMessage);
-            }
-            catch (Exception ex)
-            {
-                ErrorMessage error;
+                            if (messageType != (short)TntMessageType.RequestMessage)
+                            {
+                                if (deserialized.Length != 1)
+                                {
+                                    return new MessageDeserializeResult()
+                                    {
+                                        ErrorMessageOrNull = new ErrorMessage(messageContractId, askId,
+                                            ErrorType.SerializationError,
+                                            $"Message with contract {messageContractId} is bad"),
+                                    };
+                                }
 
-                if (messageContractId < 0)
-                {
-                    error = new ErrorMessage(messageContractId, askId,
-                        ErrorType.SerializationError, "Answer deserialization failed: " + ex.Message);
-                }
-                else
-                {
-                    error = new ErrorMessage(messageContractId, askId,
-                        ErrorType.SerializationError, $"Message with contract id {messageContractId} cannot be deserialized. InnerException: {ex}");
-                }
+                                tntMessage = new NewTntMessage()
+                                {
+                                    MessageId = messageContractId,
+                                    MessageType = (TntMessageType)messageType,
+                                    AskId = askId,
+                                    Result = deserialized.Single(),
+                                };
+                            }
+                            else
+                            {
+                                tntMessage = new NewTntMessage()
+                                {
+                                    MessageId = messageContractId,
+                                    MessageType = (TntMessageType)messageType,
+                                    AskId = askId,
+                                    Result = deserialized,
+                                };
+                            }
 
-                return new MessageDeserializeResult()
-                {
-                    ErrorMessageOrNull = error,
-                    NeedToDisconnect = true,
-                };
-            }
+                            return new MessageDeserializeResult()
+                            {
+                                IsSuccessful = true,
+                                MessageOrNull = tntMessage,
+                            };
 
-            if(deserialized.Length != 1)
-            {
-                var error = new ErrorMessage(messageContractId, streamMessage.TryReadShort(),
+                        }
+                        catch (Exception ex)
+                        {
+                            ErrorMessage dError;
+
+                            if (messageType != (short)TntMessageType.RequestMessage)
+                            {
+                                dError = new ErrorMessage(messageContractId, askId,
+                                    ErrorType.SerializationError, "Answer deserialization failed: " + ex.Message);
+                            }
+                            else
+                            {
+                                dError = new ErrorMessage(messageContractId, askId,
+                                    ErrorType.SerializationError, $"Message with contract id {messageContractId} cannot" +
+                                    $" be deserialized. InnerException: {ex}");
+                            }
+
+                            return new MessageDeserializeResult()
+                            {
+                                ErrorMessageOrNull = dError,
+                                NeedToDisconnect = true,
+                            };
+                        }
+                    }
+                #endregion
+
+                case TntMessageType.FailedResponseMessage:
+                case TntMessageType.FatalFailedResponseMessage:
+
+                    var errorDeserializer = new ErrorMessageDeserializer();
+                    var deserializedError = errorDeserializer.Deserialize(streamMessage, 
+                        (int)(streamMessage.Length - streamMessage.Position));
+
+                    return new MessageDeserializeResult()
+                    {
+                        IsSuccessful = true,
+                        MessageOrNull = new NewTntMessage()
+                        {
+                            MessageId = messageContractId,
+                            MessageType = (TntMessageType)messageType,
+                            AskId = askId,
+                            Result = deserializedError,
+                        },
+                    };
+
+                case TntMessageType.Unknown:
+                default:
+
+                    var error = new ErrorMessage(messageContractId, askId,
                         ErrorType.SerializationError,
-                        $"Message with contract {messageContractId} is bad");
+                        $"Unknown message type: {messageType}");
 
-                return new MessageDeserializeResult()
-                {
-                    ErrorMessageOrNull = error,
-                };
+                    return new MessageDeserializeResult()
+                    {
+                        ErrorMessageOrNull = error,
+                        NeedToDisconnect = true
+                    };
             }
-
-            var tntMessage = new NewTntMessage()
-            {
-                MessageId = messageContractId,
-                MessageType = (TntMessageType)messageType,
-                AskId = askId,
-                Result = deserialized.Single(),
-            };
-
-            var result = new MessageDeserializeResult()
-            {
-                IsSuccessful = true,
-                MessageOrNull = tntMessage,
-            };
-
-            return result;
         }
     }
 

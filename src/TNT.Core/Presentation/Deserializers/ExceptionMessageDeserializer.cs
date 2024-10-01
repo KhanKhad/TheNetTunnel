@@ -23,8 +23,8 @@ namespace TNT.Core.Presentation.Deserializers
             var deserialized = _deserializer.DeserializeT(stream, size);
             return new ErrorMessage
             (
-                messageId: (short?)    deserialized[0],
-                askId:     (short?)    deserialized[1],
+                messageId: (short)    deserialized[0],
+                askId:     (short)    deserialized[1],
                 type:      (ErrorType) deserialized[2],
                 additionalExceptionInformation: (string) deserialized[3]
             );

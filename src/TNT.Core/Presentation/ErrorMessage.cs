@@ -6,7 +6,7 @@ namespace TNT.Core.Presentation
     public class ErrorMessage
     {
         public ErrorMessage() { }
-        public ErrorMessage(short? messageId, short? askId, ErrorType type, string additionalExceptionInformation)
+        public ErrorMessage(short messageId, short askId, ErrorType type, string additionalExceptionInformation)
         {
             this.MessageId = messageId;
             this.AskId = askId;
@@ -14,8 +14,8 @@ namespace TNT.Core.Presentation
             Exception = RemoteException.Create(type, additionalExceptionInformation, messageId, askId);
         }
        
-        public short? MessageId { get; set; }
-        public short? AskId { get; set; }
+        public short MessageId { get; set; }
+        public short AskId { get; set; }
         public ErrorType ErrorType { get; set; }
         public string AdditionalExceptionInformation { get; set; }
         public  RemoteException Exception { get; }
@@ -24,11 +24,10 @@ namespace TNT.Core.Presentation
         {
             StringBuilder ans = new StringBuilder();
             ans.Append($"Error: {ErrorType}");
-            if(MessageId.HasValue)
-                ans.Append($", Message type id: {MessageId.Value}");
-            if (AskId.HasValue)
-                ans.Append($", Ask id: {AskId.Value}");
-            if(!string.IsNullOrWhiteSpace(AdditionalExceptionInformation))
+            ans.Append($", Message type id: {MessageId}");
+            ans.Append($", Ask id: {AskId}");
+
+            if (!string.IsNullOrWhiteSpace(AdditionalExceptionInformation))
                 ans.Append($". \"{AdditionalExceptionInformation}\".");
             return ans.ToString();
         }

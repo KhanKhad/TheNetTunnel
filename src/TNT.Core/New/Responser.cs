@@ -11,166 +11,105 @@ using TNT.Core.Exceptions.Local;
 using TNT.Core.Exceptions.Remote;
 using TNT.Core.New.Tcp;
 using TNT.Core.Presentation;
+using TNT.Core.Presentation.ReceiveDispatching;
 using TNT.Core.Transport;
 
 namespace TNT.Core.New
 {
     public class Responser
     {
-        private readonly ConcurrentDictionary<int, Action<object[]>> _saySubscribtion
-            = new ConcurrentDictionary<int, Action<object[]>>();
-
-        private readonly ConcurrentDictionary<int, Func<object[], object>> _askSubscribtion
-           = new ConcurrentDictionary<int, Func<object[], object>>();
-
-        private readonly ReceivePduQueue _receiveMessageAssembler;
         private NewReflectionHelper _reflectionHelper;
 
-        private MessagesDeserializer _messagesDeserializer;
-        private MessagesSerializer _messagesSerializer;
 
-        private ConcurrentDictionary<short, TaskCompletionSource<object>> MessageAwaiters;
-
-
-        public Responser(NewReflectionHelper reflectionHelper, MessagesSerializer messagesSerializer, TntTcpClient channel)
+        public Responser(NewReflectionHelper reflectionHelper, IDispatcher receiveDispatcher)
         {
-            Channel = channel;
             _reflectionHelper = reflectionHelper;
-
-            MessageAwaiters = new ConcurrentDictionary<short, TaskCompletionSource<object>>();
-            _messagesDeserializer = new MessagesDeserializer(reflectionHelper);
-            _receiveMessageAssembler = new ReceivePduQueue();
         }
 
-        public TntTcpClient Channel { get; }
-
-
-        public bool CreateResponseIfRequired(MessageDeserializeResult deserializeResult, out NewTntMessage result)
+        public NewTntMessage CreateResponse(NewTntMessage deserialized)
         {
-            result = new NewTntMessage();
+            NewTntMessage result;
 
+            var type = deserialized.MessageType;
 
-            if (!deserializeResult.IsSuccessful)
+            var id = deserialized.MessageId;
+            var askId = deserialized.AskId;
+
+            try
             {
-                var error = deserializeResult.ErrorMessageOrNull;
 
-                if(deserializeResult.NeedToDisconnect)
-                    result.MessageType = TntMessageType.FatalFailedResponseMessage;
-                else result.MessageType = TntMessageType.FailedResponseMessage;
+                var arguments = (object[])deserialized.Result;
 
+                if (_reflectionHelper._askSubscribtion.TryGetValue(id, out var askHandler))
+                {
+                    var answer = askHandler.Invoke(arguments);
+
+                    result = CreateSuccessfulResponseMessage(answer, id, (short)-askId);
+                }
+                else if (_reflectionHelper._saySubscribtion.TryGetValue(id, out var sayHandler))
+                {
+                    sayHandler.Invoke(arguments);
+
+                    result = CreateSuccessfulResponseMessage(null, id, (short)-askId);
+                }
+                else
+                {
+                    var error = new ErrorMessage(id, askId, ErrorType.ContractSignatureError,
+                        $"there isn't any handlers for this message: {id}|{askId}");
+
+                    result = CreateFatalFailedResponseMessage(error, id, askId);
+                }
+            }
+            catch (Exception ex)
+            {
+                var error = new ErrorMessage(id, askId, ErrorType.UnhandledUserExceptionError,
+                        $"Unexpected exception {id}|{askId}: {ex.Message}");
+
+                result = CreateFailedResponseMessage(error, id, askId);
             }
 
+            return result;
         }
 
-
-        private async Task NewMessageReceivedAsync(MemoryStream message)
+        public NewTntMessage CreatePingResponse(NewTntMessage msg)
         {
-            var result = _messagesDeserializer.Deserialize(message);
-
-            switch (result.DeserializeResult)
+            return new NewTntMessage()
             {
-                case DeserializeResults.Error:
-                case DeserializeResults.ExternalError:
-
-                    var error = result.ErrorMessageOrNull;
-
-                    var errorMessage = _messagesSerializer.SerializeErrorMessage(error);
-
-                    await Channel.WriteAsync(errorMessage.ToArray());
-
-                    if(result.NeedToDisconnect)
-                        Channel.Disconnect();
-
-                    break;
-
-
-
-                case DeserializeResults.Request:
-
-                    var requestMessage = (RequestMessage)result.MessageOrNull;
-
-                    try
-                    {
-                        if (requestMessage.AskId.HasValue)
-                        {
-                            _askSubscribtion.TryGetValue(requestMessage.TypeId, out var askHandler);
-
-                            if (askHandler == null)
-                            {
-                                var errorMsg = 
-                                    new ErrorMessage(
-                                        messageId: requestMessage.TypeId,
-                                        askId: requestMessage.AskId,
-                                        type: ErrorType.ContractSignatureError,
-                                        additionalExceptionInformation: $"ask {requestMessage.TypeId} not implemented");
-                                
-                                var newErrorMessage = _messagesSerializer.SerializeErrorMessage(errorMsg);
-
-                                await Channel.WriteAsync(newErrorMessage.ToArray());
-                            }
-
-                            var answer = askHandler.Invoke(requestMessage.Arguments);
-
-
-
-                            _messenger.Ans((short)-requestMessage.TypeId, requestMessage.AskId.Value, answer);
-                        }
-                        else
-                        {
-                            _saySubscribtion.TryGetValue(requestMessage.TypeId, out var sayHandler);
-                            sayHandler?.Invoke(requestMessage.Arguments);
-                        }
-                    }
-                    catch (LocalSerializationException serializationException)
-                    {
-                        Debug.WriteLine(serializationException.ToString());
-
-                        _messenger.HandleRequestProcessingError(
-                            new ErrorMessage(
-                                message.TypeId,
-                                message.AskId,
-                                ErrorType.SerializationError,
-                                serializationException.ToString()), true);
-                    }
-                    catch (Exception e)
-                    {
-                        Debug.WriteLine($"UnhandledUserExceptionError: {e}");
-
-                        _messenger.HandleRequestProcessingError(
-                            new ErrorMessage(
-                                message.TypeId,
-                                message.AskId,
-                                ErrorType.UnhandledUserExceptionError,
-                                $"UnhandledException: {e.GetBaseException()}"), false);
-                    }
-
-                    break;
-
-
-
-                case DeserializeResults.Response:
-
-                    var responseMessage = (ResponseMessage)result.MessageOrNull;
-
-                    var askId = responseMessage.AskId;
-
-                    if(MessageAwaiters.TryRemove(askId, out var messageAwaiter))
-                    {
-                        messageAwaiter.SetResult(responseMessage.Answer);
-                    }
-
-                    break;
-            }
+                AskId = msg.AskId,
+                MessageType = TntMessageType.PingResponseMessage,
+                Result = (short)1
+            };
         }
 
-        public void SetIncomeAskCallHandler<T>(int messageId, Func<object[], T> callback)
+        public NewTntMessage CreateSuccessfulResponseMessage(object result, short messageId, short askId)
         {
-            _askSubscribtion.TryAdd(messageId, (args) => callback(args));
+            return new NewTntMessage()
+            {
+                AskId = askId,
+                MessageId = messageId,
+                MessageType = TntMessageType.SuccessfulResponseMessage,
+                Result = result,
+            };
         }
-
-        public void SetIncomeSayCallHandler(int messageId, Action<object[]> callback)
+        public NewTntMessage CreateFailedResponseMessage(ErrorMessage errorMessage, short messageId, short askId)
         {
-            _saySubscribtion.TryAdd(messageId, callback);
+            return new NewTntMessage()
+            {
+                AskId = askId,
+                MessageId = messageId,
+                MessageType = TntMessageType.FailedResponseMessage,
+                Result = errorMessage,
+            };
+        }
+        public NewTntMessage CreateFatalFailedResponseMessage(ErrorMessage errorMessage, short messageId, short askId)
+        {
+            return new NewTntMessage()
+            {
+                AskId = askId,
+                MessageId = messageId,
+                MessageType = TntMessageType.FatalFailedResponseMessage,
+                Result = errorMessage,
+            };
         }
     }
 }

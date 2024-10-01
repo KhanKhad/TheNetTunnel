@@ -5,16 +5,38 @@ using TNT.Core.Presentation.Deserializers;
 using TNT.Core.Presentation.Serializers;
 using TNT.Core.Presentation;
 using TNT.Core.Transport;
+using System.Collections.Concurrent;
 
 namespace TNT.Core.New
 {
     public class NewReflectionHelper
     {
+
+        /// <summary>
+        /// input types serializer
+        /// </summary>
         internal readonly Dictionary<int, InputMessageDeserializeInfo> _inputSayMessageDeserializeInfos
             = new Dictionary<int, InputMessageDeserializeInfo>();
 
+
+        /// <summary>
+        /// out types serializer
+        /// </summary>
         internal readonly Dictionary<int, ISerializer> _outputSayMessageSerializes
             = new Dictionary<int, ISerializer>();
+
+
+        /// <summary>
+        /// Say handlers
+        /// </summary>
+        internal readonly ConcurrentDictionary<int, Action<object[]>> _saySubscribtion
+            = new ConcurrentDictionary<int, Action<object[]>>();
+
+        /// <summary>
+        /// ask handlers
+        /// </summary>
+        internal readonly ConcurrentDictionary<int, Func<object[], object>> _askSubscribtion
+           = new ConcurrentDictionary<int, Func<object[], object>>();
 
         public NewReflectionHelper(
             SerializerFactory serializerFactory,
@@ -53,6 +75,22 @@ namespace TNT.Core.New
             }
             _inputSayMessageDeserializeInfos.Add(Messenger.ExceptionMessageTypeId,
                 InputMessageDeserializeInfo.CreateForExceptionHandling());
+        }
+
+        public void SetIncomeAskCallHandler<T>(int messageId, Func<object[], T> callback)
+        {
+            _askSubscribtion.TryAdd(messageId, (args) => callback(args));
+        }
+
+        public void SetIncomeSayCallHandler(int messageId, Action<object[]> callback)
+        {
+            _saySubscribtion.TryAdd(messageId, callback);
+        }
+
+        public void Unsubscribe(int messageId)
+        {
+            _saySubscribtion.TryRemove(messageId, out _);
+            _askSubscribtion.TryRemove(messageId, out _);
         }
     }
 }

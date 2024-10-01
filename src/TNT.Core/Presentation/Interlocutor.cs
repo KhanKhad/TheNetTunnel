@@ -152,7 +152,7 @@ namespace TNT.Core.Presentation
                         _messenger.HandleRequestProcessingError(
                             new ErrorMessage(
                                 messageId: message.TypeId,
-                                askId: message.AskId,
+                                askId: message.AskId ?? 0,
                                 type: ErrorType.ContractSignatureError,
                                 additionalExceptionInformation: $"ask {message.TypeId} not implemented"), false);
                         return;
@@ -174,7 +174,7 @@ namespace TNT.Core.Presentation
                 _messenger.HandleRequestProcessingError(
                     new ErrorMessage(
                         message.TypeId,
-                        message.AskId,
+                        message.AskId ?? 0,
                         ErrorType.SerializationError,
                         serializationException.ToString()), true);
             }
@@ -185,7 +185,7 @@ namespace TNT.Core.Presentation
                 _messenger.HandleRequestProcessingError(
                     new ErrorMessage(
                         message.TypeId, 
-                        message.AskId, 
+                        message.AskId ?? 0, 
                         ErrorType.UnhandledUserExceptionError, 
                         $"UnhandledException: {e.GetBaseException()}"), false);
             }

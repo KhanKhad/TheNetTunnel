@@ -1,26 +1,21 @@
 ﻿using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
-using System.Text;
-using System.Threading;
-using System.Threading.Channels;
 using System.Threading.Tasks;
 using TNT.Core.Exceptions.Local;
-using TNT.Core.Exceptions.Remote;
 using TNT.Core.New.Tcp;
 using TNT.Core.Presentation;
-using TNT.Core.Tcp;
+using TNT.Core.Presentation.ReceiveDispatching;
 using TNT.Core.Transport;
 
 namespace TNT.Core.New
 {
-    public class NewInterlocutor
+    public class NewInterlocutor : IInterlocutor
     {
         public TntTcpClient TcpChannel;
         public Responser _responser;
 
+        private NewReflectionHelper _reflectionHelper;
         private MessagesSerializer _messagesSerializer;
         private MessagesDeserializer _messagesDeserializer;
         private readonly ReceivePduQueue _receiveMessageAssembler;
@@ -30,32 +25,41 @@ namespace TNT.Core.New
 
         private ConcurrentDictionary<short, TaskCompletionSource<object>> MessageAwaiters;
 
-        public NewInterlocutor(NewReflectionHelper reflectionHelper, TntTcpClient channel, int maxAnsDelay = 3000)
+        public NewInterlocutor(NewReflectionHelper reflectionHelper, IDispatcher receiveDispatcher, 
+            TntTcpClient channel, int maxAnsDelay = 3000)
         {
             _maxAnsDelay = maxAnsDelay;
 
             TcpChannel = channel;
 
+            _reflectionHelper = reflectionHelper;
             _receiveMessageAssembler = new ReceivePduQueue();
 
             _messagesSerializer = new MessagesSerializer(reflectionHelper);
             _messagesDeserializer = new MessagesDeserializer(reflectionHelper);
 
-            _responser = new Responser(reflectionHelper, _messagesSerializer, channel);
+            _responser = new Responser(reflectionHelper, receiveDispatcher);
 
             MessageAwaiters = new ConcurrentDictionary<short, TaskCompletionSource<object>>();
         }
 
+        private volatile bool _alreadyStarted;
         public void Start()
         {
-            _ = ReadChannelAsync();
+            if (_alreadyStarted)
+                return;
+
+            _alreadyStarted = true;
+
+            //we need to clear the SynchronisationContext
+            _ = Task.Run(ReadChannelAsync);
         }
 
         private async Task ReadChannelAsync()
         {
             var reader = TcpChannel.ResponsesChannel.Reader;
 
-            await foreach (var response in reader.ReadAllAsync().ConfigureAwait(false))
+            await foreach (var response in reader.ReadAllAsync())
             {
                 var data = response.Bytes;
 
@@ -68,27 +72,126 @@ namespace TNT.Core.New
                     if (message == null)
                         break;
 
-                    _ = NewMessageReceivedAsync(message).ConfigureAwait(false);
+                    _ = NewMessageReceivedAsync(message);
                 }
             }
         }
 
 
-        private async Task NewMessageReceivedAsync(MemoryStream message)
+        private async Task NewMessageReceivedAsync(MemoryStream stream)
         {
-            var result = _messagesDeserializer.Deserialize(message);
+            //No need to wait for this message, we can start handling next immediately.
+            await Task.Yield();
 
-            if (!result.IsSuccessful)
+            var deserialized = _messagesDeserializer.Deserialize(stream);
+
+            if (!deserialized.IsSuccessful)
             {
+                var error = deserialized.ErrorMessageOrNull;
 
+                var result = _responser.CreateFatalFailedResponseMessage(error, 0, 0);
+
+                await SendMessageAsync(result);
+
+                if (deserialized.NeedToDisconnect)
+                    Disconnect();
+            }
+
+            var message = deserialized.MessageOrNull;
+            var msgType = deserialized.MessageOrNull.MessageType;
+            var askId = deserialized.MessageOrNull.AskId;
+
+            if (msgType == TntMessageType.RequestMessage)
+            {
+                var response = _responser.CreateResponse(deserialized.MessageOrNull);
+                await SendMessageAsync(response);
+            }
+            else if(msgType == TntMessageType.PingMessage)
+            {
+                var response = _responser.CreatePingResponse(deserialized.MessageOrNull);
+                await SendMessageAsync(response);
+            }
+            else //no need to response
+            {
+                switch (msgType)
+                {
+                    case TntMessageType.PingResponseMessage:
+                    case TntMessageType.SuccessfulResponseMessage:
+
+                        //remove awaiter
+                        if (MessageAwaiters.TryRemove(askId, out var smessageAwaiter))
+                        {
+                            smessageAwaiter.SetResult(message.Result);
+                        }
+
+                        break;
+                    case TntMessageType.FailedResponseMessage:
+                        
+                        //remove awaiter with an error
+                        if (MessageAwaiters.TryRemove(askId, out var fmessageAwaiter))
+                        {
+                            var error = (ErrorMessage)message.Result;
+                            fmessageAwaiter.SetException(error.Exception);
+                        }
+
+                        break;
+                    case TntMessageType.FatalFailedResponseMessage:
+
+                        //remove awaiter with an error and disconnect
+                        if (MessageAwaiters.TryRemove(askId, out var ffmessageAwaiter))
+                        {
+                            var error = (ErrorMessage)message.Result;
+                            ffmessageAwaiter.SetException(error.Exception);
+                        }
+
+                        Disconnect();
+
+                        break;
+                    default:
+                        break;
+                }
             }
         }
 
+        public async Task SendMessageAsync(NewTntMessage message)
+        {
+            var serialized = _messagesSerializer.SerializeTntMessage(message);
+            await TcpChannel.WriteAsync(serialized.ToArray());
+        }
+
+        public void SendMessage(NewTntMessage message)
+        {
+            var serialized = _messagesSerializer.SerializeTntMessage(message);
+            TcpChannel.Write(serialized.ToArray());
+        }
+
+        public void Disconnect()
+        {
+            TcpChannel.Disconnect();
+        }
 
         public void Say(int messageId, object[] values)
         {
-            var message = _messagesSerializer.SerializeSayMessage((short)messageId, values);
-            TcpChannel.Write(message.ToArray());
+            short newId;
+
+            unchecked
+            {
+                newId = _maxAskId++;
+            }
+
+            var awaiter = GetAsyncMessageAwaiter(newId);
+
+            var message = new NewTntMessage()
+            {
+                AskId = newId,
+                MessageId = (short)messageId,
+                MessageType = TntMessageType.RequestMessage,
+                Result = values,
+            };
+
+            SendMessage(message);
+            //var message = _messagesSerializer.SerializeSayMessage((short)messageId, values);
+            //TcpChannel.Write(message.ToArray());
         }
 
         public T Ask<T>(int messageId, object[] values)
@@ -100,11 +203,17 @@ namespace TNT.Core.New
                 newId = _maxAskId++;
             }
 
-            var message = _messagesSerializer.SerializeAskMessage((short)messageId, newId, values);
-            
             var awaiter = GetAsyncMessageAwaiter(newId);
 
-            TcpChannel.Write(message.ToArray());
+            var message = new NewTntMessage()
+            {
+                AskId = newId,
+                MessageId = (short)messageId,
+                MessageType = TntMessageType.RequestMessage,
+                Result = values,
+            };
+
+            SendMessage(message);
 
             if (awaiter.Wait(_maxAnsDelay))
                 return (T)awaiter.Result;
@@ -123,15 +232,17 @@ namespace TNT.Core.New
             else throw new Exception("Same askId was already added");
         }
 
-
-
         public void SetIncomeAskCallHandler<T>(int messageId, Func<object[], T> callback)
         {
-            _responser.SetIncomeAskCallHandler(messageId, callback);
+            _reflectionHelper.SetIncomeAskCallHandler(messageId, callback);
         }
         public void SetIncomeSayCallHandler(int messageId, Action<object[]> callback)
         {
-            _responser.SetIncomeSayCallHandler(messageId, callback);
+            _reflectionHelper.SetIncomeSayCallHandler(messageId, callback);
+        }
+        public void Unsubscribe(int messageId)
+        {
+            _reflectionHelper.Unsubscribe(messageId);
         }
     }
 }
