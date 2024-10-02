@@ -5,39 +5,36 @@ using TNT.Core.Transport;
 
 namespace TNT.Core.Api
 {
-   public interface  IChannelServer<TContract,TChannel> where TChannel : IChannel
+   public interface  IChannelServer<TContract> : IDisposable 
     {
-        event Action<object, BeforeConnectEventArgs<TContract, TChannel>>  BeforeConnect;
-        event Action<object, IConnection<TContract, TChannel>> AfterConnect;
-        event Action<object, ClientDisconnectEventArgs<TContract, TChannel>> Disconnected;
+        event Action<object, BeforeConnectEventArgs<TContract>>  BeforeConnect;
+        event Action<object, IConnection<TContract>> AfterConnect;
+        event Action<object, ClientDisconnectEventArgs<TContract>> Disconnected;
         int ConnectionsCount { get; }
-        void StartListening();
-        void StopListening();
-        bool IsListening { get; }
-        IEnumerable<IConnection<TContract, TChannel>> GetAllConnections();
-        void Close();
+        void Start();
+        IEnumerable<IConnection<TContract>> GetAllConnections();
     }
 
-    public class ClientDisconnectEventArgs<TContract, TChannel>: EventArgs where TChannel : IChannel
+    public class ClientDisconnectEventArgs<TContract>: EventArgs
     {
-        public ClientDisconnectEventArgs(IConnection<TContract, TChannel> connection, ErrorMessage errorMessageOrNull)
+        public ClientDisconnectEventArgs(IConnection<TContract> connection, ErrorMessage errorMessageOrNull)
         {
             Connection = connection;
             ErrorMessageOrNull = errorMessageOrNull;
         }
 
-        public IConnection<TContract, TChannel> Connection { get; }
+        public IConnection<TContract> Connection { get; }
         public ErrorMessage ErrorMessageOrNull { get; }
     }
-    public class BeforeConnectEventArgs<TContract, TChannel> : EventArgs where TChannel: IChannel
+    public class BeforeConnectEventArgs<TContract> : EventArgs
     {
-        public BeforeConnectEventArgs(IConnection<TContract, TChannel> connection)
+        public BeforeConnectEventArgs(IConnection<TContract> connection)
         {
             Connection = connection;
             AllowConnection = true;
         }
 
-        public IConnection<TContract, TChannel> Connection { get; }
+        public IConnection<TContract> Connection { get; }
         public bool AllowConnection { get; set; }
     }
 }

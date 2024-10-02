@@ -73,8 +73,6 @@ namespace TNT.Core.New
                         serializerFactory.Create(messageSayInfo.ReturnType));
                 }
             }
-            _inputSayMessageDeserializeInfos.Add(Messenger.ExceptionMessageTypeId,
-                InputMessageDeserializeInfo.CreateForExceptionHandling());
         }
 
         public void SetIncomeAskCallHandler<T>(int messageId, Func<object[], T> callback)

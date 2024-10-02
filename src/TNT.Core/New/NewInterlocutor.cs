@@ -95,6 +95,8 @@ namespace TNT.Core.New
 
                 if (deserialized.NeedToDisconnect)
                     Disconnect();
+
+                return;
             }
 
             var message = deserialized.MessageOrNull;

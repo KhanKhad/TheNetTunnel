@@ -5,11 +5,11 @@ using TNT.Core.Transport;
 namespace TNT.Core.Api
 {
 
-    public class Connection<TContract, TChannel> : IDisposable, IConnection<TContract, TChannel> where TChannel: IChannel
+    public class Connection<TContract> : IDisposable, IConnection<TContract>
     {
         private readonly Action<TContract, IChannel, ErrorMessage> _onContractDisconnected;
 
-        public Connection(TContract contract, TChannel channel, Action<TContract, IChannel, ErrorMessage> onContractDisconnected)
+        public Connection(TContract contract, IChannel channel, Action<TContract, IChannel, ErrorMessage> onContractDisconnected)
         {
             _onContractDisconnected = onContractDisconnected;
             Contract = contract;
@@ -23,7 +23,7 @@ namespace TNT.Core.Api
         }
 
         public TContract Contract { get; }
-        public TChannel Channel { get; }
+        public IChannel Channel { get; }
         public void Dispose()
         {
             if(Channel?.IsConnected == true)

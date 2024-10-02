@@ -95,34 +95,25 @@ namespace TNT.Core.Api
         {
             return UseContractFinalization((ch, co, ca) => finalizer(ch, co));
         }
-
-        public ConnectionBuilder<TContract, TChannel> UseChannel<TChannel>() 
-            where TChannel: IChannel, new()
-        {
-            return UseChannel<TChannel>(() => new TChannel());
-        }
         
-        public ConnectionBuilder<TContract, TChannel> UseChannel<TChannel>(TChannel theChannel) 
-            where TChannel : IChannel
+        public ConnectionBuilder<TContract> UseChannel(IChannel theChannel) 
         {
             if (theChannel == null)
                 throw new ArgumentNullException(nameof(theChannel));
-            return UseChannel<TChannel>(() => theChannel);
+            return UseChannel<IChannel>(() => theChannel);
         }
 
-        public ConnectionBuilder<TContract, TChannel> UseChannelAsync<TChannel>(Func<Task<TChannel>> asyncChannelFactory)
-            where TChannel : IChannel
+        public ConnectionBuilder<TContract> UseChannelAsync(Func<Task<IChannel>> asyncChannelFactory)
         {
             if (asyncChannelFactory == null)
                 throw new ArgumentNullException(nameof(asyncChannelFactory));
-            return new ConnectionBuilder<TContract, TChannel>(this, asyncChannelFactory);
+            return new ConnectionBuilder<TContract>(this, asyncChannelFactory);
         }
-        public ConnectionBuilder<TContract, TChannel> UseChannel<TChannel>(Func<TChannel> channelFactory) 
-            where TChannel : IChannel
+        public ConnectionBuilder<TContract> UseChannel<TChannel>(Func<IChannel> channelFactory) 
         {
             if (channelFactory == null)
                 throw new ArgumentNullException(nameof(channelFactory));
-            return new ConnectionBuilder<TContract, TChannel>(this, channelFactory);
+            return new ConnectionBuilder<TContract>(this, channelFactory);
         }
 
     }

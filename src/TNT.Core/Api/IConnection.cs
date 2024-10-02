@@ -3,10 +3,9 @@ using TNT.Core.Transport;
 
 namespace TNT.Core.Api
 {
-    public interface IConnection<out TContract, out TChannel> : IDisposable
-        where TChannel : IChannel
+    public interface IConnection<out TContract> : IDisposable
     {
-        TChannel Channel { get; }
+        IChannel Channel { get; }
         TContract Contract { get; }
     }
 }

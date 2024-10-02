@@ -15,7 +15,7 @@ using TNT.Core.Transport;
 
 namespace TNT.Core.New.Tcp
 {
-    public class TntTcpClient : IDisposable
+    public class TntTcpClient : IChannel
     {
         private TcpClient Client;
         private IPEndPoint IPEndPoint;
@@ -32,6 +32,10 @@ namespace TNT.Core.New.Tcp
         public event Action<object, ErrorMessage> OnDisconnect;
 
         public bool IsConnected => Client.Connected;
+
+        public int BytesReceived => _bytesReceived;
+
+        public int BytesSent => _bytesSent;
 
         public TntTcpClient(IPEndPoint endPoint) : this()
         {
@@ -52,23 +56,31 @@ namespace TNT.Core.New.Tcp
         private volatile bool _alreadyStarted;
         public void Start()
         {
-            if (_alreadyStarted)
-                return;
+            if (!Client.Connected)
+                Client.Connect(IPEndPoint.Address, IPEndPoint.Port);
 
-            _alreadyStarted = true;
+            _state = ChannelStates.Connected;
+
+            SetEndPoints();
 
             _ = InternalStartAsync();
         }
 
-        public async Task InternalStartAsync()
+
+        public async Task StartAsync()
         {
-            if(!Client.Connected)
+            if (!Client.Connected)
                 await Client.ConnectAsync(IPEndPoint.Address, IPEndPoint.Port).ConfigureAwait(false);
 
             _state = ChannelStates.Connected;
 
             SetEndPoints();
 
+            _ = InternalStartAsync();
+        }
+
+        public async Task InternalStartAsync()
+        {
             var reader = Client.GetStream();
 
             var buffer = new byte[Client.ReceiveBufferSize];

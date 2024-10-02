@@ -14,27 +14,26 @@ using TNT.Core.Transport;
 
 namespace TNT.Core.Api
 {
-    public class ConnectionBuilder<TContract, TChannel> 
-            where TChannel : IChannel
+    public class ConnectionBuilder<TContract> 
             where TContract: class 
     {
         private readonly PresentationBuilder<TContract> _contractBuilder;
-        private readonly Func<TChannel>                 _channelFactory;
-        private readonly Func<Task<TChannel>>      _channelFactoryAsync;
+        private readonly Func<IChannel>                 _channelFactory;
+        private readonly Func<Task<IChannel>>      _channelFactoryAsync;
 
-        public  ConnectionBuilder(PresentationBuilder<TContract> contractBuilder, Func<TChannel> channelFactory)
+        public  ConnectionBuilder(PresentationBuilder<TContract> contractBuilder, Func<IChannel> channelFactory)
         {
             _contractBuilder = contractBuilder;
             _channelFactory  = channelFactory;
         }
-        public ConnectionBuilder(PresentationBuilder<TContract> contractBuilder, Func<Task<TChannel>> channelFactory)
+        public ConnectionBuilder(PresentationBuilder<TContract> contractBuilder, Func<Task<IChannel>> channelFactory)
         {
             _contractBuilder = contractBuilder;
             _channelFactoryAsync = channelFactory;
         }
-        public async Task<IConnection<TContract, TChannel>> BuildAsync()
+        public async Task<IConnection<TContract>> BuildAsync()
         {
-            TChannel channel;
+            IChannel channel;
 
             if (_channelFactoryAsync != null)
             {
@@ -45,22 +44,19 @@ namespace TNT.Core.Api
                 channel = _channelFactory();
             }
 
-            var light = new Transporter(channel);
-
             TContract contract = _contractBuilder.OriginContractFactory == null
-                ? CreateProxyContract(light)
-                : CreateOriginContract(light);
+                ? CreateProxyContract(channel)
+                : CreateOriginContract(channel);
 
             _contractBuilder.ContractInitializer(contract, channel);
 
-            if (channel.IsConnected)
-                channel.AllowReceive = true;
+            channel.Start();
 
-            return new Connection<TContract, TChannel>(contract, channel, _contractBuilder.ContractFinalizer);
+            return new Connection<TContract>(contract, channel, _contractBuilder.ContractFinalizer);
         }
-        public IConnection<TContract, TChannel> Build()
+        public IConnection<TContract> Build()
         {
-            TChannel channel;
+            IChannel channel;
 
             if (_channelFactory != null)
             {
@@ -73,21 +69,18 @@ namespace TNT.Core.Api
                 channel = task.Result;
             }
 
-            var light   = new Transporter(channel);
-
             TContract contract = _contractBuilder.OriginContractFactory == null
-                ? CreateProxyContract(light, channel)
-                : CreateOriginContract(light, channel);
+                ? CreateProxyContract(channel)
+                : CreateOriginContract(channel);
 
             _contractBuilder.ContractInitializer(contract, channel);
 
-            if (channel.IsConnected)
-                channel.AllowReceive = true;
+            channel.Start();
 
-            return new Connection<TContract, TChannel>(contract, channel, _contractBuilder.ContractFinalizer);
+            return new Connection<TContract>(contract, channel, _contractBuilder.ContractFinalizer);
         }
 
-        private TContract CreateOriginContract(Transporter light, TChannel channel)
+        private TContract CreateOriginContract(IChannel channel)
         {
             var memebers = ProxyContractFactory.ParseContractInterface(typeof(TContract));
             var dispatcher = _contractBuilder.ReceiveDispatcherFactory();
@@ -111,23 +104,15 @@ namespace TNT.Core.Api
                 outputMessages: outputMessages.ToArray(),
                 inputMessages: inputMessages.ToArray());
 
-            var messenger = new Messenger(
-                light,
-                SerializerFactory.CreateDefault(_contractBuilder.UserSerializationRules.ToArray()),
-                DeserializerFactory.CreateDefault(_contractBuilder.UserDeserializationRules.ToArray()),
-                outputMessages: outputMessages.ToArray(),
-                inputMessages:  inputMessages.ToArray()
-            );
+            var newInterlocutor = new NewInterlocutor(reflectionBuilder, dispatcher, (TntTcpClient)channel);
 
-            var interlocutor = new Interlocutor(messenger, dispatcher, _contractBuilder.MaxAnswerTimeoutDelay);
+            newInterlocutor.Start();
 
-            var newInterlocutor = new NewInterlocutor(reflectionBuilder, new TntTcpClient(new IPEndPoint(IPAddress.Loopback, 124)));
-
-            TContract contract = _contractBuilder.OriginContractFactory(light.Channel);
-            OriginContractLinker.Link(contract, interlocutor);
+            TContract contract = _contractBuilder.OriginContractFactory(channel);
+            OriginContractLinker.Link(contract, newInterlocutor);
             return contract;
         }
-        private TContract CreateProxyContract(Transporter light, TChannel channel)
+        private TContract CreateProxyContract(IChannel channel)
         {
             var memebers   = ProxyContractFactory.ParseContractInterface(typeof(TContract));
             var dispatcher = _contractBuilder.ReceiveDispatcherFactory();
@@ -146,17 +131,17 @@ namespace TNT.Core.Api
                 MessageId     = (short)m.Key
             });
 
-            var messenger = new Messenger(
-                light,
+            var reflectionBuilder = new NewReflectionHelper(
                 SerializerFactory.CreateDefault(_contractBuilder.UserSerializationRules.ToArray()),
                 DeserializerFactory.CreateDefault(_contractBuilder.UserDeserializationRules.ToArray()),
                 outputMessages: outputMessages.ToArray(),
-                inputMessages: inputMessages.ToArray()
-            );
+                inputMessages: inputMessages.ToArray());
 
-            var interlocutor = new Interlocutor(messenger, dispatcher, _contractBuilder.MaxAnswerTimeoutDelay);
+            var newInterlocutor = new NewInterlocutor(reflectionBuilder, dispatcher, (TntTcpClient)channel);
 
-            var contract = ProxyContractFactory.CreateProxyContract<TContract>(interlocutor);
+            newInterlocutor.Start();
+
+            var contract = ProxyContractFactory.CreateProxyContract<TContract>(newInterlocutor);
             return contract;
         }
         

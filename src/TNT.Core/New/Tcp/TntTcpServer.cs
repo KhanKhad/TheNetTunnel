@@ -7,52 +7,66 @@ using System.Text;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using TNT.Core.Api;
 
 namespace TNT.Core.New.Tcp
 {
-    public class TntTcpServer : IDisposable
+    public class TntTcpServer<TContract> : IChannelServer<TContract> where TContract : class
     {
         private IPEndPoint IPEndPoint;
         private TcpListener _tcpListener;
 
         private volatile int _maxId;
 
-        private ConcurrentDictionary<int, ClientObject> _clients;
+        private ConcurrentDictionary<int, IConnection<TContract>> _clients;
 
         public Channel<TcpData> ResponsesChannel { get; }
 
-        public TntTcpServer(IPEndPoint endPoint)
+        public int ConnectionsCount => _clients.Count;
+
+        public bool IsListening => _alreadyStarted;
+
+        private readonly PresentationBuilder<TContract> _connectionBuilder;
+
+        public TntTcpServer(PresentationBuilder<TContract> channelBuilder, IPEndPoint endPoint)
         {
             IPEndPoint = endPoint;
 
+            _connectionBuilder = channelBuilder;
+
             _tcpListener = new TcpListener(endPoint);
 
-            _clients = new ConcurrentDictionary<int, ClientObject>();
+            _clients = new ConcurrentDictionary<int, IConnection<TContract>>();
 
             ResponsesChannel = Channel.CreateBounded<TcpData>(5);
         }
 
+        private volatile bool _alreadyStarted;
         public void Start()
         {
-            _ = InternalStartAsync();
+            if (_alreadyStarted)
+                return;
+
+            _alreadyStarted = true;
+
+            _tcpListener.Start();
+
+            _ = Task.Run(InternalStartAsync);
         }
 
 
-        public async Task InternalStartAsync()
+        private async Task InternalStartAsync()
         {
-            _tcpListener.Start();
-
             while (!_disposed)
             {
                 var tcpClient = await _tcpListener.AcceptTcpClientAsync();
-
                 var newId = _maxId++;
 
-                var clientObject = new ClientObject(newId, tcpClient, this);
+                var tntTcpClient = new TntTcpClient(tcpClient);
 
-                _clients.TryAdd(newId, clientObject);
+                var connection = _connectionBuilder.UseChannel(tntTcpClient).Build();
 
-                clientObject.Start();
+                _clients.TryAdd(newId, connection);
             }
         }
 
@@ -64,6 +78,11 @@ namespace TNT.Core.New.Tcp
         }
 
         private volatile bool _disposed;
+
+        public event Action<object, BeforeConnectEventArgs<TContract>> BeforeConnect;
+        public event Action<object, IConnection<TContract>> AfterConnect;
+        public event Action<object, ClientDisconnectEventArgs<TContract>> Disconnected;
+
         public void Dispose()
         {
             if (_disposed)
@@ -75,44 +94,10 @@ namespace TNT.Core.New.Tcp
             foreach (var client in clients)
                 client.Dispose();
         }
-    }
 
-
-    public class ClientObject
-    {
-        private TntTcpClient _tcpClient;
-        private TntTcpServer _tntTcpServer;
-        private int _id;
-
-        public ClientObject(int newId, TcpClient tcpClient, TntTcpServer tntTcpServer)
+        public IEnumerable<IConnection<TContract>> GetAllConnections()
         {
-            _id = newId;
-            _tcpClient = new TntTcpClient(tcpClient);
-
-            _tcpClient.OnDisconnect += TcpClient_OnDisconnect;
-
-            _tntTcpServer = tntTcpServer;
-        }
-
-
-        public void Start()
-        {
-            _tcpClient.Start();
-        }
-
-        private void TcpClient_OnDisconnect(object arg1, Presentation.ErrorMessage arg2)
-        {
-            Disconnected();
-        }
-
-        public void Disconnected()
-        {
-            _tntTcpServer.ClientDisconnected(_id);
-        }
-
-        public void Dispose()
-        {
-            _tcpClient.Dispose();
+            return _clients.Values;
         }
     }
 }

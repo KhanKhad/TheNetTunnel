@@ -86,73 +86,9 @@ namespace TNT.Core.New
                 throw ex;
             }
 
-            return stream;
-        }
-
-
-        public MemoryStream SerializeSayMessage(short id, object[] values)
-        {
-            var stream = new MemoryStream(1024);
-
-            stream.Write(_reservedEmptyBuffer, 0, ReservedHeadLength);
-
-            _reflectionHelper._outputSayMessageSerializes.TryGetValue(id, out var serializer);
-
-            Tools.WriteShort(id, to: stream);
-
-            try
-            {
-                if (values.Length == 1)
-                    serializer.Serialize(values[0], stream);
-                else if (values.Length > 1)
-                    serializer.Serialize(values, stream);
-            }
-            catch (Exception e)
-            {
-                throw new LocalSerializationException(null, null, "Serialization failed", e);
-            }
-
             stream.Position = 0;
-
-            return stream;
-        }
-
-        public MemoryStream SerializeAskMessage(short id, short askId, object[] values)
-        {
-            var stream = new MemoryStream(1024);
-
-            stream.Write(_reservedEmptyBuffer, 0, ReservedHeadLength);
-
-            _reflectionHelper._outputSayMessageSerializes.TryGetValue(id, out var serializer);
-
-            Tools.WriteShort(id, to: stream);
-            Tools.WriteShort(askId, to: stream);
-
-            try
-            {
-                if (values.Length == 1)
-                    serializer.Serialize(values[0], stream);
-                else if (values.Length > 1)
-                    serializer.Serialize(values, stream);
-            }
-            catch (Exception e)
-            {
-                throw new LocalSerializationException(null, null, "Serialization failed", e);
-            }
-
-            stream.Position = 0;
-
-            return stream;
-        }
-
-        public MemoryStream SerializeErrorMessage(ErrorMessage errorInfo)
-        {
-            var stream = new MemoryStream(1024);
-
-            stream.Write(_reservedEmptyBuffer, 0, ReservedHeadLength);
-
-            Tools.WriteShort(Messenger.ExceptionMessageTypeId, to: stream);
-            new ErrorMessageSerializer().SerializeT(errorInfo, stream);
+            uint len = (uint)(stream.Length - ReservedHeadLength);
+            stream.WriteInt(len);
             stream.Position = 0;
 
             return stream;

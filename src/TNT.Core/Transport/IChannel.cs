@@ -4,21 +4,15 @@ using TNT.Core.Presentation;
 
 namespace TNT.Core.Transport
 {
-    public interface IChannel
+    public interface IChannel : IDisposable
     {
         /// <summary>
         /// Indicates connection status of downlayer TcpClient
         /// </summary>
         bool IsConnected { get; }
-        /// <summary>
-        /// Can Channel handle messages now?.
-        /// </summary>
-        bool AllowReceive { get; set; }
-        /// <summary>
-        /// Raising on new channel message received.
-        /// It is blocking operation (ICHannel cannot handle other messages, while OnReceive handling)
-        /// </summary>
-        event Action<object, byte[]> OnReceive;
+
+        void Start();
+
         /// <summary>
         /// Raising if connection is lost
         /// </summary>
@@ -29,8 +23,8 @@ namespace TNT.Core.Transport
         void Disconnect();
 
         void DisconnectBecauseOf(ErrorMessage error);
-        Task WriteAsync(byte[] data, int offset, int length);
-        void Write(byte[] array, int offset, int length);
+        Task WriteAsync(byte[] data);
+        void Write(byte[] array);
 
         int BytesReceived { get; }
         int BytesSent { get; }
