@@ -71,13 +71,13 @@ static class Program
         var pair = TntTestHelper.CreateThreadlessChannelPair();
         var proxy = TntBuilder
             .UseContract<ISpeedTestContract>()
-            .UseReceiveDispatcher<ConveyorDispatcher>()
+            .UseReceiveDispatcher<ReceiveDispatcher>()
             .UseChannel(pair.ChannelA)
             .Build();
 
         var origin = TntBuilder
             .UseContract<ISpeedTestContract, SpeedTestContract>()
-            .UseReceiveDispatcher<ConveyorDispatcher>()
+            .UseReceiveDispatcher<ReceiveDispatcher>()
             .UseChannel(pair.ChannelB)
             .Build();
         pair.ConnectAndStartReceiving();
@@ -95,7 +95,7 @@ static class Program
         {
             using var client = TntBuilder
                 .UseContract<ISpeedTestContract>()
-                .UseReceiveDispatcher<ConveyorDispatcher>()
+                .UseReceiveDispatcher<ReceiveDispatcher>()
                 .CreateTcpClientConnection(endPoint);
             Test(client);
         }

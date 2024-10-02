@@ -39,12 +39,12 @@ public static class IntegrationTestsHelper
         };
         return company;
     }
-    public static PresentationBuilder<ITestContract> GetOriginBuilder()
+    public static ContractBuilder<ITestContract> GetOriginBuilder()
     {
         return TntBuilder
             .UseContract<ITestContract, TestContractMock>();
     }
-    public static PresentationBuilder<ITestContract> GetProxyBuilder()
+    public static ContractBuilder<ITestContract> GetProxyBuilder()
     {
         return TntBuilder
             .UseContract<ITestContract>();

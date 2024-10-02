@@ -21,8 +21,8 @@ static class Program
 
         try
         {
-            using var client = TntBuilder.UseContract<IExampleContract>()
-                    .CreateTcpClientConnection(IPAddress.Loopback, 12345);
+            using var client = await TntBuilder.UseContract<IExampleContract>()
+                    .CreateTcpClientConnectionAsync(IPAddress.Loopback, 12345);
 
             while (true)
             {

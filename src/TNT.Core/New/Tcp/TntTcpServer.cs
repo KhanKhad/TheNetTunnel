@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using TNT.Core.Api;
+using TNT.Core.Presentation;
 
 namespace TNT.Core.New.Tcp
 {
@@ -26,9 +27,9 @@ namespace TNT.Core.New.Tcp
 
         public bool IsListening => _alreadyStarted;
 
-        private readonly PresentationBuilder<TContract> _connectionBuilder;
+        private readonly ContractBuilder<TContract> _connectionBuilder;
 
-        public TntTcpServer(PresentationBuilder<TContract> channelBuilder, IPEndPoint endPoint)
+        public TntTcpServer(ContractBuilder<TContract> channelBuilder, IPEndPoint endPoint)
         {
             IPEndPoint = endPoint;
 
@@ -62,14 +63,39 @@ namespace TNT.Core.New.Tcp
                 var tcpClient = await _tcpListener.AcceptTcpClientAsync();
                 var newId = _maxId++;
 
-                var tntTcpClient = new TntTcpClient(tcpClient);
+                var tntTcpClient = new TntTcpClient(tcpClient)
+                {
+                    ConnectionId = newId
+                };
 
-                var connection = _connectionBuilder.UseChannel(tntTcpClient).Build();
+                tntTcpClient.OnDisconnect += TntTcpClient_OnDisconnect;
+
+                var connection = await _connectionBuilder.UseChannel(tntTcpClient).BuildAsync();
+
+                var beforeConnectEventArgs = new BeforeConnectEventArgs<TContract>(connection);
+                BeforeConnect?.Invoke(this, beforeConnectEventArgs);
+
+                if (!beforeConnectEventArgs.AllowConnection)
+                {
+                    connection.Dispose();
+                    return;
+                }
 
                 _clients.TryAdd(newId, connection);
+
+                AfterConnect?.Invoke(this, connection);
             }
         }
 
+        private void TntTcpClient_OnDisconnect(object arg1, ErrorMessage arg2)
+        {
+            var client = (TntTcpClient)arg1;
+
+            if(_clients.TryRemove(client.ConnectionId, out var connection))
+                Disconnected?.Invoke(this, new ClientDisconnectEventArgs<TContract>(connection, arg2));
+
+            client.Dispose();
+        }
 
         public void ClientDisconnected(int id)
         {
@@ -77,11 +103,12 @@ namespace TNT.Core.New.Tcp
                 clientObject.Dispose();
         }
 
-        private volatile bool _disposed;
 
         public event Action<object, BeforeConnectEventArgs<TContract>> BeforeConnect;
         public event Action<object, IConnection<TContract>> AfterConnect;
         public event Action<object, ClientDisconnectEventArgs<TContract>> Disconnected;
+       
+        private volatile bool _disposed;
 
         public void Dispose()
         {

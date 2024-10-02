@@ -23,8 +23,6 @@ namespace TNT.Core.New.Tcp
         private volatile int _bytesReceived;
         private volatile int _bytesSent;
 
-        private volatile ChannelStates _state;
-        public ChannelStates State => _state;
         public Channel<TcpData> ResponsesChannel { get; }
         public string RemoteEndpointName { get; private set; }
         public string LocalEndpointName { get; private set; }
@@ -36,6 +34,8 @@ namespace TNT.Core.New.Tcp
         public int BytesReceived => _bytesReceived;
 
         public int BytesSent => _bytesSent;
+
+        public int ConnectionId;
 
         public TntTcpClient(IPEndPoint endPoint) : this()
         {
@@ -56,10 +56,12 @@ namespace TNT.Core.New.Tcp
         private volatile bool _alreadyStarted;
         public void Start()
         {
+            if (_alreadyStarted)
+                return;
+            _alreadyStarted = true;
+
             if (!Client.Connected)
                 Client.Connect(IPEndPoint.Address, IPEndPoint.Port);
-
-            _state = ChannelStates.Connected;
 
             SetEndPoints();
 
@@ -69,23 +71,25 @@ namespace TNT.Core.New.Tcp
 
         public async Task StartAsync()
         {
+            if (_alreadyStarted)
+                return;
+            _alreadyStarted = true;
+
             if (!Client.Connected)
                 await Client.ConnectAsync(IPEndPoint.Address, IPEndPoint.Port).ConfigureAwait(false);
-
-            _state = ChannelStates.Connected;
 
             SetEndPoints();
 
             _ = InternalStartAsync();
         }
 
-        public async Task InternalStartAsync()
+        private async Task InternalStartAsync()
         {
             var reader = Client.GetStream();
 
             var buffer = new byte[Client.ReceiveBufferSize];
 
-            while (_state == ChannelStates.Connected)
+            while (!_disconnected && !_disposed)
             {
                 try
                 {
@@ -180,45 +184,37 @@ namespace TNT.Core.New.Tcp
             return new string(resultChars);
         }
 
-        public void Disconnect()
+        private volatile bool _disconnected;
+
+        public void DisconnectBecauseOf(ErrorMessage exceptionMessage)
         {
-            if (_state == ChannelStates.Disconnected)
+            if (_disconnected)
                 return;
 
-            if(_state != ChannelStates.Disposed)
-                _state = ChannelStates.Disconnected;
+            _disconnected = true;
 
             ResponsesChannel.Writer.Complete();
             Client.Dispose();
 
-            OnDisconnect?.Invoke(this, new ErrorMessage());
+            OnDisconnect?.Invoke(this, exceptionMessage);
         }
 
+        public void Disconnect()
+        {
+            DisconnectBecauseOf(null);
+        }
 
+        private volatile bool _disposed;
         public void Dispose()
         {
-            if (_state == ChannelStates.Disposed)
+            if (_disposed)
                 return;
 
-            _state = ChannelStates.Disposed;
+            _disposed = true;
 
             Disconnect();
 
             OnDisconnect = null;
         }
-
-        public void DisconnectBecauseOf(ErrorMessage exceptionMessage)
-        {
-            Disconnect();
-        }
-    }
-
-
-    public enum ChannelStates
-    {
-        None,
-        Connected,
-        Disconnected,
-        Disposed
     }
 }

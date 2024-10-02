@@ -1,11 +1,12 @@
 ﻿using System;
+using System.Threading.Tasks;
 
 namespace TNT.Core.Presentation.ReceiveDispatching
 {
-    public interface IDispatcher
+    public interface IDispatcher : IDisposable
     {
-        void Set(RequestMessage message);
-        event Action<IDispatcher, RequestMessage> OnNewMessage;
-        void Release();
+        void Start();
+        Task Handle(Action<object[]> handler, object[] args);
+        Task<object> Handle(Func<object[], object> handler, object[] args);
     }
 }

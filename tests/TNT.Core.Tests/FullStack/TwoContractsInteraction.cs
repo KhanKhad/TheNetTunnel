@@ -53,14 +53,14 @@ public class TwoContractsInteraction
 
         var proxyConnection = TntBuilder
             .UseContract<ITestContract>()
-            .UseReceiveDispatcher<ConveyorDispatcher>()
+            .UseReceiveDispatcher<ReceiveDispatcher>()
             .UseChannel(channelPair.ChannelA)
             .Build();
 
         var originConnection = TntBuilder
             .UseContract<ITestContract, TestContractMock>()
             .UseContractInitalization((c,_)=> ((TestContractMock)c).WhenAskSILCalledCall(func))
-            .UseReceiveDispatcher<ConveyorDispatcher>()
+            .UseReceiveDispatcher<ReceiveDispatcher>()
             .UseChannel(channelPair.ChannelB)
             .Build();
 
@@ -80,14 +80,14 @@ public class TwoContractsInteraction
 
         var proxyConnection = TntBuilder
             .UseContract<ITestContract>()
-            .UseReceiveDispatcher<ConveyorDispatcher>()
+            .UseReceiveDispatcher<ReceiveDispatcher>()
             .UseChannel(channelPair.ChannelA)
             .Build();
 
         var originConnection = TntBuilder
             .UseContract<ITestContract, TestContractMock>()
             .UseContractInitalization((c, _) => c.OnAskS += (arg)=>arg)
-            .UseReceiveDispatcher<ConveyorDispatcher>()
+            .UseReceiveDispatcher<ReceiveDispatcher>()
             .UseChannel(channelPair.ChannelB)
             .Build();
 

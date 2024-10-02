@@ -6,33 +6,33 @@ namespace TNT.Core.Api
 {
     public static class TntBuilder
     {
-        public static PresentationBuilder<TContract> UseContract<TContract>()
+        public static ContractBuilder<TContract> UseContract<TContract>()
             where TContract : class
         {
-            return new PresentationBuilder<TContract>();
+            return new ContractBuilder<TContract>();
         }
 
-        public static PresentationBuilder<TContract> UseContract<TContract, TImplementation>() 
+        public static ContractBuilder<TContract> UseContract<TContract, TImplementation>() 
             where TContract: class 
             where TImplementation: TContract, new()
         {
             return UseContract<TContract>((c) => new TImplementation());
         }
-        public static PresentationBuilder<TContract> UseContract<TContract>(TContract implementation)
+        public static ContractBuilder<TContract> UseContract<TContract>(TContract implementation)
             where TContract : class
         {
-            return UseContract<TContract>((c) => implementation);
+            return UseContract((c) => implementation);
         }
-        public static PresentationBuilder<TContract> UseContract<TContract>(Func<TContract> implementationFactory)
+        public static ContractBuilder<TContract> UseContract<TContract>(Func<TContract> implementationFactory)
             where TContract : class
         {
-            return UseContract<TContract>((c) => implementationFactory());
+            return UseContract((c) => implementationFactory());
         }
 
-        public static PresentationBuilder<TContract> UseContract<TContract>(Func<IChannel, TContract> implementationFactory)
+        public static ContractBuilder<TContract> UseContract<TContract>(Func<IChannel, TContract> implementationFactory)
             where TContract : class
         {
-            return new PresentationBuilder<TContract>(implementationFactory);
+            return new ContractBuilder<TContract>(implementationFactory);
         }
     }
 }

@@ -22,8 +22,8 @@ public class MockConnectionPair<TProxyContractInterface, TOriginContractInterfac
     public TProxyContractInterface ProxyContract => ProxyConnection.Contract;
     public TestChannelServer<TOriginContractInterface> Server { get; }
 
-    public MockConnectionPair(PresentationBuilder<TOriginContractInterface> originBuilder,
-        PresentationBuilder<TProxyContractInterface> proxyBuider, bool connect = true)
+    public MockConnectionPair(ContractBuilder<TOriginContractInterface> originBuilder,
+        ContractBuilder<TProxyContractInterface> proxyBuider, bool connect = true)
     {
         ClientChannel = TestChannel.CreateThreadSafe();
 

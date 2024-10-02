@@ -14,7 +14,7 @@ class Program
         int port = 24731;
         var server = TntBuilder
             .UseContract<ISpeedTestContract, SpeedTestContract>()
-            .UseReceiveDispatcher<ConveyorDispatcher>()
+            .UseReceiveDispatcher<ReceiveDispatcher>()
             .CreateTcpServer(IPAddress.Any, port);
 
         server.StartListening();

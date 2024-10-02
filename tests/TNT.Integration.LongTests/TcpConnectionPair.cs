@@ -24,8 +24,8 @@ public class TcpConnectionPair<TProxyContractInterface, TOriginContractInterface
     public TProxyContractInterface ProxyContract => ProxyConnection.Contract;
     public TcpChannelServer<TOriginContractInterface> Server { get; }
 
-    public TcpConnectionPair(PresentationBuilder<TOriginContractInterface> originBuilder,
-        PresentationBuilder<TProxyContractInterface> proxyBuider, bool connect = true)
+    public TcpConnectionPair(ContractBuilder<TOriginContractInterface> originBuilder,
+        ContractBuilder<TProxyContractInterface> proxyBuider, bool connect = true)
     {
         Server = originBuilder.CreateTcpServer(IPAddress.Loopback, 12345);
         ClientChannel = new TcpChannel();

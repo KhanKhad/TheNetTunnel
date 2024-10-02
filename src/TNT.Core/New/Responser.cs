@@ -19,14 +19,16 @@ namespace TNT.Core.New
     public class Responser
     {
         private NewReflectionHelper _reflectionHelper;
+        private IDispatcher _receiveDispatcher;
 
 
         public Responser(NewReflectionHelper reflectionHelper, IDispatcher receiveDispatcher)
         {
             _reflectionHelper = reflectionHelper;
+            _receiveDispatcher = receiveDispatcher;
         }
 
-        public NewTntMessage CreateResponse(NewTntMessage deserialized)
+        public async Task<NewTntMessage> CreateResponseAsync(NewTntMessage deserialized)
         {
             NewTntMessage result;
 
@@ -42,13 +44,13 @@ namespace TNT.Core.New
 
                 if (_reflectionHelper._askSubscribtion.TryGetValue(id, out var askHandler))
                 {
-                    var answer = askHandler.Invoke(arguments);
+                    var answer = await _receiveDispatcher.Handle(askHandler,arguments);
 
                     result = CreateSuccessfulResponseMessage(answer, id, (short)-askId);
                 }
                 else if (_reflectionHelper._saySubscribtion.TryGetValue(id, out var sayHandler))
                 {
-                    sayHandler.Invoke(arguments);
+                    await _receiveDispatcher.Handle(sayHandler, arguments);
 
                     result = CreateSuccessfulResponseMessage(null, id, (short)-askId);
                 }

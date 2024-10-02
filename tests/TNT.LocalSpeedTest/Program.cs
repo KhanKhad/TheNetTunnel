@@ -6,7 +6,6 @@ using TNT.SpeedTest;
 using TNT.SpeedTest.Contracts;
 using TNT.SpeedTest.OutputBandwidth;
 using TNT.SpeedTest.TransactionBandwidth;
-using TNT.Core.Testing;
 using TNT.Core.Transport;
 using TNT.Core.Tcp;
 
@@ -73,13 +72,13 @@ class Program
         var pair = TntTestHelper.CreateThreadlessChannelPair();
         var proxy = TntBuilder
             .UseContract<ISpeedTestContract>()
-            .UseReceiveDispatcher<ConveyorDispatcher>()
+            .UseReceiveDispatcher<ReceiveDispatcher>()
             .UseChannel(pair.ChannelA)
             .Build();
 
         var origin = TntBuilder
             .UseContract<ISpeedTestContract, SpeedTestContract>()
-            .UseReceiveDispatcher<ConveyorDispatcher>()
+            .UseReceiveDispatcher<ReceiveDispatcher>()
             .UseChannel(pair.ChannelB)
             .Build();
         pair.ConnectAndStartReceiving();
@@ -94,13 +93,13 @@ class Program
         _output.WriteLine("-------------Localhost test--------------");
         using var server = TntBuilder
             .UseContract<ISpeedTestContract, SpeedTestContract>()
-            .UseReceiveDispatcher<ConveyorDispatcher>()
+            .UseReceiveDispatcher<ReceiveDispatcher>()
             .CreateTcpServer(IPAddress.Loopback, 12345);
         server.StartListening();
 
         using var client = TntBuilder
             .UseContract<ISpeedTestContract>()
-            .UseReceiveDispatcher<ConveyorDispatcher>()
+            .UseReceiveDispatcher<ReceiveDispatcher>()
             .CreateTcpClientConnection(IPAddress.Loopback, 12345);
         Test(client);
     }

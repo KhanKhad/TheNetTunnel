@@ -12,7 +12,7 @@ namespace TNT.Core.New
 {
     public class NewInterlocutor : IInterlocutor
     {
-        public TntTcpClient TcpChannel;
+        public IChannel Channel;
         public Responser _responser;
 
         private NewReflectionHelper _reflectionHelper;
@@ -26,11 +26,11 @@ namespace TNT.Core.New
         private ConcurrentDictionary<short, TaskCompletionSource<object>> MessageAwaiters;
 
         public NewInterlocutor(NewReflectionHelper reflectionHelper, IDispatcher receiveDispatcher, 
-            TntTcpClient channel, int maxAnsDelay = 3000)
+            IChannel channel, int maxAnsDelay = 3000)
         {
             _maxAnsDelay = maxAnsDelay;
 
-            TcpChannel = channel;
+            Channel = channel;
 
             _reflectionHelper = reflectionHelper;
             _receiveMessageAssembler = new ReceivePduQueue();
@@ -57,7 +57,7 @@ namespace TNT.Core.New
 
         private async Task ReadChannelAsync()
         {
-            var reader = TcpChannel.ResponsesChannel.Reader;
+            var reader = Channel.ResponsesChannel.Reader;
 
             await foreach (var response in reader.ReadAllAsync())
             {
@@ -105,7 +105,7 @@ namespace TNT.Core.New
 
             if (msgType == TntMessageType.RequestMessage)
             {
-                var response = _responser.CreateResponse(deserialized.MessageOrNull);
+                var response = await _responser.CreateResponseAsync(deserialized.MessageOrNull);
                 await SendMessageAsync(response);
             }
             else if(msgType == TntMessageType.PingMessage)
@@ -158,18 +158,18 @@ namespace TNT.Core.New
         public async Task SendMessageAsync(NewTntMessage message)
         {
             var serialized = _messagesSerializer.SerializeTntMessage(message);
-            await TcpChannel.WriteAsync(serialized.ToArray());
+            await Channel.WriteAsync(serialized.ToArray());
         }
 
         public void SendMessage(NewTntMessage message)
         {
             var serialized = _messagesSerializer.SerializeTntMessage(message);
-            TcpChannel.Write(serialized.ToArray());
+            Channel.Write(serialized.ToArray());
         }
 
         public void Disconnect()
         {
-            TcpChannel.Disconnect();
+            Channel.Disconnect();
         }
 
         public void Say(int messageId, object[] values)

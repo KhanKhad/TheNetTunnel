@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Threading.Channels;
 using System.Threading.Tasks;
+using TNT.Core.New.Tcp;
 using TNT.Core.Presentation;
 
 namespace TNT.Core.Transport
@@ -12,6 +14,9 @@ namespace TNT.Core.Transport
         bool IsConnected { get; }
 
         void Start();
+        Task StartAsync();
+
+        public Channel<TcpData> ResponsesChannel { get; }
 
         /// <summary>
         /// Raising if connection is lost
