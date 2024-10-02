@@ -4,6 +4,7 @@ using System.Threading;
 using TNT;
 using TNT.Core.Api;
 using TNT.Core.Exceptions.Local;
+using TNT.Core.New.Tcp;
 using TNT.Core.Tcp;
 
 namespace EX_2.Stage2_ComplexExample;
@@ -11,7 +12,7 @@ namespace EX_2.Stage2_ComplexExample;
 public class Server
 {
     private int messageId = 0;
-    private readonly TcpChannelServer<IStage2Contract> _tntServer;
+    private readonly TntTcpServer<IStage2Contract> _tntServer;
     public Server()
     {
         _tntServer = TntBuilder
@@ -25,7 +26,8 @@ public class Server
             if (_tntServer.ConnectionsCount >= 10)
                 arg.AllowConnection = false;
         };
-        _tntServer.StartListening();
+
+        _tntServer.Start();
         Console.WriteLine("Server opened");
 
     }

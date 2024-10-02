@@ -4,6 +4,7 @@ using TNT.Core.Tcp;
 using TNT.Core.Api;
 using TNT.Core.Contract;
 using System.Threading.Tasks;
+using System.Diagnostics.Contracts;
 
 namespace EX_1;
 
@@ -13,6 +14,7 @@ static class Program
     {
         var server = TntBuilder
             .UseContract<IExampleContract, ExampleContract>()
+            .UseMultiOperationDispatcher()
             .CreateTcpServer(IPAddress.Loopback, 12345);
         
         server.Start();
@@ -24,11 +26,13 @@ static class Program
             using var client = await TntBuilder.UseContract<IExampleContract>()
                     .CreateTcpClientConnectionAsync(IPAddress.Loopback, 12345);
 
-            while (true)
+
+            for (int i = 0; i < 50; i++)
             {
-                var message = Console.ReadLine();
-                client.Contract.Send("Superman", message);
+                _ = SendMsgTask(client, i);
             }
+
+            await Task.Delay(-1);
         }
         finally
         {
@@ -36,6 +40,23 @@ static class Program
         }
     }
 
+    private static Task SendMsgTask(IConnection<IExampleContract> client, int i)
+    {
+        return Task.Run(() =>
+        {
+            try
+            {
+                var res = client.Contract.Send1("Superman", $"message#{i}");
+
+                if (res != true)
+                    throw new Exception();
+            }
+            catch (Exception ex) 
+            {
+
+            }
+        });
+    }
 }
 
 //contract
@@ -44,7 +65,7 @@ public interface IExampleContract
     [TntMessage(1)]
     void Send(string user, string message);
     [TntMessage(2)]
-    void Send1(string user, string message);
+    bool Send1(string user, string message);
     [TntMessage(3)] 
     void Send2(string user, string message);
     [TntMessage(4)] 
@@ -58,9 +79,10 @@ public class ExampleContract : IExampleContract
     {
         Console.WriteLine($"[Server received:] {user} : {message}");
     }
-    public void Send1(string user, string message)
+    public bool Send1(string user, string message)
     {
         Console.WriteLine($"[Server received:] {user} : {message}");
+        return true;
     }
     public void Send2(string user, string message)
     {

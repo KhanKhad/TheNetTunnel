@@ -19,7 +19,6 @@ public class RcpCallsExceptionsTest
         var channel = TestChannel.CreateThreadSafe();
         var proxyConnection = TntBuilder
             .UseContract<ITestContract>()
-            .UseReceiveDispatcher<NotThreadDispatcher>()
             .UseChannel(channel)
             .Build();
 
@@ -33,7 +32,6 @@ public class RcpCallsExceptionsTest
         var channel = TestChannel.CreateThreadSafe();
         var proxyConnection = TntBuilder
             .UseContract<ITestContract>()
-            .UseReceiveDispatcher<NotThreadDispatcher>()
             .UseChannel(channel)
             .Build();
 
@@ -46,7 +44,6 @@ public class RcpCallsExceptionsTest
         var channel = TestChannel.CreateThreadSafe();
         var proxyConnection = TntBuilder
             .UseContract<ITestContract>()
-            .UseReceiveDispatcher<NotThreadDispatcher>()
             .UseChannel(channel)
             .Build();
         channel.ImmitateConnect();
@@ -60,7 +57,6 @@ public class RcpCallsExceptionsTest
         var channel = TestChannel.CreateThreadSafe();
         var proxyConnection = TntBuilder
             .UseContract<ITestContract>()
-            .UseReceiveDispatcher<NotThreadDispatcher>()
             .UseChannel(channel)
             .Build();
 
@@ -78,7 +74,6 @@ public class RcpCallsExceptionsTest
         var channelPair = TntTestHelper.CreateThreadSafeChannelPair();
         var proxyConnection = TntBuilder
             .UseContract<ITestContract>()
-            .UseReceiveDispatcher<NotThreadDispatcher>()
             .UseChannel(channelPair.ChannelA)
             .Build();
 

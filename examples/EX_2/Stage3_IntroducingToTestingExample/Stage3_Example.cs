@@ -1,9 +1,12 @@
-﻿using System;
+﻿using EX_2.Stage2_ComplexExample;
+using System;
+using System.Net;
 using TNT;
 using TNT.Core.Api;
 using TNT.Core.Contract;
 using TNT.Core.Presentation.ReceiveDispatching;
 using TNT.Core.Testing;
+using TNT.Core.Tcp;
 
 namespace EX_2.Stage3_IntroducingToTestingExample;
 
@@ -17,21 +20,18 @@ public class Stage3_Example
         Console.WriteLine();
 
         #region arrange
-            
-        var serverBuilder = TntBuilder
-            .UseContract<IStage3EchoContract, Stage3EchoContract>()
-            .UseReceiveDispatcher<NotThreadDispatcher>(); //Use "no thread dispatcher" to perform the calls in the calling thread
 
-        var server = new TestChannelServer<IStage3EchoContract>(serverBuilder);
-        server.StartListening();
+        var server = TntBuilder
+            .UseContract<IStage3EchoContract, Stage3EchoContract>()
+            .CreateTcpServer(IPAddress.Loopback, 12345);
+
+        server.Start();
 
         var clientConnection = TntBuilder
             .UseContract<IStage3EchoContract>()
-            .UseChannel(TestChannel.CreateThreadSafe())
-            .Build();
-        //Immitate connection:
-        server.TestListener.ImmitateAccept(clientConnection.Channel);
-            
+            .CreateTcpClientConnection(IPAddress.Loopback, 12345);
+
+
         #endregion
 
         #region act

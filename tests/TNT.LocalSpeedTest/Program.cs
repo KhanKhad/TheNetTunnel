@@ -8,6 +8,7 @@ using TNT.SpeedTest.OutputBandwidth;
 using TNT.SpeedTest.TransactionBandwidth;
 using TNT.Core.Transport;
 using TNT.Core.Tcp;
+using TNT.Core.Testing;
 
 namespace TNT.LocalSpeedTest;
 
@@ -70,15 +71,15 @@ class Program
         _output.WriteLine("-------------Direct test mock test--------------");
 
         var pair = TntTestHelper.CreateThreadlessChannelPair();
+
+
         var proxy = TntBuilder
             .UseContract<ISpeedTestContract>()
-            .UseReceiveDispatcher<ReceiveDispatcher>()
             .UseChannel(pair.ChannelA)
             .Build();
 
         var origin = TntBuilder
             .UseContract<ISpeedTestContract, SpeedTestContract>()
-            .UseReceiveDispatcher<ReceiveDispatcher>()
             .UseChannel(pair.ChannelB)
             .Build();
         pair.ConnectAndStartReceiving();
@@ -93,18 +94,16 @@ class Program
         _output.WriteLine("-------------Localhost test--------------");
         using var server = TntBuilder
             .UseContract<ISpeedTestContract, SpeedTestContract>()
-            .UseReceiveDispatcher<ReceiveDispatcher>()
             .CreateTcpServer(IPAddress.Loopback, 12345);
-        server.StartListening();
+        server.Start();
 
         using var client = TntBuilder
             .UseContract<ISpeedTestContract>()
-            .UseReceiveDispatcher<ReceiveDispatcher>()
             .CreateTcpClientConnection(IPAddress.Loopback, 12345);
         Test(client);
     }
 
-    private static void Test(IConnection<ISpeedTestContract, IChannel> client)
+    private static void Test(IConnection<ISpeedTestContract> client)
     {
         client.Contract.AskForTrue();
         client.Contract.AskBytesEcho(new byte[] { 1, 2, 3, });

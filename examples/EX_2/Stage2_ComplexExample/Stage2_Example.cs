@@ -41,10 +41,10 @@ public class Stage2_EasyStartExample
 
         //Using statefull mode here:
 
-        using var client = TntBuilder   // socket exception can be thrown here
+        using var client = TntBuilder 
             .UseContract<IStage2Contract>()
-            //.UseContractInitalization((c,_)=>{}) place an additional initialization here
             .CreateTcpClientConnection(IPAddress.Loopback, 12345);
+
         //subscribing for income message callback:
         client.Contract.NewMessageReceived +=
             (msg) => Console.WriteLine($"[{msg.Timestamp} {msg.User}] {msg.Message}");
@@ -74,7 +74,7 @@ public class Stage2_EasyStartExample
         }
     }
 
-    static bool TryAuthorize(IConnection<IStage2Contract, TcpChannel> client)
+    static bool TryAuthorize(IConnection<IStage2Contract> client)
     {
         try
         {

@@ -46,13 +46,13 @@ namespace TNT.Core.New
                 {
                     var answer = await _receiveDispatcher.Handle(askHandler,arguments);
 
-                    result = CreateSuccessfulResponseMessage(answer, id, (short)-askId);
+                    result = CreateSuccessfulResponseMessage(answer, id, askId);
                 }
                 else if (_reflectionHelper._saySubscribtion.TryGetValue(id, out var sayHandler))
                 {
                     await _receiveDispatcher.Handle(sayHandler, arguments);
 
-                    result = CreateSuccessfulResponseMessage(null, id, (short)-askId);
+                    result = CreateSuccessfulResponseMessage(null, id, askId);
                 }
                 else
                 {

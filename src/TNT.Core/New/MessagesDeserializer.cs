@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Linq;
+using TNT.Core.Contract;
 using TNT.Core.Exceptions.Remote;
 using TNT.Core.Presentation;
 using TNT.Core.Presentation.Deserializers;
@@ -18,7 +19,7 @@ namespace TNT.Core.New
 
         public MessageDeserializeResult Deserialize(MemoryStream streamMessage)
         {
-            if (!streamMessage.TryReadShort(out var messageContractId))
+            if (!streamMessage.TryReadShort(out var messageId))
             {
                 var error = new ErrorMessage(0, 0, ErrorType.SerializationError, "Message contract id is missed");
 
@@ -32,7 +33,7 @@ namespace TNT.Core.New
             if (!streamMessage.TryReadShort(out var messageType))
             {
                 var error = new ErrorMessage(
-                            messageContractId, 0,
+                            messageId, 0,
                             ErrorType.SerializationError,
                             "MessageType is missed");
 
@@ -46,7 +47,7 @@ namespace TNT.Core.New
             if (!streamMessage.TryReadShort(out var askId))
             {
                 var error = new ErrorMessage(
-                            messageContractId, 0,
+                            messageId, 0,
                             ErrorType.SerializationError,
                             "Ask Id is missed");
 
@@ -66,7 +67,7 @@ namespace TNT.Core.New
                     if (!streamMessage.TryReadShort(out var pingStatus))
                     {
                         var perror = new ErrorMessage(
-                                    messageContractId, 0,
+                                    messageId, 0,
                                     ErrorType.SerializationError,
                                     "No ping status in ping message");
 
@@ -83,7 +84,7 @@ namespace TNT.Core.New
                             IsSuccessful = true,
                             MessageOrNull = new NewTntMessage()
                             {
-                                MessageId = messageContractId,
+                                MessageId = messageId,
                                 MessageType = (TntMessageType)messageType,
                                 AskId = askId,
                                 Result = pingStatus,
@@ -96,11 +97,11 @@ namespace TNT.Core.New
                 case TntMessageType.RequestMessage:
                 case TntMessageType.SuccessfulResponseMessage:
 
-                    if(!_reflectionHelper._inputSayMessageDeserializeInfos.TryGetValue(messageContractId, out var deserializer))
+                    if(!_reflectionHelper._inputSayMessageDeserializeInfos.TryGetValue(messageId, out var deserializer))
                     {
-                        var rError = new ErrorMessage(messageContractId, askId,
+                        var rError = new ErrorMessage(messageId, askId,
                         ErrorType.ContractSignatureError,
-                        $"Message with contract id {messageContractId} is not implemented");
+                        $"Message with contract id {messageId} is not implemented");
 
                         return new MessageDeserializeResult()
                         {
@@ -121,15 +122,15 @@ namespace TNT.Core.New
                                 {
                                     return new MessageDeserializeResult()
                                     {
-                                        ErrorMessageOrNull = new ErrorMessage(messageContractId, askId,
+                                        ErrorMessageOrNull = new ErrorMessage(messageId, askId,
                                             ErrorType.SerializationError,
-                                            $"Message with contract {messageContractId} is bad"),
+                                            $"Message with contract {messageId} is bad"),
                                     };
                                 }
 
                                 tntMessage = new NewTntMessage()
                                 {
-                                    MessageId = messageContractId,
+                                    MessageId = messageId,
                                     MessageType = (TntMessageType)messageType,
                                     AskId = askId,
                                     Result = deserialized.Single(),
@@ -139,7 +140,7 @@ namespace TNT.Core.New
                             {
                                 tntMessage = new NewTntMessage()
                                 {
-                                    MessageId = messageContractId,
+                                    MessageId = messageId,
                                     MessageType = (TntMessageType)messageType,
                                     AskId = askId,
                                     Result = deserialized,
@@ -159,13 +160,13 @@ namespace TNT.Core.New
 
                             if (messageType != (short)TntMessageType.RequestMessage)
                             {
-                                dError = new ErrorMessage(messageContractId, askId,
+                                dError = new ErrorMessage(messageId, askId,
                                     ErrorType.SerializationError, "Answer deserialization failed: " + ex.Message);
                             }
                             else
                             {
-                                dError = new ErrorMessage(messageContractId, askId,
-                                    ErrorType.SerializationError, $"Message with contract id {messageContractId} cannot" +
+                                dError = new ErrorMessage(messageId, askId,
+                                    ErrorType.SerializationError, $"Message with contract id {messageId} cannot" +
                                     $" be deserialized. InnerException: {ex}");
                             }
 
@@ -190,7 +191,7 @@ namespace TNT.Core.New
                         IsSuccessful = true,
                         MessageOrNull = new NewTntMessage()
                         {
-                            MessageId = messageContractId,
+                            MessageId = messageId,
                             MessageType = (TntMessageType)messageType,
                             AskId = askId,
                             Result = deserializedError,
@@ -200,7 +201,7 @@ namespace TNT.Core.New
                 case TntMessageType.Unknown:
                 default:
 
-                    var error = new ErrorMessage(messageContractId, askId,
+                    var error = new ErrorMessage(messageId, askId,
                         ErrorType.SerializationError,
                         $"Unknown message type: {messageType}");
 

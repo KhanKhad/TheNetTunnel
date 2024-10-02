@@ -14,10 +14,9 @@ class Program
         int port = 24731;
         var server = TntBuilder
             .UseContract<ISpeedTestContract, SpeedTestContract>()
-            .UseReceiveDispatcher<ReceiveDispatcher>()
             .CreateTcpServer(IPAddress.Any, port);
 
-        server.StartListening();
+        server.Start();
         Console.WriteLine($"Speed test server opened at port {port}");
 
         while (true)
@@ -25,7 +24,7 @@ class Program
             Console.WriteLine("Write \"stop\" to exit");
             if (Console.ReadLine().ToLower() == "stop")
             {
-                server.Close();
+                server.Dispose();
                 Console.WriteLine("Server stopped");
                 return;
             }

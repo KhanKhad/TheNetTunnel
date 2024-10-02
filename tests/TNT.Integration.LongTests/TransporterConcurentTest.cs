@@ -12,7 +12,7 @@ namespace Tnt.LongTests;
 [TestFixture]
 public class TransporterConcurrentTest
 {
-
+    /*
     // [TestCase(1000000, 100)]
     public void SendsAndReceivesViaMockConnection(int length, int ConcurrentLevel)
     {
@@ -121,6 +121,6 @@ public class TransporterConcurrentTest
         client.Dispose();
         serverClient.Dispose();
     }
-
+    */
        
 }

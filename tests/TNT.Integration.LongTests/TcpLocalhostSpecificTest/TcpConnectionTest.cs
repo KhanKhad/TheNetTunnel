@@ -18,7 +18,6 @@ public class TcpConnectionTest
     {
         var server = TntBuilder
             .UseContract<ITestContract, TestContractMock>()
-            .UseReceiveDispatcher<NotThreadDispatcher>()
             .CreateTcpServer(IPAddress.Loopback, 12345);
         Assert.IsFalse(server.IsListening);
     }

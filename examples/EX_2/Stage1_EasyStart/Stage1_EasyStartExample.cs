@@ -31,7 +31,7 @@ public class Stage1_EasyStartExample
         */
 
         Console.WriteLine("Start listening...");
-        server.StartListening();
+        server.Start();
         Console.WriteLine("listening is started");
 
         #endregion
@@ -50,7 +50,7 @@ public class Stage1_EasyStartExample
             //Sending the message in "fire and foget" style, because the return type is void
             client.Contract.Send("Superman", message);
         }
-        server.Close();
+        server.Dispose();
     }
 }
 /// <summary>

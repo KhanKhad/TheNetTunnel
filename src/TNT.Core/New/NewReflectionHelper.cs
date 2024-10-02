@@ -53,7 +53,7 @@ namespace TNT.Core.New
                 if (hasReturnType)
                 {
                     _inputSayMessageDeserializeInfos.Add(
-                        -messageSayInfo.MessageId,
+                        messageSayInfo.MessageId,
                         InputMessageDeserializeInfo.CreateForAnswer(
                             deserializerFactory.Create(messageSayInfo.ReturnType)));
                 }
@@ -69,7 +69,7 @@ namespace TNT.Core.New
 
                 if (hasReturnType)
                 {
-                    _outputSayMessageSerializes.Add(-messageSayInfo.MessageId,
+                    _outputSayMessageSerializes.Add(messageSayInfo.MessageId,
                         serializerFactory.Create(messageSayInfo.ReturnType));
                 }
             }

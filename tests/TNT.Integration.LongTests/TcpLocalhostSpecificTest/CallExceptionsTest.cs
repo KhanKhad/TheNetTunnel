@@ -6,6 +6,7 @@ using TNT;
 using TNT.Core.Api;
 using TNT.Core.Exceptions.Local;
 using TNT.Core.Exceptions.Remote;
+using TNT.Core.New.Tcp;
 using TNT.Core.Presentation.ReceiveDispatching;
 using TNT.Core.Tcp;
 
@@ -19,8 +20,7 @@ public class CallsExceptionsTest
     {
         var proxyConnection = TntBuilder
             .UseContract<ITestContract>()
-            .UseReceiveDispatcher<NotThreadDispatcher>()
-            .UseChannel(() => new TcpChannel())
+            .UseChannelFactory(() => new TntTcpClient())
             .Build();
 
         TestTools.AssertThrowsAndNotBlocks<ConnectionIsNotEstablishedYet>(() => proxyConnection.Contract.Say());
@@ -31,7 +31,6 @@ public class CallsExceptionsTest
     {
         var proxyConnection = TntBuilder
             .UseContract<ITestContract>()
-            .UseReceiveDispatcher<NotThreadDispatcher>()
             .UseChannel(() => new TcpChannel())
             .Build();
 
