@@ -32,7 +32,7 @@ namespace TNT.Core.New
             
             Tools.WriteShort(messageId, to: stream);
             Tools.WriteShort((short)messageType, to: stream);
-            Tools.WriteShort(tntMessage.AskId, to: stream);
+            Tools.WriteInt(stream, tntMessage.AskId);
 
             try
             {
@@ -88,7 +88,7 @@ namespace TNT.Core.New
 
             stream.Position = 0;
             uint len = (uint)(stream.Length - ReservedHeadLength);
-            stream.WriteInt(len);
+            stream.WriteUint(len);
             stream.Position = 0;
 
             return stream;

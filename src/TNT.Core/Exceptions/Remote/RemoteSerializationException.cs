@@ -4,7 +4,7 @@ namespace TNT.Core.Exceptions.Remote
     {
         public RemoteSerializationException(
             short? messageId, 
-            short? askId = null, 
+            int? askId = null, 
             bool isFatal = true, 
             string message = null) 
             : base(ErrorType.SerializationError, isFatal, messageId, askId, message)

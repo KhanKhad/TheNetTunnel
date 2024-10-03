@@ -151,6 +151,7 @@ namespace TNT.Core.Testing
         public string LocalEndpointName { get; }
 
         public Channel<TcpData> ResponsesChannel => throw new NotImplementedException();
+        public Channel<TcpData> RequestesChannel => throw new NotImplementedException();
 
         public Task WriteAsync(byte[] data, int offset, int length)
         {

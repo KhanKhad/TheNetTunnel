@@ -21,8 +21,6 @@ namespace TNT.Core.New.Tcp
 
         private ConcurrentDictionary<int, IConnection<TContract>> _clients;
 
-        public Channel<TcpData> ResponsesChannel { get; }
-
         public int ConnectionsCount => _clients.Count;
 
         public bool IsListening => _alreadyStarted;
@@ -38,8 +36,6 @@ namespace TNT.Core.New.Tcp
             _tcpListener = new TcpListener(endPoint);
 
             _clients = new ConcurrentDictionary<int, IConnection<TContract>>();
-
-            ResponsesChannel = Channel.CreateBounded<TcpData>(5);
         }
 
         private volatile bool _alreadyStarted;

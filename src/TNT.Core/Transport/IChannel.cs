@@ -17,6 +17,7 @@ namespace TNT.Core.Transport
         Task StartAsync();
 
         public Channel<TcpData> ResponsesChannel { get; }
+        public Channel<TcpData> RequestesChannel { get; }
 
         /// <summary>
         /// Raising if connection is lost

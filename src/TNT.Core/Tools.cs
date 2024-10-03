@@ -30,11 +30,33 @@ namespace TNT.Core
             return ans;
         }
 
-        public static void WriteInt(this MemoryStream stream, uint value)
+        public static void WriteUint(this MemoryStream stream, uint value)
         {
             var val = BitConverter.GetBytes(value);
             stream.Write(val, 0, val.Length);
         }
+
+        public static void WriteInt(this MemoryStream stream, int value)
+        {
+            var val = BitConverter.GetBytes(value);
+            stream.Write(val, 0, val.Length);
+        }
+
+        public static bool TryReadInt(this MemoryStream from, out int value)
+        {
+            value = 0;
+            var size = sizeof(int);
+            if (@from.Length - @from.Position < size)
+                return false;
+            var buff = new byte[size];
+
+            @from.Read(buff, 0, size);
+
+            value = BitConverter.ToInt16(buff);
+
+            return true;
+        }
+
         public static void WriteShort(short outputMessageId, MemoryStream to)
         {
             //Write first byte

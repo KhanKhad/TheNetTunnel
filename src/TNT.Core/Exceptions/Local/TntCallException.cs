@@ -7,7 +7,7 @@ namespace TNT.Core.Exceptions.Local
         protected TntCallException(
             bool isFatal, 
             short? messageId, 
-            short? askId, 
+            int? askId, 
             string message,
             Exception innerException  = null)
             :base(message, innerException)
@@ -19,6 +19,6 @@ namespace TNT.Core.Exceptions.Local
 
         public bool IsFatal { get; }
         public short? MessageId { get; }
-        public short? AskId { get; }
+        public int? AskId { get; }
     }
 }

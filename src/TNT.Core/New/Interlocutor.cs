@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using TNT.Core.Exceptions.Local;
 using TNT.Core.New.Tcp;
@@ -10,7 +11,7 @@ using TNT.Core.Transport;
 
 namespace TNT.Core.New
 {
-    public class NewInterlocutor : IInterlocutor
+    public class Interlocutor : IInterlocutor
     {
         public IChannel Channel;
         public Responser _responser;
@@ -20,12 +21,12 @@ namespace TNT.Core.New
         private MessagesDeserializer _messagesDeserializer;
         private readonly ReceivePduQueue _receiveMessageAssembler;
 
-        private volatile short _maxAskId = 0;
+        private int _maxAskId;
         private readonly int _maxAnsDelay;
 
-        private ConcurrentDictionary<short, TaskCompletionSource<object>> MessageAwaiters;
+        private ConcurrentDictionary<int, TaskCompletionSource<object>> MessageAwaiters;
 
-        public NewInterlocutor(NewReflectionHelper reflectionHelper, IDispatcher receiveDispatcher, 
+        public Interlocutor(NewReflectionHelper reflectionHelper, IDispatcher receiveDispatcher, 
             IChannel channel, int maxAnsDelay = 3000)
         {
             _maxAnsDelay = maxAnsDelay;
@@ -40,7 +41,7 @@ namespace TNT.Core.New
 
             _responser = new Responser(reflectionHelper, receiveDispatcher);
 
-            MessageAwaiters = new ConcurrentDictionary<short, TaskCompletionSource<object>>();
+            MessageAwaiters = new ConcurrentDictionary<int, TaskCompletionSource<object>>();
         }
 
         private volatile bool _alreadyStarted;
@@ -158,13 +159,31 @@ namespace TNT.Core.New
         public async Task SendMessageAsync(NewTntMessage message)
         {
             var serialized = _messagesSerializer.SerializeTntMessage(message);
+
             await Channel.WriteAsync(serialized.ToArray());
+
+            /*var data = new TcpData()
+            {
+                Bytes = serialized.ToArray(),
+                Sender = this,
+            };
+
+            await Channel.RequestesChannel.Writer.WriteAsync(data);*/
         }
 
         public void SendMessage(NewTntMessage message)
         {
             var serialized = _messagesSerializer.SerializeTntMessage(message);
-            Channel.Write(serialized.ToArray());
+
+            Channel.WriteAsync(serialized.ToArray());
+            /*var data = new TcpData()
+            {
+                Bytes = serialized.ToArray(),
+                Sender = this,
+            };
+
+            //for unbounced channels always returns true
+            Channel.RequestesChannel.Writer.TryWrite(data);*/
         }
 
         public void Disconnect()
@@ -174,12 +193,7 @@ namespace TNT.Core.New
 
         public void Say(int messageId, object[] values)
         {
-            short newId;
-
-            unchecked
-            {
-                newId = _maxAskId++;
-            }
+            var newId = Interlocked.Increment(ref _maxAskId);
 
             var awaiter = GetAsyncMessageAwaiter(newId);
 
@@ -192,18 +206,11 @@ namespace TNT.Core.New
             };
 
             SendMessage(message);
-            //var message = _messagesSerializer.SerializeSayMessage((short)messageId, values);
-            //TcpChannel.Write(message.ToArray());
         }
 
         public T Ask<T>(int messageId, object[] values)
         {
-            short newId;
-
-            unchecked
-            {
-                newId = _maxAskId++;
-            }
+            var newId = Interlocked.Increment(ref _maxAskId);
 
             var awaiter = GetAsyncMessageAwaiter(newId);
 
@@ -224,7 +231,7 @@ namespace TNT.Core.New
         }
 
 
-        public Task<object> GetAsyncMessageAwaiter(short askId)
+        public Task<object> GetAsyncMessageAwaiter(int askId)
         {
             var tks = new TaskCompletionSource<object>();
 

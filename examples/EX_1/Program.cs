@@ -5,6 +5,7 @@ using TNT.Core.Api;
 using TNT.Core.Contract;
 using System.Threading.Tasks;
 using System.Diagnostics.Contracts;
+using System.Threading;
 
 namespace EX_1;
 
@@ -24,13 +25,26 @@ static class Program
         try
         {
             using var client = await TntBuilder.UseContract<IExampleContract>()
-                    .CreateTcpClientConnectionAsync(IPAddress.Loopback, 12345);
+                .SetMaxAnsTimeout(30000)
+                .CreateTcpClientConnectionAsync(IPAddress.Loopback, 12345);
 
+            var random = new Random();
 
-            for (int i = 0; i < 50; i++)
+            for (int i = 0; i < 15000; i++)
             {
-                _ = SendMsgTask(client, i);
+                var tt = random.Next(50);
+
+                var task = SendMsgTask(client, i);
+
+                if (tt != 0)
+                    await task;
             }
+
+
+            //for (int i = 0; i < 100; i++)
+            //{
+            //    var task = SendMsgTask(client, i);
+            //}
 
             await Task.Delay(-1);
         }
@@ -46,6 +60,8 @@ static class Program
         {
             try
             {
+                //client.Contract.Send("Superman", $"message#{i}");
+
                 var res = client.Contract.Send1("Superman", $"message#{i}");
 
                 if (res != true)

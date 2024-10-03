@@ -83,7 +83,7 @@ namespace TNT.Core.New
             };
         }
 
-        public NewTntMessage CreateSuccessfulResponseMessage(object result, short messageId, short askId)
+        public NewTntMessage CreateSuccessfulResponseMessage(object result, short messageId, int askId)
         {
             return new NewTntMessage()
             {
@@ -93,7 +93,7 @@ namespace TNT.Core.New
                 Result = result,
             };
         }
-        public NewTntMessage CreateFailedResponseMessage(ErrorMessage errorMessage, short messageId, short askId)
+        public NewTntMessage CreateFailedResponseMessage(ErrorMessage errorMessage, short messageId, int askId)
         {
             return new NewTntMessage()
             {
@@ -103,7 +103,7 @@ namespace TNT.Core.New
                 Result = errorMessage,
             };
         }
-        public NewTntMessage CreateFatalFailedResponseMessage(ErrorMessage errorMessage, short messageId, short askId)
+        public NewTntMessage CreateFatalFailedResponseMessage(ErrorMessage errorMessage, short messageId, int askId)
         {
             return new NewTntMessage()
             {

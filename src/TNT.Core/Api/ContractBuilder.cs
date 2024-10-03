@@ -180,7 +180,7 @@ namespace TNT.Core.Api
                 outputMessages: outputMessages.ToArray(),
                 inputMessages: inputMessages.ToArray());
 
-            var newInterlocutor = new NewInterlocutor(reflectionBuilder, dispatcher, channel, _maxAnsDelay);
+            var newInterlocutor = new Interlocutor(reflectionBuilder, dispatcher, channel, _maxAnsDelay);
 
             newInterlocutor.Start();
 
@@ -212,7 +212,7 @@ namespace TNT.Core.Api
                 outputMessages: outputMessages.ToArray(),
                 inputMessages: inputMessages.ToArray());
 
-            var newInterlocutor = new NewInterlocutor(reflectionBuilder, dispatcher, channel, _maxAnsDelay);
+            var newInterlocutor = new Interlocutor(reflectionBuilder, dispatcher, channel, _maxAnsDelay);
 
             newInterlocutor.Start();
 

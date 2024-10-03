@@ -15,7 +15,7 @@ namespace TNT.Core.Exceptions.Remote
             ErrorType id,
             bool isFatal,
             short? messageId,
-            short? askId,
+            int? askId,
             string message = null, 
             Exception innerException = null)
             :base(isFatal, messageId, askId,  $"[{id}]"+ (message??(" tnt call exception")), innerException)
@@ -26,7 +26,7 @@ namespace TNT.Core.Exceptions.Remote
         public ErrorType Id { get; }
 
         public static RemoteException Create(ErrorType type, string additionalInfo, short? messageId,
-            short? askId, bool isFatal = false)
+            int? askId, bool isFatal = false)
         {
             switch (type)
             {

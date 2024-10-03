@@ -5,9 +5,9 @@ namespace TNT.Core.Exceptions.Local
     public class CallTimeoutException: Exception
     {
         public short MessageId { get; }
-        public short AskId { get; }
+        public int AskId { get; }
 
-        public CallTimeoutException(short messageId, short askId)
+        public CallTimeoutException(short messageId, int askId)
             : base("Answer timeout elapsed", null)
         {
             MessageId = messageId;

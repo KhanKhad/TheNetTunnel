@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Runtime.InteropServices.ComTypes;
 using System.Text;
 using System.Threading;
 using System.Threading.Channels;
@@ -24,6 +26,7 @@ namespace TNT.Core.New.Tcp
         private volatile int _bytesSent;
 
         public Channel<TcpData> ResponsesChannel { get; }
+        public Channel<TcpData> RequestesChannel { get; }
         public string RemoteEndpointName { get; private set; }
         public string LocalEndpointName { get; private set; }
 
@@ -36,6 +39,8 @@ namespace TNT.Core.New.Tcp
         public int BytesSent => _bytesSent;
 
         public int ConnectionId;
+
+        private NetworkStream _stream;
 
         public TntTcpClient(IPEndPoint endPoint) : this()
         {
@@ -50,7 +55,17 @@ namespace TNT.Core.New.Tcp
 
         private TntTcpClient()
         {
-            ResponsesChannel = Channel.CreateBounded<TcpData>(3);
+            ResponsesChannel = Channel.CreateUnbounded<TcpData>(new UnboundedChannelOptions()
+            {
+                SingleReader = true,
+                SingleWriter = true,
+                AllowSynchronousContinuations = true,
+            });
+
+            RequestesChannel = Channel.CreateUnbounded<TcpData>(new UnboundedChannelOptions()
+            {
+                SingleReader = true,
+            });
         }
 
         private volatile bool _alreadyStarted;
@@ -65,7 +80,11 @@ namespace TNT.Core.New.Tcp
 
             SetEndPoints();
 
-            _ = InternalStartAsync();
+            Client.NoDelay = true;
+            Client.Client.Blocking = false;
+
+           // _ = Task.Run(InternalReadAsync);
+            _ = Task.Run(InternalWriteAsync);
         }
 
 
@@ -80,20 +99,43 @@ namespace TNT.Core.New.Tcp
 
             SetEndPoints();
 
-            _ = InternalStartAsync();
+            Client.NoDelay = true;
+            Client.Client.Blocking = false;
+
+            //_ = Task.Run(InternalReadAsync);
+            _ = Task.Run(InternalWriteAsync);
+
         }
 
-        private async Task InternalStartAsync()
+        private async Task InternalReadAsync()
         {
-            var reader = Client.GetStream();
+            var reader = RequestesChannel.Reader;
 
-            var buffer = new byte[Client.ReceiveBufferSize];
+            await foreach (var response in reader.ReadAllAsync())
+            {
+                var data = response.Bytes;
+                await WriteAsync(data);
+            }
+        }
+
+        private async Task InternalWriteAsync()
+        {
+            var bufferSize = 1024;
+            var socket = Client.Client;
 
             while (!_disconnected && !_disposed)
             {
                 try
                 {
-                    var bytesToRead = await reader.ReadAsync(buffer).ConfigureAwait(false);
+                    var buffer = new byte[bufferSize];
+
+                    var bytesToRead = await socket.ReceiveAsync(buffer, SocketFlags.None);
+
+                    if (bytesToRead == 0)
+                    {
+                        await Task.Delay(300);
+                        continue;
+                    }
 
                     unchecked
                     {
@@ -135,7 +177,6 @@ namespace TNT.Core.New.Tcp
                 Disconnect();
             }
         }
-
         public async Task WriteAsync(byte[] data)
         {
             if (!Client.Connected)
@@ -143,11 +184,7 @@ namespace TNT.Core.New.Tcp
 
             try
             {
-                var networkStream = Client.GetStream();
-                //According to msdn, the WriteAsync call is thread-safe.
-                //No need to use lock
-                await networkStream.WriteAsync(data, CancellationToken.None).ConfigureAwait(false);
-
+                await Client.Client.SendAsync(new ReadOnlyMemory<byte>(data, 0, data.Length), SocketFlags.None);
                 _bytesSent += data.Length;
             }
             catch

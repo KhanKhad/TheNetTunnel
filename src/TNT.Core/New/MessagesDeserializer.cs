@@ -44,7 +44,7 @@ namespace TNT.Core.New
                 };
             }
 
-            if (!streamMessage.TryReadShort(out var askId))
+            if (!streamMessage.TryReadInt(out var askId))
             {
                 var error = new ErrorMessage(
                             messageId, 0,

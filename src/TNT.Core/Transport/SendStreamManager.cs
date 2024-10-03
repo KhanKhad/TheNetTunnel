@@ -20,7 +20,7 @@ namespace TNT.Core.Transport
         {
             message.Position = 0;
             uint len = (uint)(message.Length - ReservedHeadLength);
-            message.WriteInt(len);
+            message.WriteUint(len);
 
             message.Position = 0;
         }

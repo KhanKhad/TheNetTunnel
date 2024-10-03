@@ -13,7 +13,7 @@ namespace TNT.Core.New
 
         public short MessageId;
         public TntMessageType MessageType;
-        public short AskId;
+        public int AskId;
         public object Result;
     }
 
