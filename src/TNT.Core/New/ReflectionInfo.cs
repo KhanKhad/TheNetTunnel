@@ -31,26 +31,28 @@ namespace TNT.Core.New
         /// <summary>
         /// Say handlers
         /// </summary>
-        internal readonly ConcurrentDictionary<int, Action<object[]>> _saySubscribtion
-            = new ConcurrentDictionary<int, Action<object[]>>();
+        internal readonly ConcurrentDictionary<int, MethodInfo> _saySubscribtion
+            = new ConcurrentDictionary<int, MethodInfo>();
 
         /// <summary>
         /// ask handlers
         /// </summary>
-        internal readonly ConcurrentDictionary<int, Func<object[], object>> _askSubscribtion
-           = new ConcurrentDictionary<int, Func<object[], object>>();
+        internal readonly ConcurrentDictionary<int, MethodInfo> _askSubscribtion
+           = new ConcurrentDictionary<int, MethodInfo>();
 
         /// <summary>
         /// Say handlers
         /// </summary>
-        internal readonly ConcurrentDictionary<int, Func<object[], Task>> _sayAsyncSubscribtion
-            = new ConcurrentDictionary<int, Func<object[], Task>>();
+        internal readonly ConcurrentDictionary<int, MethodInfo> _sayAsyncSubscribtion
+            = new ConcurrentDictionary<int, MethodInfo>();
 
         /// <summary>
         /// ask handlers
         /// </summary>
-        internal readonly ConcurrentDictionary<int, Func<object[], Task<object>>> _askAsyncSubscribtion
-           = new ConcurrentDictionary<int, Func<object[], Task<object>>>();
+        internal readonly ConcurrentDictionary<int, MethodInfo> _askAsyncSubscribtion
+           = new ConcurrentDictionary<int, MethodInfo>();
+
+
         public ReflectionInfo(
             SerializerFactory serializerFactory,
             DeserializerFactory deserializerFactory,
@@ -129,22 +131,22 @@ namespace TNT.Core.New
             }
         }
 
-        public void SetIncomeAskCallHandler<T>(int messageId, Func<object[], T> callback)
+        public void SetIncomeAskCallHandler(int messageId, MethodInfo callback)
         {
-            _askSubscribtion.TryAdd(messageId, (args) => callback(args));
+            _askSubscribtion.TryAdd(messageId, callback);
         }
 
-        public void SetIncomeSayCallHandler(int messageId, Action<object[]> callback)
+        public void SetIncomeSayCallHandler(int messageId, MethodInfo callback)
         {
             _saySubscribtion.TryAdd(messageId, callback);
         }
 
-        public void SetIncomeSayCallAsyncHandler(int messageId, Func<object[], Task> callback)
+        public void SetIncomeSayCallAsyncHandler(int messageId, MethodInfo callback)
         {
             _sayAsyncSubscribtion.TryAdd(messageId, callback);
         }
 
-        public void SetIncomeAskCallAsyncHandler(int messageId, Func<object[], Task<object>> callback)
+        public void SetIncomeAskCallAsyncHandler(int messageId, MethodInfo callback)
         {
             _askAsyncSubscribtion.TryAdd(messageId, callback);
         }

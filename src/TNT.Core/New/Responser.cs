@@ -44,7 +44,7 @@ namespace TNT.Core.New
 
                 if (_reflectionHelper._askSubscribtion.TryGetValue(id, out var askHandler))
                 {
-                    var answer = await _receiveDispatcher.Handle(askHandler,arguments);
+                    var answer = await _receiveDispatcher.HandleWithResult(askHandler, arguments);
                     result = CreateSuccessfulResponseMessage(answer, id, askId);
                 }
                 else if (_reflectionHelper._saySubscribtion.TryGetValue(id, out var sayHandler))
@@ -59,7 +59,7 @@ namespace TNT.Core.New
                 }
                 else if (_reflectionHelper._askAsyncSubscribtion.TryGetValue(id, out var askAsyncHandler))
                 {
-                    var answer = await _receiveDispatcher.HandleAsync(askAsyncHandler, arguments);
+                    var answer = await _receiveDispatcher.HandleWithResultAsync(askAsyncHandler, arguments);
                     result = CreateSuccessfulResponseMessage(answer, id, askId);
                 }
                 else

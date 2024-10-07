@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.IO;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using TNT.Core.Exceptions.Local;
@@ -270,30 +271,27 @@ namespace TNT.Core.New
             else throw new Exception("Same askId was already added");
         }
 
-        public void SetIncomeAskCallHandler<T>(int messageId, Func<object[], T> callback)
-        {
-            _reflectionHelper.SetIncomeAskCallHandler(messageId, callback);
-        }
-        public void SetIncomeSayCallHandler(int messageId, Action<object[]> callback)
-        {
-            _reflectionHelper.SetIncomeSayCallHandler(messageId, callback);
-        }
-        public void SetIncomeSayCallAsyncHandler(int messageId, Func<object[], Task> callback)
-        {
-            _reflectionHelper.SetIncomeSayCallAsyncHandler(messageId, callback);
-        }
-
-        public void SetIncomeAskCallAsyncHandler(int messageId, Func<object[], Task<object>> callback)
-        {
-            _reflectionHelper.SetIncomeAskCallAsyncHandler(messageId, callback);
-        }
-
-
         public void Unsubscribe(int messageId)
         {
             _reflectionHelper.Unsubscribe(messageId);
         }
 
-        
+        public void SetIncomeSayCallHandler(int messageId, MethodInfo value)
+        {
+            _reflectionHelper.SetIncomeSayCallHandler(messageId, value);
+        }
+        public void SetIncomeSayCallAsyncHandler(int messageId, MethodInfo value)
+        {
+            _reflectionHelper.SetIncomeSayCallAsyncHandler(messageId, value);
+        }
+
+        public void SetIncomeAskCallHandler(int messageId, MethodInfo value)
+        {
+            _reflectionHelper.SetIncomeAskCallHandler(messageId, value);
+        }
+        public void SetIncomeAskCallAsyncHandler(int messageId, MethodInfo value)
+        {
+            _reflectionHelper.SetIncomeAskCallAsyncHandler(messageId, value);
+        }
     }
 }

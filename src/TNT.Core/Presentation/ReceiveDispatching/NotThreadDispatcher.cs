@@ -1,4 +1,5 @@
 using System;
+using System.Reflection;
 using System.Threading.Tasks;
 
 namespace TNT.Core.Presentation.ReceiveDispatching
@@ -32,6 +33,31 @@ namespace TNT.Core.Presentation.ReceiveDispatching
         }
 
         public Task<object> HandleAsync(Func<object[], Task<object>> handler, object[] args)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void SetContract<TContract>(TContract contract) where TContract : class
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task Handle(MethodInfo handler, object[] args)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<object> HandleWithResult(MethodInfo handler, object[] args)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task HandleAsync(MethodInfo handler, object[] args)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<object> HandleWithResultAsync(MethodInfo handler, object[] args)
         {
             throw new NotImplementedException();
         }

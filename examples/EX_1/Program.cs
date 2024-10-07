@@ -80,11 +80,11 @@ public interface IExampleContract
     [TntMessage(2)]
     bool Send1(string user, string message);
 
-    [TntMessage(3)]
+    /*[TntMessage(3)]
     Action<bool> Action { get; set; }
 
     [TntMessage(4)]
-    Func<bool, bool> Func { get; set; }
+    Func<bool, bool> Func { get; set; }*/
 
 
 
@@ -93,11 +93,11 @@ public interface IExampleContract
     [TntMessage(12)]
     Task<bool> Send1Task(string user, string message);
 
-    [TntMessage(13)]
+    /*[TntMessage(13)]
     Func<Task<bool>> FuncTask { get; set; }
 
     [TntMessage(14)]
-    Func<bool, Task<bool>> FuncTaskResult { get; set; }
+    Func<bool, Task<bool>> FuncTaskResult { get; set; }*/
 }
 
 //contract implementation

@@ -310,7 +310,7 @@ namespace TNT.Core.Contract.Proxy
                 var actionType = typeof(Action<>).MakeGenericType(typeof(object[]));
                 var actionConstructor = actionType.GetConstructor(new[] {typeof(object), typeof(IntPtr)});
                 il.Emit(OpCodes.Newobj, actionConstructor);
-                var subscribeMethod = typeof(IInterlocutor).GetMethod("SetIncomeSayCallHandler", new[] {typeof(int), actionType});
+                var subscribeMethod = typeof(IInterlocutor).GetMethod("SetIncomeSayCallHandler");
                 il.Emit(OpCodes.Callvirt, subscribeMethod);
             }
             else

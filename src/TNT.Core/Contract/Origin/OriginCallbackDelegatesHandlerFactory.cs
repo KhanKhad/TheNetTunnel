@@ -4,7 +4,9 @@ using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Threading;
+using System.Threading.Tasks;
 using TNT.Core.Exceptions.ContractImplementation;
+using TNT.Core.New;
 using TNT.Core.Presentation;
 
 namespace TNT.Core.Contract.Origin
@@ -74,8 +76,12 @@ namespace TNT.Core.Contract.Origin
                                         FieldAttributes.Private);
 
             EmitHelper.ImplementPublicConstructor(typeBuilder,new[] { outputApiFieldInfo });
-            
+
             var sayMehodInfo = interlocutorType.GetMethod("Say", new[] { typeof(int), typeof(object[]) });
+            var sayAsyncMehodInfo = interlocutorType.GetMethod("SayAsync", new[] { typeof(int), typeof(object[]) });
+
+            var askMehodInfo = interlocutorType.GetMethod("Ask", new[] { typeof(int), typeof(object[]) });
+            var askAsyncMehodInfo = interlocutorType.GetMethod("AskAsync", new[] { typeof(int), typeof(object[]) });
 
             foreach (var property in contractMembers.GetProperties())
             {
@@ -104,16 +110,24 @@ namespace TNT.Core.Contract.Origin
                 }
 
                 MethodInfo askOrSayMethodInfo = null;
+
                 if (returnType == typeof(void))
                 {
                     askOrSayMethodInfo = sayMehodInfo;
                 }
+                else if (returnType == typeof(Task))
+                {
+                    askOrSayMethodInfo = sayAsyncMehodInfo;
+                }
+                else if (returnType.IsGenericType && returnType.GetGenericTypeDefinition() == typeof(Task<>))
+                {
+                    askOrSayMethodInfo = askAsyncMehodInfo.MakeGenericMethod(returnType);
+                }
                 else
                 {
-                    askOrSayMethodInfo = interlocutorType
-                     .GetMethod("Ask", new[] { typeof(int), typeof(object[]) })
-                     .MakeGenericMethod(returnType);
+                    askOrSayMethodInfo = askMehodInfo.MakeGenericMethod(returnType);
                 }
+
                 EmitHelper.GenerateSayOrAskMethodBody(
                     messageTypeId: property.Key,
                     interlocutorSayOrAskMethodInfo: askOrSayMethodInfo,

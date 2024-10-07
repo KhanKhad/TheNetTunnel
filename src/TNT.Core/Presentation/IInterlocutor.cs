@@ -1,4 +1,5 @@
 using System;
+using System.Reflection;
 using System.Threading.Tasks;
 using TNT.Core.Exceptions.Local;
 
@@ -40,14 +41,14 @@ namespace TNT.Core.Presentation
         /// Set income Say message Handler
         /// </summary>
         ///<exception cref="ArgumentException">already contains say messageId handler</exception>
-        void SetIncomeSayCallHandler(int messageId, Action<object[]> callback);
-        void SetIncomeSayCallAsyncHandler(int messageId, Func<object[], Task> callback);
+        void SetIncomeSayCallHandler(int messageId, MethodInfo value);
+        void SetIncomeSayCallAsyncHandler(int messageId, MethodInfo value);
         /// <summary>
         /// Set income Say message Handler.
         /// </summary>
         ///<exception cref="ArgumentException">already contains ask messageId handler</exception>
-        void SetIncomeAskCallHandler<T>(int messageId, Func<object[], T> callback);
-        void SetIncomeAskCallAsyncHandler(int messageId, Func<object[], Task<object>> callback);
+        void SetIncomeAskCallHandler(int messageId, MethodInfo value);
+        void SetIncomeAskCallAsyncHandler(int messageId, MethodInfo value);
         /// <summary>
         /// Unsubscribes request handler
         /// </summary>

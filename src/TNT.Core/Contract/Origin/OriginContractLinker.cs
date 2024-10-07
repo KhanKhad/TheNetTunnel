@@ -24,20 +24,20 @@ namespace TNT.Core.Contract.Origin
                 if (returnType == typeof(void))
                 {
                     //Say handler method:
-                    interlocutor.SetIncomeSayCallHandler(method.Key, args => method.Value.Invoke(contract, args));
+                    interlocutor.SetIncomeSayCallHandler(method.Key, method.Value);
                 }
                 else if (returnType == typeof(Task))
                 {
-                    interlocutor.SetIncomeSayCallAsyncHandler(method.Key, args => (Task)method.Value.Invoke(contract, args));
+                    interlocutor.SetIncomeSayCallAsyncHandler(method.Key, method.Value);
                 }
                 else if (returnType.IsGenericType && returnType.GetGenericTypeDefinition() == typeof(Task<>))
                 {
-                    interlocutor.SetIncomeAskCallAsyncHandler(method.Key, args => (Task<object>)method.Value.Invoke(contract, args));
+                    interlocutor.SetIncomeAskCallAsyncHandler(method.Key, method.Value);
                 }
                 else
                 {
                     //Ask handler method:
-                    interlocutor.SetIncomeAskCallHandler(method.Key, args => method.Value.Invoke(contract, args));
+                    interlocutor.SetIncomeAskCallHandler(method.Key, method.Value);
                 }
 
 

@@ -145,7 +145,6 @@ namespace TNT.Core.Api
                 throw new ArgumentNullException(nameof(_channel));
 
             var dispatcher = _receiveDispatcher ?? new ReceiveDispatcher();
-
             dispatcher.Start();
 
             TContract contract = OriginContractFactory == null
@@ -183,11 +182,14 @@ namespace TNT.Core.Api
                     outputMessages: outputMessages.ToArray(),
                     inputMessages: inputMessages.ToArray());
             }
-            
+
+            TContract contract = OriginContractFactory(channel);
+
+            dispatcher.SetContract(contract);
+
             var newInterlocutor = new Interlocutor(_reflectionInfo, dispatcher, channel, _maxAnsDelay);
             newInterlocutor.Start();
 
-            TContract contract = OriginContractFactory(channel);
             OriginContractLinker.Link(contract, newInterlocutor);
             return contract;
         }
