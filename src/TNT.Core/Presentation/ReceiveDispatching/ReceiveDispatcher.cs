@@ -76,9 +76,12 @@ namespace TNT.Core.Presentation.ReceiveDispatching
                     await task;
                     break;
                 case DispatcherTaskTypes.AsyncFuncTask:
-                    var taskWithResult = dTask.MethodInfo.Invoke(_contract, dTask.Args);
-                    var taskRes = (Task<bool>)taskWithResult;
-                    await taskRes;
+                    var taskWithResult = (Task)dTask.MethodInfo.Invoke(_contract, dTask.Args);
+
+                    await taskWithResult.ConfigureAwait(false);
+
+                    var resultProperty = taskWithResult.GetType().GetProperty("Result");
+                    result = resultProperty.GetValue(taskWithResult);
                     break;
             }
 

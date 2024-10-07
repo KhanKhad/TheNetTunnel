@@ -30,13 +30,13 @@ static class Program
 
             var random = new Random();
 
-            //for (int i = 0; i < 15000; i++)
-            //{
-            //    var tt = random.Next(50);
+            for (int i = 0; i < 15000; i++)
+            {
+                var tt = random.Next(50);
+                var task = SendMsgTask(client, i);
+            }
 
-            //}
-
-            var res = await client.Contract.Send1Task("Superman", $"message#{1}");
+            //var res = await client.Contract.Send1Task("Superman", $"message#{1}");
 
             //for (int i = 0; i < 100; i++)
             //{

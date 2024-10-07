@@ -121,7 +121,8 @@ namespace TNT.Core.Contract.Origin
                 }
                 else if (returnType.IsGenericType && returnType.GetGenericTypeDefinition() == typeof(Task<>))
                 {
-                    askOrSayMethodInfo = askAsyncMehodInfo.MakeGenericMethod(returnType);
+                    var actualReturnType = returnType.GenericTypeArguments[0];
+                    askOrSayMethodInfo = askAsyncMehodInfo.MakeGenericMethod(actualReturnType);
                 }
                 else
                 {
