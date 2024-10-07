@@ -11,12 +11,12 @@ namespace TNT.Core.New
 {
     public class MessagesSerializer
     {
-        private NewReflectionHelper _reflectionHelper;
+        private ReflectionInfo _reflectionHelper;
 
         public int ReservedHeadLength => sizeof(uint);
         private static readonly byte[] _reservedEmptyBuffer = new byte[sizeof(uint)];
 
-        public MessagesSerializer(NewReflectionHelper reflectionHelper)
+        public MessagesSerializer(ReflectionInfo reflectionHelper)
         {
             _reflectionHelper = reflectionHelper;
         }

@@ -44,6 +44,7 @@ namespace TNT.Core.Presentation.Serializers
                 ans.AddRule(serializationRule);
             }
             ans.AddRule(SerializationRule.Create(new ByteArraySerializer()));
+            ans.AddRule(SerializationRule.Create(new TaskSerializer()));
             ans.AddRule(SerializationRule.Create(new ByteEnumerableSerializer()));
             ans.AddRule(SerializationRule.Create(new UnicodeSerializer()));
             ans.AddRule(SerializationRule.Create(new UTCFileTimeSerializer()));

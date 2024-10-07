@@ -10,10 +10,10 @@ namespace TNT.Core.Presentation.ReceiveDispatching
     {
         private Channel<DispatcherTask> TasksChannel { get; }
 
-        private volatile short _maxAskId = 0;
+        private int _maxAskId = 0;
         private bool _singleOperationMode;
 
-        private ConcurrentDictionary<short, TaskCompletionSource<object>> MessageAwaiters;
+        private ConcurrentDictionary<int, TaskCompletionSource<object>> MessageAwaiters;
         
         public ReceiveDispatcher(bool singleOperationMode = true)
         {
@@ -21,7 +21,7 @@ namespace TNT.Core.Presentation.ReceiveDispatching
 
             _singleOperationMode = singleOperationMode;
 
-            MessageAwaiters = new ConcurrentDictionary<short, TaskCompletionSource<object>>();
+            MessageAwaiters = new ConcurrentDictionary<int, TaskCompletionSource<object>>();
         }
 
         private volatile bool _alreadyStarted;
@@ -56,10 +56,21 @@ namespace TNT.Core.Presentation.ReceiveDispatching
 
             object result = null;
 
-            if (dTask.DispatcherTaskType == DispatcherTaskTypes.FuncTask)
-                result = dTask.FunkHandler.Invoke(dTask.Args);
-            else
-                dTask.ActionHandler.Invoke(dTask.Args);
+            switch (dTask.DispatcherTaskType)
+            {
+                case DispatcherTaskTypes.ActionTask:
+                    dTask.ActionHandler.Invoke(dTask.Args);
+                    break;
+                case DispatcherTaskTypes.FuncTask:
+                    result = dTask.FunkHandler.Invoke(dTask.Args);
+                    break;
+                case DispatcherTaskTypes.AsyncActionTask:
+                    await dTask.AsyncActionTask.Invoke(dTask.Args);
+                    break;
+                case DispatcherTaskTypes.AsyncFuncTask:
+                    await dTask.AsyncFuncTask.Invoke(dTask.Args);
+                    break;
+            }
 
             if (MessageAwaiters.TryRemove(dTask.Id, out var taskAwaiter))
                 taskAwaiter.SetResult(result);
@@ -67,12 +78,7 @@ namespace TNT.Core.Presentation.ReceiveDispatching
 
         public async Task Handle(Action<object[]> handler, object[] args)
         {
-            short newId;
-
-            unchecked
-            {
-                newId = _maxAskId++;
-            }
+            var newId = Interlocked.Increment(ref _maxAskId);
 
             var dTask = new DispatcherTask()
             {
@@ -91,12 +97,7 @@ namespace TNT.Core.Presentation.ReceiveDispatching
 
         public async Task<object> Handle(Func<object[], object> handler, object[] args)
         {
-            short newId;
-
-            unchecked
-            {
-                newId = _maxAskId++;
-            }
+            var newId = Interlocked.Increment(ref _maxAskId);
 
             var dTask = new DispatcherTask()
             {
@@ -115,8 +116,47 @@ namespace TNT.Core.Presentation.ReceiveDispatching
             return result;
         }
 
+        public async Task HandleAsync(Func<object[], Task> handler, object[] args)
+        {
+            var newId = Interlocked.Increment(ref _maxAskId);
 
-        public Task<object> GetAsyncMessageAwaiter(short askId)
+            var dTask = new DispatcherTask()
+            {
+                Id = newId,
+                AsyncActionTask = handler,
+                Args = args,
+                DispatcherTaskType = DispatcherTaskTypes.AsyncActionTask,
+            };
+
+            var awaiter = GetAsyncMessageAwaiter(newId);
+
+            await TasksChannel.Writer.WriteAsync(dTask);
+
+            var result = await awaiter;
+        }
+
+        public async Task<object> HandleAsync(Func<object[], Task<object>> handler, object[] args)
+        {
+            var newId = Interlocked.Increment(ref _maxAskId);
+
+            var dTask = new DispatcherTask()
+            {
+                Id = newId,
+                AsyncFuncTask = handler,
+                Args = args,
+                DispatcherTaskType = DispatcherTaskTypes.AsyncFuncTask,
+            };
+
+            var awaiter = GetAsyncMessageAwaiter(newId);
+
+            await TasksChannel.Writer.WriteAsync(dTask);
+
+            var result = await awaiter;
+
+            return result;
+        }
+
+        public Task<object> GetAsyncMessageAwaiter(int askId)
         {
             var tks = new TaskCompletionSource<object>();
 
@@ -146,14 +186,18 @@ namespace TNT.Core.Presentation.ReceiveDispatching
 
         public Func<object[], object> FunkHandler;
         public Action<object[]> ActionHandler;
+        public Func<object[], Task> AsyncActionTask;
+        public Func<object[], Task<object>> AsyncFuncTask;
 
         public object[] Args;
 
-        public short Id;
+        public int Id;
     }
     public enum DispatcherTaskTypes
     {
         ActionTask,
-        FuncTask
+        FuncTask,
+        AsyncActionTask,
+        AsyncFuncTask,
     }
 }

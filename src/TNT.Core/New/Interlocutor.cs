@@ -16,7 +16,7 @@ namespace TNT.Core.New
         public IChannel Channel;
         public Responser _responser;
 
-        private NewReflectionHelper _reflectionHelper;
+        private ReflectionInfo _reflectionHelper;
         private MessagesSerializer _messagesSerializer;
         private MessagesDeserializer _messagesDeserializer;
         private readonly ReceivePduQueue _receiveMessageAssembler;
@@ -26,7 +26,7 @@ namespace TNT.Core.New
 
         private ConcurrentDictionary<int, TaskCompletionSource<object>> MessageAwaiters;
 
-        public Interlocutor(NewReflectionHelper reflectionHelper, IDispatcher receiveDispatcher, 
+        public Interlocutor(ReflectionInfo reflectionHelper, IDispatcher receiveDispatcher, 
             IChannel channel, int maxAnsDelay = 3000)
         {
             _maxAnsDelay = maxAnsDelay;
@@ -161,14 +161,6 @@ namespace TNT.Core.New
             var serialized = _messagesSerializer.SerializeTntMessage(message);
 
             await Channel.WriteAsync(serialized.ToArray());
-
-            /*var data = new TcpData()
-            {
-                Bytes = serialized.ToArray(),
-                Sender = this,
-            };
-
-            await Channel.RequestesChannel.Writer.WriteAsync(data);*/
         }
 
         public void SendMessage(NewTntMessage message)
@@ -176,14 +168,6 @@ namespace TNT.Core.New
             var serialized = _messagesSerializer.SerializeTntMessage(message);
 
             Channel.WriteAsync(serialized.ToArray());
-            /*var data = new TcpData()
-            {
-                Bytes = serialized.ToArray(),
-                Sender = this,
-            };
-
-            //for unbounced channels always returns true
-            Channel.RequestesChannel.Writer.TryWrite(data);*/
         }
 
         public void Disconnect()
@@ -207,7 +191,29 @@ namespace TNT.Core.New
 
             SendMessage(message);
         }
+        public async Task SayAsync(int messageId, object[] values)
+        {
+            var newId = Interlocked.Increment(ref _maxAskId);
 
+            var awaiter = GetAsyncMessageAwaiter(newId);
+
+            var message = new NewTntMessage()
+            {
+                AskId = newId,
+                MessageId = (short)messageId,
+                MessageType = TntMessageType.RequestMessage,
+                Result = values,
+            };
+
+            await SendMessageAsync(message);
+
+            var result = await Task.WhenAny(awaiter, Task.Delay(_maxAnsDelay));
+
+            if (result == awaiter)
+                 await awaiter;
+
+            else throw new CallTimeoutException((short)messageId, newId);
+        }
         public T Ask<T>(int messageId, object[] values)
         {
             var newId = Interlocked.Increment(ref _maxAskId);
@@ -230,6 +236,29 @@ namespace TNT.Core.New
             else throw new CallTimeoutException((short)messageId, newId);
         }
 
+        public async Task<T> AskAsync<T>(int messageId, object[] values)
+        {
+            var newId = Interlocked.Increment(ref _maxAskId);
+
+            var awaiter = GetAsyncMessageAwaiter(newId);
+
+            var message = new NewTntMessage()
+            {
+                AskId = newId,
+                MessageId = (short)messageId,
+                MessageType = TntMessageType.RequestMessage,
+                Result = values,
+            };
+
+            await SendMessageAsync(message);
+
+            var result = await Task.WhenAny(awaiter, Task.Delay(_maxAnsDelay));
+
+            if (result == awaiter)
+                return (T)await awaiter;
+
+            else throw new CallTimeoutException((short)messageId, newId);
+        }
 
         public Task<object> GetAsyncMessageAwaiter(int askId)
         {
@@ -249,9 +278,22 @@ namespace TNT.Core.New
         {
             _reflectionHelper.SetIncomeSayCallHandler(messageId, callback);
         }
+        public void SetIncomeSayCallAsyncHandler(int messageId, Func<object[], Task> callback)
+        {
+            _reflectionHelper.SetIncomeSayCallAsyncHandler(messageId, callback);
+        }
+
+        public void SetIncomeAskCallAsyncHandler(int messageId, Func<object[], Task<object>> callback)
+        {
+            _reflectionHelper.SetIncomeAskCallAsyncHandler(messageId, callback);
+        }
+
+
         public void Unsubscribe(int messageId)
         {
             _reflectionHelper.Unsubscribe(messageId);
         }
+
+        
     }
 }

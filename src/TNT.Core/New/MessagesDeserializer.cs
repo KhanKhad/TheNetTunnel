@@ -10,9 +10,9 @@ namespace TNT.Core.New
 {
     public class MessagesDeserializer
     {
-        private NewReflectionHelper _reflectionHelper;
+        private ReflectionInfo _reflectionHelper;
 
-        public MessagesDeserializer(NewReflectionHelper reflectionHelper)
+        public MessagesDeserializer(ReflectionInfo reflectionHelper)
         {
             _reflectionHelper = reflectionHelper;
         }

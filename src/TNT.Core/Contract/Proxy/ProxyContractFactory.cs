@@ -4,8 +4,10 @@ using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Threading;
+using System.Threading.Tasks;
 using TNT.Core.Exceptions.ContractImplementation;
 using TNT.Core.Presentation;
+using TNT.Core.Presentation.Deserializers;
 
 namespace TNT.Core.Contract.Proxy
 {
@@ -27,6 +29,10 @@ namespace TNT.Core.Contract.Proxy
                                         FieldAttributes.Private);
             
             var sayMehodInfo = interlocutor.GetType().GetMethod("Say", new[] {typeof(int), typeof(object[])});
+            var sayAsyncMehodInfo = interlocutor.GetType().GetMethod("SayAsync", new[] {typeof(int), typeof(object[])}); 
+            
+            var askMehodInfo = interlocutor.GetType().GetMethod("Ask", new[] {typeof(int), typeof(object[])});
+            var askAsyncMehodInfo = interlocutor.GetType().GetMethod("AskAsync", new[] {typeof(int), typeof(object[])});
 
             var contractMemebers = ParseContractInterface(typeof(T));// new ContractsMemberInfo(typeof(T));
 
@@ -42,18 +48,24 @@ namespace TNT.Core.Contract.Proxy
 
                 var returnType = method.Value.ReturnType;
                 MethodInfo askOrSayMethodInfo = null;
+
                 if (returnType == typeof(void))
                 {
                     askOrSayMethodInfo = sayMehodInfo;
                 }
+                else if (returnType == typeof(Task))
+                {
+                    askOrSayMethodInfo = sayAsyncMehodInfo;
+                }
+                else if (returnType.IsGenericType && returnType.GetGenericTypeDefinition() == typeof(Task<>))
+                {
+                    askOrSayMethodInfo = askAsyncMehodInfo.MakeGenericMethod(returnType);
+                }
                 else
                 {
-                    askOrSayMethodInfo = interlocutor
-                        .GetType()
-                        .GetMethod("Ask", new[] { typeof(int), typeof(object[]) })
-                        .MakeGenericMethod(returnType);
-
+                    askOrSayMethodInfo = askMehodInfo.MakeGenericMethod(returnType);
                 }
+
                 EmitHelper.GenerateSayOrAskMethodBody(
                     messageTypeId: method.Key,
                     interlocutorSayOrAskMethodInfo: askOrSayMethodInfo,

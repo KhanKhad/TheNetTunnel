@@ -25,5 +25,15 @@ namespace TNT.Core.Presentation.ReceiveDispatching
         {
 
         }
+
+        public Task HandleAsync(Func<object[], Task> handler, object[] args)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<object> HandleAsync(Func<object[], Task<object>> handler, object[] args)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

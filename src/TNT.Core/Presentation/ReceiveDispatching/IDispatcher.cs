@@ -8,5 +8,8 @@ namespace TNT.Core.Presentation.ReceiveDispatching
         void Start();
         Task Handle(Action<object[]> handler, object[] args);
         Task<object> Handle(Func<object[], object> handler, object[] args);
+
+        Task HandleAsync(Func<object[], Task> handler, object[] args);
+        Task<object> HandleAsync(Func<object[], Task<object>> handler, object[] args);
     }
 }

@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Reflection;
+using System.Threading.Tasks;
 using TNT.Core.Exceptions.ContractImplementation;
 using TNT.Core.Presentation;
+using TNT.Core.Presentation.Serializers;
 
 namespace TNT.Core.Contract.Origin
 {
@@ -14,9 +16,33 @@ namespace TNT.Core.Contract.Origin
             var interfaceType = typeof(TInterface);
 
             ContractInfo contractMemebers = GetContractMemebers(contractType, interfaceType);
+            
             foreach (var method in contractMemebers.GetMethods())
             {
-                if (method.Value.ReturnParameter.ParameterType == typeof(void))
+                var returnType = method.Value.ReturnParameter.ParameterType;
+
+                if (returnType == typeof(void))
+                {
+                    //Say handler method:
+                    interlocutor.SetIncomeSayCallHandler(method.Key, args => method.Value.Invoke(contract, args));
+                }
+                else if (returnType == typeof(Task))
+                {
+                    interlocutor.SetIncomeSayCallAsyncHandler(method.Key, args => (Task)method.Value.Invoke(contract, args));
+                }
+                else if (returnType.IsGenericType && returnType.GetGenericTypeDefinition() == typeof(Task<>))
+                {
+                    interlocutor.SetIncomeAskCallAsyncHandler(method.Key, args => (Task<object>)method.Value.Invoke(contract, args));
+                }
+                else
+                {
+                    //Ask handler method:
+                    interlocutor.SetIncomeAskCallHandler(method.Key, args => method.Value.Invoke(contract, args));
+                }
+
+
+
+                /*if (method.Value.ReturnParameter.ParameterType == typeof(void))
                 {
                     //Say handler method:
                     interlocutor.SetIncomeSayCallHandler(method.Key, args => method.Value.Invoke(contract, args));
@@ -25,7 +51,7 @@ namespace TNT.Core.Contract.Origin
                 {
                     //Ask handler method:
                     interlocutor.SetIncomeAskCallHandler(method.Key, args => method.Value.Invoke(contract, args));
-                }
+                }*/
             }
             OriginCallbackDelegatesHandlerFactory.CreateFor(contractMemebers, contract, interlocutor);
             return contractMemebers;

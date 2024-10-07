@@ -26,6 +26,7 @@ namespace TNT.Core.Api
         private IChannel _channel;
         private Func<IChannel> _channelFactory;
         private Func<Task<IChannel>> _channelFactoryAsync;
+        private ReflectionInfo _reflectionInfo;
 
         /// <summary>
         /// Contract implementation
@@ -158,30 +159,32 @@ namespace TNT.Core.Api
 
         private TContract CreateOriginContract(IChannel channel, IDispatcher dispatcher)
         {
-            var memebers = ProxyContractFactory.ParseContractInterface(typeof(TContract));
+            if(_reflectionInfo == null)
+            {
+                var memebers = ProxyContractFactory.ParseContractInterface(typeof(TContract));
+
+                var inputMessages = memebers.GetMethods().Select(m => new MessageTypeInfo
+                {
+                    ReturnType = m.Value.ReturnType,
+                    ArgumentTypes = m.Value.GetParameters().Select(p => p.ParameterType).ToArray(),
+                    MessageId = (short)m.Key
+                });
+
+                var outputMessages = memebers.GetProperties().Select(m => new MessageTypeInfo
+                {
+                    ArgumentTypes = ReflectionHelper.GetDelegateInfoOrNull(m.Value.PropertyType).ParameterTypes,
+                    ReturnType = ReflectionHelper.GetDelegateInfoOrNull(m.Value.PropertyType).ReturnType,
+                    MessageId = (short)m.Key
+                });
+
+                _reflectionInfo = new ReflectionInfo(
+                    SerializerFactory.CreateDefault(UserSerializationRules.ToArray()),
+                    DeserializerFactory.CreateDefault(UserDeserializationRules.ToArray()),
+                    outputMessages: outputMessages.ToArray(),
+                    inputMessages: inputMessages.ToArray());
+            }
             
-            var inputMessages = memebers.GetMethods().Select(m => new MessageTypeInfo
-            {
-                ReturnType = m.Value.ReturnType,
-                ArgumentTypes = m.Value.GetParameters().Select(p => p.ParameterType).ToArray(),
-                MessageId = (short)m.Key
-            });
-
-            var outputMessages = memebers.GetProperties().Select(m => new MessageTypeInfo
-            {
-                ArgumentTypes = ReflectionHelper.GetDelegateInfoOrNull(m.Value.PropertyType).ParameterTypes,
-                ReturnType = ReflectionHelper.GetDelegateInfoOrNull(m.Value.PropertyType).ReturnType,
-                MessageId = (short)m.Key
-            });
-
-            var reflectionBuilder = new NewReflectionHelper(
-                SerializerFactory.CreateDefault(UserSerializationRules.ToArray()),
-                DeserializerFactory.CreateDefault(UserDeserializationRules.ToArray()),
-                outputMessages: outputMessages.ToArray(),
-                inputMessages: inputMessages.ToArray());
-
-            var newInterlocutor = new Interlocutor(reflectionBuilder, dispatcher, channel, _maxAnsDelay);
-
+            var newInterlocutor = new Interlocutor(_reflectionInfo, dispatcher, channel, _maxAnsDelay);
             newInterlocutor.Start();
 
             TContract contract = OriginContractFactory(channel);
@@ -190,30 +193,32 @@ namespace TNT.Core.Api
         }
         private TContract CreateProxyContract(IChannel channel, IDispatcher dispatcher)
         {
-            var memebers = ProxyContractFactory.ParseContractInterface(typeof(TContract));
-
-            var outputMessages = memebers.GetMethods().Select(m => new MessageTypeInfo
+            if(_reflectionInfo == null)
             {
-                ReturnType = m.Value.ReturnType,
-                ArgumentTypes = m.Value.GetParameters().Select(p => p.ParameterType).ToArray(),
-                MessageId = (short)m.Key
-            });
+                var memebers = ProxyContractFactory.ParseContractInterface(typeof(TContract));
 
-            var inputMessages = memebers.GetProperties().Select(m => new MessageTypeInfo
-            {
-                ArgumentTypes = ReflectionHelper.GetDelegateInfoOrNull(m.Value.PropertyType).ParameterTypes,
-                ReturnType = ReflectionHelper.GetDelegateInfoOrNull(m.Value.PropertyType).ReturnType,
-                MessageId = (short)m.Key
-            });
+                var outputMessages = memebers.GetMethods().Select(m => new MessageTypeInfo
+                {
+                    ReturnType = m.Value.ReturnType,
+                    ArgumentTypes = m.Value.GetParameters().Select(p => p.ParameterType).ToArray(),
+                    MessageId = (short)m.Key
+                });
 
-            var reflectionBuilder = new NewReflectionHelper(
-                SerializerFactory.CreateDefault(UserSerializationRules.ToArray()),
-                DeserializerFactory.CreateDefault(UserDeserializationRules.ToArray()),
-                outputMessages: outputMessages.ToArray(),
-                inputMessages: inputMessages.ToArray());
+                var inputMessages = memebers.GetProperties().Select(m => new MessageTypeInfo
+                {
+                    ArgumentTypes = ReflectionHelper.GetDelegateInfoOrNull(m.Value.PropertyType).ParameterTypes,
+                    ReturnType = ReflectionHelper.GetDelegateInfoOrNull(m.Value.PropertyType).ReturnType,
+                    MessageId = (short)m.Key
+                });
 
-            var newInterlocutor = new Interlocutor(reflectionBuilder, dispatcher, channel, _maxAnsDelay);
-
+                _reflectionInfo = new ReflectionInfo(
+                    SerializerFactory.CreateDefault(UserSerializationRules.ToArray()),
+                    DeserializerFactory.CreateDefault(UserDeserializationRules.ToArray()),
+                    outputMessages: outputMessages.ToArray(),
+                    inputMessages: inputMessages.ToArray());
+            }
+            
+            var newInterlocutor = new Interlocutor(_reflectionInfo, dispatcher, channel, _maxAnsDelay);
             newInterlocutor.Start();
 
             var contract = ProxyContractFactory.CreateProxyContract<TContract>(newInterlocutor);
