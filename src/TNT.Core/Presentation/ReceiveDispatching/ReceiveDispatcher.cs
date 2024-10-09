@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Concurrent;
+using System.Data;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Channels;
@@ -66,7 +67,15 @@ namespace TNT.Core.Presentation.ReceiveDispatching
             switch (dTask.DispatcherTaskType)
             {
                 case DispatcherTaskTypes.ActionTask:
-                    dTask.MethodInfo.Invoke(_contract, dTask.Args);
+
+                    var type = _contract.GetType();
+
+                    var result1 = type.InvokeMember(dTask.MethodInfo.Name,
+                               BindingFlags.InvokeMethod,
+                               null,
+                               _contract,
+                               new object[] { 4 });
+                    result = dTask.MethodInfo.Invoke(_contract, new object[] { 4 });
                     break;
                 case DispatcherTaskTypes.FuncTask:
                     result = dTask.MethodInfo.Invoke(_contract, dTask.Args);

@@ -224,6 +224,8 @@ namespace TNT.Core.Api
             newInterlocutor.Start();
 
             var contract = ProxyContractFactory.CreateProxyContract<TContract>(newInterlocutor);
+            dispatcher.SetContract(contract);
+
             return contract;
         }
 

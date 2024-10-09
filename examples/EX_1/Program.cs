@@ -6,6 +6,7 @@ using TNT.Core.Contract;
 using System.Threading.Tasks;
 using System.Diagnostics.Contracts;
 using System.Threading;
+using System.Diagnostics;
 
 namespace EX_1;
 
@@ -13,8 +14,9 @@ static class Program
 {
     static async Task Main()
     {
+        var contract = new ExampleContract();
         var server = TntBuilder
-            .UseContract<IExampleContract, ExampleContract>()
+            .UseContract<IExampleContract>(contract)
             .UseMultiOperationDispatcher()
             .CreateTcpServer(IPAddress.Loopback, 12345);
         
@@ -28,15 +30,22 @@ static class Program
                 .SetMaxAnsTimeout(300000)
                 .CreateTcpClientConnectionAsync(IPAddress.Loopback, 12345);
 
-            var random = new Random();
+            //var random = new Random();
 
-            for (int i = 0; i < 15000; i++)
-            {
-                var tt = random.Next(50);
-                var task = SendMsgTask(client, i);
-            }
+            //for (int i = 0; i < 15000; i++)
+            //{
+            //    var tt = random.Next(50);
+            //    var task = SendMsgTask(client, i);
+            //}
 
-            //var res = await client.Contract.Send1Task("Superman", $"message#{1}");
+            client.Contract.Action += AA;
+
+
+            await client.Contract.SendTask("Superman", $"message#{1}");
+
+            contract.Action.Invoke();
+
+            //await client.Contract.SendTask("Superman", $"message#{1}");
 
             //for (int i = 0; i < 100; i++)
             //{
@@ -50,6 +59,12 @@ static class Program
             server.Dispose();
         }
     }
+
+    private static void AA()
+    {
+        Console.WriteLine("AAAAA");
+    }
+
 
     private static Task SendMsgTask(IConnection<IExampleContract> client, int i)
     {
@@ -80,11 +95,11 @@ public interface IExampleContract
     [TntMessage(2)]
     bool Send1(string user, string message);
 
-    /*[TntMessage(3)]
-    Action<bool> Action { get; set; }
+    [TntMessage(3)]
+    Action Action { get; set; }
 
-    [TntMessage(4)]
-    Func<bool, bool> Func { get; set; }*/
+    //[TntMessage(4)]
+    //Func<bool, bool> Func { get; set; }
 
 
 
@@ -103,10 +118,26 @@ public interface IExampleContract
 //contract implementation
 public class ExampleContract : IExampleContract
 {
-    public Action<bool> Action { get; set; }
+    public Action Action { get; set; }
     public Func<bool, bool> Func { get; set; }
-    public Func<Task<bool>> FuncTask { get; set; }
-    public Func<bool, Task<bool>> FuncTaskResult { get; set; }
+    //public Func<Task<bool>> FuncTask { get; set; }
+    //public Func<bool, Task<bool>> FuncTaskResult { get; set; }
+
+    public ExampleContract()
+    {
+
+    }
+
+    private async Task TaskAsync()
+    {
+        while (true)
+        {
+            Action?.Invoke();
+            await Task.Delay(100000);
+
+        }
+    }
+
 
     public void Send(string user, string message)
     {
