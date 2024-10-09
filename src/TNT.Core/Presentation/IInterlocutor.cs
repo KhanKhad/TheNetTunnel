@@ -49,6 +49,11 @@ namespace TNT.Core.Presentation
         ///<exception cref="ArgumentException">already contains ask messageId handler</exception>
         void SetIncomeAskCallHandler(int messageId, MethodInfo value);
         void SetIncomeAskCallAsyncHandler(int messageId, MethodInfo value);
+
+
+        void SetIncomeActionsHandler(int messageId, Action<object[]> callback);
+        void SetIncomeFuncHandler<T>(int messageId, Func<object[], T> callback);
+
         /// <summary>
         /// Unsubscribes request handler
         /// </summary>

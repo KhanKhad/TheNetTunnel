@@ -62,6 +62,16 @@ namespace TNT.Core.New
                     var answer = await _receiveDispatcher.HandleWithResultAsync(askAsyncHandler, arguments);
                     result = CreateSuccessfulResponseMessage(answer, id, askId);
                 }
+                else if (_reflectionHelper._eventSubscribtion.TryGetValue(id, out var eventHandler))
+                {
+                    await _receiveDispatcher.HandleEvent(eventHandler, arguments);
+                    result = CreateSuccessfulResponseMessage(null, id, askId);
+                }
+                else if (_reflectionHelper._funcSubscribtion.TryGetValue(id, out var funcHandler))
+                {
+                    var answer = await _receiveDispatcher.HandleFunc(funcHandler, arguments);
+                    result = CreateSuccessfulResponseMessage(answer, id, askId);
+                }
                 else
                 {
                     var error = new ErrorMessage(id, askId, ErrorType.ContractSignatureError,

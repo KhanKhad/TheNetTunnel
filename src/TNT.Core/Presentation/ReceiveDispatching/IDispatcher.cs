@@ -11,6 +11,9 @@ namespace TNT.Core.Presentation.ReceiveDispatching
         void SetContract<TContract>(TContract contract) where TContract : class;
 
 
+        Task HandleEvent(Action<object[]> handler, object[] args);
+        Task<object> HandleFunc(Func<object[], object> handler, object[] args);
+
         Task Handle(MethodInfo handler, object[] args);
         Task<object> HandleWithResult(MethodInfo handler, object[] args);
         Task HandleAsync(MethodInfo handler, object[] args);

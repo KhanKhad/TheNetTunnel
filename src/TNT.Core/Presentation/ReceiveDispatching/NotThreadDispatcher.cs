@@ -61,5 +61,15 @@ namespace TNT.Core.Presentation.ReceiveDispatching
         {
             throw new NotImplementedException();
         }
+
+        public Task HandleEvent(Action<object[]> handler, object[] args)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<object> HandleFunc(Func<object[], object> handler, object[] args)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

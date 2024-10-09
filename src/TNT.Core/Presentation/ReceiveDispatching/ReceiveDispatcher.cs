@@ -66,31 +66,32 @@ namespace TNT.Core.Presentation.ReceiveDispatching
 
             switch (dTask.DispatcherTaskType)
             {
-                case DispatcherTaskTypes.ActionTask:
-
-                    var type = _contract.GetType();
-
-                    var result1 = type.InvokeMember(dTask.MethodInfo.Name,
-                               BindingFlags.InvokeMethod,
-                               null,
-                               _contract,
-                               new object[] { 4 });
-                    result = dTask.MethodInfo.Invoke(_contract, new object[] { 4 });
+                case DispatcherTaskTypes.SyncSayMessage:
+                    dTask.MethodInfo.Invoke(_contract, dTask.Args);
                     break;
-                case DispatcherTaskTypes.FuncTask:
+                case DispatcherTaskTypes.SyncAskMessage:
                     result = dTask.MethodInfo.Invoke(_contract, dTask.Args);
                     break;
-                case DispatcherTaskTypes.AsyncActionTask:
+                case DispatcherTaskTypes.AsyncSayMessage:
                     var task = (Task)dTask.MethodInfo.Invoke(_contract, dTask.Args);
                     await task;
                     break;
-                case DispatcherTaskTypes.AsyncFuncTask:
+                case DispatcherTaskTypes.AsyncAskMessage:
                     var taskWithResult = (Task)dTask.MethodInfo.Invoke(_contract, dTask.Args);
 
                     await taskWithResult.ConfigureAwait(false);
 
                     var resultProperty = taskWithResult.GetType().GetProperty("Result");
                     result = resultProperty.GetValue(taskWithResult);
+                    break;
+
+
+
+                case DispatcherTaskTypes.EventTask:
+                    dTask.ActionHandler.Invoke(dTask.Args);
+                    break;
+                case DispatcherTaskTypes.FuncTask:
+                    result = dTask.FunkHandler.Invoke(dTask.Args);
                     break;
             }
 
@@ -107,7 +108,7 @@ namespace TNT.Core.Presentation.ReceiveDispatching
                 Id = newId,
                 ActionHandler = handler,
                 Args = args,
-                DispatcherTaskType = DispatcherTaskTypes.ActionTask,
+                DispatcherTaskType = DispatcherTaskTypes.SyncSayMessage,
             };
 
             var awaiter = GetAsyncMessageAwaiter(newId);
@@ -126,7 +127,7 @@ namespace TNT.Core.Presentation.ReceiveDispatching
                 Id = newId,
                 FunkHandler = handler,
                 Args = args,
-                DispatcherTaskType = DispatcherTaskTypes.FuncTask,
+                DispatcherTaskType = DispatcherTaskTypes.SyncAskMessage,
             };
 
             var awaiter = GetAsyncMessageAwaiter(newId);
@@ -147,7 +148,7 @@ namespace TNT.Core.Presentation.ReceiveDispatching
                 Id = newId,
                 AsyncActionTask = handler,
                 Args = args,
-                DispatcherTaskType = DispatcherTaskTypes.AsyncActionTask,
+                DispatcherTaskType = DispatcherTaskTypes.AsyncSayMessage,
             };
 
             var awaiter = GetAsyncMessageAwaiter(newId);
@@ -166,7 +167,7 @@ namespace TNT.Core.Presentation.ReceiveDispatching
                 Id = newId,
                 AsyncFuncTask = handler,
                 Args = args,
-                DispatcherTaskType = DispatcherTaskTypes.AsyncFuncTask,
+                DispatcherTaskType = DispatcherTaskTypes.AsyncAskMessage,
             };
 
             var awaiter = GetAsyncMessageAwaiter(newId);
@@ -208,7 +209,7 @@ namespace TNT.Core.Presentation.ReceiveDispatching
                 Id = newId,
                 MethodInfo = handler,
                 Args = args,
-                DispatcherTaskType = DispatcherTaskTypes.ActionTask,
+                DispatcherTaskType = DispatcherTaskTypes.SyncSayMessage,
             };
 
             var awaiter = GetAsyncMessageAwaiter(newId);
@@ -227,7 +228,7 @@ namespace TNT.Core.Presentation.ReceiveDispatching
                 Id = newId,
                 MethodInfo = handler,
                 Args = args,
-                DispatcherTaskType = DispatcherTaskTypes.FuncTask,
+                DispatcherTaskType = DispatcherTaskTypes.SyncAskMessage,
             };
 
             var awaiter = GetAsyncMessageAwaiter(newId);
@@ -248,7 +249,7 @@ namespace TNT.Core.Presentation.ReceiveDispatching
                 Id = newId,
                 MethodInfo = handler,
                 Args = args,
-                DispatcherTaskType = DispatcherTaskTypes.AsyncActionTask,
+                DispatcherTaskType = DispatcherTaskTypes.AsyncSayMessage,
             };
 
             var awaiter = GetAsyncMessageAwaiter(newId);
@@ -267,7 +268,48 @@ namespace TNT.Core.Presentation.ReceiveDispatching
                 Id = newId,
                 MethodInfo = handler,
                 Args = args,
-                DispatcherTaskType = DispatcherTaskTypes.AsyncFuncTask,
+                DispatcherTaskType = DispatcherTaskTypes.AsyncAskMessage,
+            };
+
+            var awaiter = GetAsyncMessageAwaiter(newId);
+
+            await TasksChannel.Writer.WriteAsync(dTask);
+
+            var result = await awaiter;
+
+            return result;
+        }
+
+
+        public async Task HandleEvent(Action<object[]> handler, object[] args)
+        {
+            var newId = Interlocked.Increment(ref _maxAskId);
+
+            var dTask = new DispatcherTask()
+            {
+                Id = newId,
+                ActionHandler = handler,
+                Args = args,
+                DispatcherTaskType = DispatcherTaskTypes.EventTask,
+            };
+
+            var awaiter = GetAsyncMessageAwaiter(newId);
+
+            await TasksChannel.Writer.WriteAsync(dTask);
+
+            var result = await awaiter;
+        }
+
+        public async Task<object> HandleFunc(Func<object[], object> handler, object[] args)
+        {
+            var newId = Interlocked.Increment(ref _maxAskId);
+
+            var dTask = new DispatcherTask()
+            {
+                Id = newId,
+                FunkHandler = handler,
+                Args = args,
+                DispatcherTaskType = DispatcherTaskTypes.FuncTask,
             };
 
             var awaiter = GetAsyncMessageAwaiter(newId);
@@ -299,9 +341,13 @@ namespace TNT.Core.Presentation.ReceiveDispatching
     }
     public enum DispatcherTaskTypes
     {
-        ActionTask,
+        SyncSayMessage,
+        SyncAskMessage,
+        AsyncSayMessage,
+        AsyncAskMessage,
+
+
+        EventTask,
         FuncTask,
-        AsyncActionTask,
-        AsyncFuncTask,
     }
 }

@@ -41,7 +41,7 @@ static class Program
             client.Contract.Action += AA;
 
 
-            await client.Contract.SendTask("Superman", $"message#{1}");
+            //await client.Contract.SendTask("Superman", $"message#{1}");
 
             contract.Action.Invoke();
 

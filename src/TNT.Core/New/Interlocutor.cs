@@ -293,5 +293,15 @@ namespace TNT.Core.New
         {
             _reflectionHelper.SetIncomeAskCallAsyncHandler(messageId, value);
         }
+
+        public void SetIncomeActionsHandler(int messageId, Action<object[]> callback)
+        {
+            _reflectionHelper.SetIncomeActionsHandler(messageId, callback);
+        }
+
+        public void SetIncomeFuncHandler<T>(int messageId, Func<object[], T> callback)
+        {
+            _reflectionHelper.SetIncomeFuncHandler(messageId, callback);
+        }
     }
 }

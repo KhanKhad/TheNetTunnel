@@ -51,6 +51,18 @@ namespace TNT.Core.New
         /// </summary>
         internal readonly ConcurrentDictionary<int, MethodInfo> _askAsyncSubscribtion
            = new ConcurrentDictionary<int, MethodInfo>();
+        
+        /// <summary>
+        /// event handlers
+        /// </summary>
+        internal readonly ConcurrentDictionary<int, Action<object[]>> _eventSubscribtion
+            = new ConcurrentDictionary<int, Action<object[]>>();
+
+        /// <summary>
+        /// func handlers
+        /// </summary>
+        internal readonly ConcurrentDictionary<int, Func<object[], object>> _funcSubscribtion
+            = new ConcurrentDictionary<int, Func<object[], object>>();
 
 
         public ReflectionInfo(
@@ -149,6 +161,16 @@ namespace TNT.Core.New
         public void SetIncomeAskCallAsyncHandler(int messageId, MethodInfo callback)
         {
             _askAsyncSubscribtion.TryAdd(messageId, callback);
+        }
+
+        public void SetIncomeActionsHandler(int messageId, Action<object[]> callback)
+        {
+            _eventSubscribtion.TryAdd(messageId, callback);
+        }
+
+        public void SetIncomeFuncHandler<T>(int messageId, Func<object[], T> callback)
+        {
+            _funcSubscribtion.TryAdd(messageId, (args) => callback(args));
         }
 
         public void Unsubscribe(int messageId)

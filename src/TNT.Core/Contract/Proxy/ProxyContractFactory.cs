@@ -97,11 +97,9 @@ namespace TNT.Core.Contract.Proxy
                     delegateInfo,
                     propertyBuilder.FieldBuilder);
 
-                interlocutor.SetIncomeSayCallHandler(property.Key, handleMethodNuilder);
-
-                /*constructorCodeGeneration.Add(
+                constructorCodeGeneration.Add(
                     iLGenerator => GenerateEventSubscribtion(iLGenerator, outputApiFieldInfo, property.Key,
-                    handleMethodNuilder));*/
+                    handleMethodNuilder));
             }
             #endregion
 
@@ -216,136 +214,71 @@ namespace TNT.Core.Contract.Proxy
             var handleMethodBuilder = typeBuilder.DefineMethod(
                 name: "Handle" + delegateFieldInfo.Name + id,
                 attributes: MethodAttributes.Public,
-                returnType: typeof(string),
-                parameterTypes: new Type[] { typeof(object) });
-
-            ILGenerator myIL = handleMethodBuilder.GetILGenerator();
-
-            Label defaultCase = myIL.DefineLabel();
-            Label endOfMethod = myIL.DefineLabel();
-
-            // We are initializing our jump table. Note that the labels
-            // will be placed later using the MarkLabel method.
-
-            Label[] jumpTable = new Label[] { myIL.DefineLabel(),
-                      myIL.DefineLabel(),
-                      myIL.DefineLabel(),
-                      myIL.DefineLabel(),
-                      myIL.DefineLabel() };
-
-            // arg0, the number we passed, is pushed onto the stack.
-            // In this case, due to the design of the code sample,
-            // the value pushed onto the stack happens to match the
-            // index of the label (in IL terms, the index of the offset
-            // in the jump table). If this is not the case, such as
-            // when switching based on non-integer values, rules for the correspondence
-            // between the possible case values and each index of the offsets
-            // must be established outside of the ILGenerator.Emit calls,
-            // much as a compiler would.
-
-            myIL.Emit(OpCodes.Ldarg_0);
-            myIL.Emit(OpCodes.Switch, jumpTable);
-
-            // Branch on default case
-            myIL.Emit(OpCodes.Br_S, defaultCase);
-
-            // Case arg0 = 0
-            myIL.MarkLabel(jumpTable[0]);
-            myIL.Emit(OpCodes.Ldstr, "are no bananas");
-            myIL.Emit(OpCodes.Br_S, endOfMethod);
-
-            // Case arg0 = 1
-            myIL.MarkLabel(jumpTable[1]);
-            myIL.Emit(OpCodes.Ldstr, "is one banana");
-            myIL.Emit(OpCodes.Br_S, endOfMethod);
-
-            // Case arg0 = 2
-            myIL.MarkLabel(jumpTable[2]);
-            myIL.Emit(OpCodes.Ldstr, "are two bananas");
-            myIL.Emit(OpCodes.Br_S, endOfMethod);
-
-            // Case arg0 = 3
-            myIL.MarkLabel(jumpTable[3]);
-            myIL.Emit(OpCodes.Ldstr, "are three bananas");
-            myIL.Emit(OpCodes.Br_S, endOfMethod);
-
-            // Case arg0 = 4
-            myIL.MarkLabel(jumpTable[4]);
-            myIL.Emit(OpCodes.Ldstr, "are four bananas");
-            myIL.Emit(OpCodes.Br_S, endOfMethod);
-
-            // Default case
-            myIL.MarkLabel(defaultCase);
-            myIL.Emit(OpCodes.Ldstr, "are many bananas");
-
-            myIL.MarkLabel(endOfMethod);
-            myIL.Emit(OpCodes.Ret);
-
-
-            return handleMethodBuilder;
+                returnType: delegatePropertyInfo.ReturnType,
+                parameterTypes: new[] {typeof(object[])});
 
             //
-            //ILGenerator ilGen = handleMethodBuilder.GetILGenerator();
-            //var hasReturnType = delegatePropertyInfo.ReturnType != typeof(void);
-            //LocalBuilder returnValue = null;
+            ILGenerator ilGen = handleMethodBuilder.GetILGenerator();
+            var hasReturnType = delegatePropertyInfo.ReturnType != typeof(void);
+            LocalBuilder returnValue = null;
 
-            //if (hasReturnType)
-            //{
-            //    //create local variable returnValue, equals zero
-            //    returnValue = ilGen.DeclareLocal(delegatePropertyInfo.ReturnType);
-            //    //we need set default(delegatePropertyInfo.ReturnType), but somehow it works. Little bit strange...
-            //    ilGen.Emit(OpCodes.Ldnull);
-            //    ilGen.Emit(OpCodes.Stloc, returnValue);
-            //}
+            if (hasReturnType)
+            {
+                //create local variable returnValue, equals zero
+                returnValue = ilGen.DeclareLocal(delegatePropertyInfo.ReturnType);
+                //we need set default(delegatePropertyInfo.ReturnType), but somehow it works. Little bit strange...
+                ilGen.Emit(OpCodes.Ldnull);
+                ilGen.Emit(OpCodes.Stloc, returnValue);
+            }
 
-            //ilGen.Emit(OpCodes.Ldarg_0);
+            ilGen.Emit(OpCodes.Ldarg_0);
 
-            ////check weather delegate == null
-            //ilGen.Emit(OpCodes.Ldfld, delegateFieldInfo);
-            //var delegateFieldValue = ilGen.DeclareLocal(delegateFieldInfo.FieldType);
+            //check weather delegate == null
+            ilGen.Emit(OpCodes.Ldfld, delegateFieldInfo);
+            var delegateFieldValue = ilGen.DeclareLocal(delegateFieldInfo.FieldType);
 
-            //ilGen.Emit(OpCodes.Stloc, delegateFieldValue);
-            //ilGen.Emit(OpCodes.Ldloc, delegateFieldValue);
+            ilGen.Emit(OpCodes.Stloc, delegateFieldValue);
+            ilGen.Emit(OpCodes.Ldloc, delegateFieldValue);
 
-            //ilGen.Emit(OpCodes.Ldnull);
-            //ilGen.Emit(OpCodes.Ceq);
+            ilGen.Emit(OpCodes.Ldnull);
+            ilGen.Emit(OpCodes.Ceq);
 
-            //var finishLabel = ilGen.DefineLabel();
-            ////if field == null  than return
-            //ilGen.Emit(OpCodes.Brtrue_S, finishLabel);
+            var finishLabel = ilGen.DefineLabel();
+            //if field == null  than return
+            ilGen.Emit(OpCodes.Brtrue_S, finishLabel);
 
-            //ilGen.Emit(OpCodes.Ldloc, delegateFieldValue);
+            ilGen.Emit(OpCodes.Ldloc, delegateFieldValue);
 
-            //int i = 0;
-            ////fill the stack with call-arguments
-            //foreach (var parameterType in delegatePropertyInfo.ParameterTypes)
-            //{
-            //    ilGen.Emit(OpCodes.Ldarg_1);
-            //    ilGen.Emit(OpCodes.Ldc_I4, i);
-            //    ilGen.Emit(OpCodes.Ldelem_Ref);
+            int i = 0;
+            //fill the stack with call-arguments
+            foreach (var parameterType in delegatePropertyInfo.ParameterTypes)
+            {
+                ilGen.Emit(OpCodes.Ldarg_1);
+                ilGen.Emit(OpCodes.Ldc_I4, i);
+                ilGen.Emit(OpCodes.Ldelem_Ref);
 
-            //    if (parameterType.GetTypeInfo().IsValueType)
-            //        ilGen.Emit(OpCodes.Unbox_Any, parameterType);
-            //    else /*if (parameterType!= typeof(object))*/
-            //        ilGen.Emit(OpCodes.Castclass, parameterType);
-            //    i++;
-            //}
+                if (parameterType.GetTypeInfo().IsValueType)
+                    ilGen.Emit(OpCodes.Unbox_Any, parameterType);
+                else /*if (parameterType!= typeof(object))*/
+                    ilGen.Emit(OpCodes.Castclass, parameterType);
+                i++;
+            }
 
-            //ilGen.Emit(OpCodes.Callvirt, delegatePropertyInfo.DelegateInvokeMethodInfo);
+            ilGen.Emit(OpCodes.Callvirt, delegatePropertyInfo.DelegateInvokeMethodInfo);
 
-            //if (hasReturnType)
-            //{
-            //    //set delegate call result to variable "returnValue"
-            //    ilGen.Emit(OpCodes.Stloc, returnValue);
-            //}
-            //ilGen.MarkLabel(finishLabel);
+            if (hasReturnType)
+            {
+                //set delegate call result to variable "returnValue"
+                ilGen.Emit(OpCodes.Stloc, returnValue);
+            }
+            ilGen.MarkLabel(finishLabel);
 
-            //if (hasReturnType)
-            //    ilGen.Emit(OpCodes.Ldloc, returnValue);
+            if (hasReturnType)
+                ilGen.Emit(OpCodes.Ldloc, returnValue);
 
-            //ilGen.Emit(OpCodes.Ret);
+            ilGen.Emit(OpCodes.Ret);
 
-            //return handleMethodBuilder;
+            return handleMethodBuilder;
         }
 
         private static void GenerateEventSubscribtion(
@@ -382,7 +315,7 @@ namespace TNT.Core.Contract.Proxy
                 var actionType = typeof(Action<>).MakeGenericType(typeof(object[]));
                 var actionConstructor = actionType.GetConstructor(new[] {typeof(object), typeof(IntPtr)});
                 il.Emit(OpCodes.Newobj, actionConstructor);
-                var subscribeMethod = typeof(IInterlocutor).GetMethod("SetIncomeSayCallHandler");
+                var subscribeMethod = typeof(IInterlocutor).GetMethod("SetIncomeActionsHandler");
                 il.Emit(OpCodes.Callvirt, subscribeMethod);
             }
             else
@@ -391,7 +324,7 @@ namespace TNT.Core.Contract.Proxy
                 var funcConstructor = funkType.GetConstructor(new[] {typeof(object), typeof(IntPtr)});
 
                 il.Emit(OpCodes.Newobj, funcConstructor);
-                var subscribeMethodInfo = typeof(IInterlocutor).GetMethod("SetIncomeAskCallHandler");
+                var subscribeMethodInfo = typeof(IInterlocutor).GetMethod("SetIncomeFuncHandler");
 
                 var subscribeMethodGenericInfo = subscribeMethodInfo.MakeGenericMethod(handleMethod.ReturnType);
                 il.Emit(OpCodes.Callvirt, subscribeMethodGenericInfo);
