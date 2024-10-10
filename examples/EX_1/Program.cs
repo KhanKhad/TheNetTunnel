@@ -38,13 +38,14 @@ static class Program
             //    var task = SendMsgTask(client, i);
             //}
 
+            await Task.Delay(1000);
+
             client.Contract.Action += AA;
 
 
             //await client.Contract.SendTask("Superman", $"message#{1}");
 
-            contract.Action.Invoke();
-
+            contract.Action.Invoke(true);
             //await client.Contract.SendTask("Superman", $"message#{1}");
 
             //for (int i = 0; i < 100; i++)
@@ -60,7 +61,7 @@ static class Program
         }
     }
 
-    private static void AA()
+    private static void AA(bool a)
     {
         Console.WriteLine("AAAAA");
     }
@@ -96,7 +97,7 @@ public interface IExampleContract
     bool Send1(string user, string message);
 
     [TntMessage(3)]
-    Action Action { get; set; }
+    Action<bool> Action { get; set; }
 
     //[TntMessage(4)]
     //Func<bool, bool> Func { get; set; }
@@ -118,7 +119,7 @@ public interface IExampleContract
 //contract implementation
 public class ExampleContract : IExampleContract
 {
-    public Action Action { get; set; }
+    public Action<bool> Action { get; set; }
     public Func<bool, bool> Func { get; set; }
     //public Func<Task<bool>> FuncTask { get; set; }
     //public Func<bool, Task<bool>> FuncTaskResult { get; set; }
@@ -127,17 +128,6 @@ public class ExampleContract : IExampleContract
     {
 
     }
-
-    private async Task TaskAsync()
-    {
-        while (true)
-        {
-            Action?.Invoke();
-            await Task.Delay(100000);
-
-        }
-    }
-
 
     public void Send(string user, string message)
     {

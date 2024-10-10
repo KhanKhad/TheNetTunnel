@@ -26,7 +26,6 @@ namespace TNT.Core.New.Tcp
         private volatile int _bytesSent;
 
         public Channel<TcpData> ResponsesChannel { get; }
-        public Channel<TcpData> RequestesChannel { get; }
         public string RemoteEndpointName { get; private set; }
         public string LocalEndpointName { get; private set; }
 
@@ -61,11 +60,6 @@ namespace TNT.Core.New.Tcp
                 SingleWriter = true,
                 AllowSynchronousContinuations = true,
             });
-
-            RequestesChannel = Channel.CreateUnbounded<TcpData>(new UnboundedChannelOptions()
-            {
-                SingleReader = true,
-            });
         }
 
         private volatile bool _alreadyStarted;
@@ -83,7 +77,6 @@ namespace TNT.Core.New.Tcp
             Client.NoDelay = true;
             Client.Client.Blocking = false;
 
-           // _ = Task.Run(InternalReadAsync);
             _ = Task.Run(InternalWriteAsync);
         }
 
@@ -105,17 +98,6 @@ namespace TNT.Core.New.Tcp
             //_ = Task.Run(InternalReadAsync);
             _ = Task.Run(InternalWriteAsync);
 
-        }
-
-        private async Task InternalReadAsync()
-        {
-            var reader = RequestesChannel.Reader;
-
-            await foreach (var response in reader.ReadAllAsync())
-            {
-                var data = response.Bytes;
-                await WriteAsync(data);
-            }
         }
 
         private async Task InternalWriteAsync()
