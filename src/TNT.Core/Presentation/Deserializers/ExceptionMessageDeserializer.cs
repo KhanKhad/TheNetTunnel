@@ -12,8 +12,8 @@ namespace TNT.Core.Presentation.Deserializers
             Size = null;
             _deserializer = new SequenceDeserializer(new IDeserializer[]
             {
-                  new NullableDeserializer<short>(),
-                  new NullableDeserializer<short>(),
+                  new ValueTypeDeserializer<short>(),
+                  new ValueTypeDeserializer<int>(),
                   new EnumDeserializer<ErrorType>(),
                   new UnicodeDeserializer()
             });
@@ -24,7 +24,7 @@ namespace TNT.Core.Presentation.Deserializers
             return new ErrorMessage
             (
                 messageId: (short)    deserialized[0],
-                askId:     (short)    deserialized[1],
+                askId:     (int)    deserialized[1],
                 type:      (ErrorType) deserialized[2],
                 additionalExceptionInformation: (string) deserialized[3]
             );

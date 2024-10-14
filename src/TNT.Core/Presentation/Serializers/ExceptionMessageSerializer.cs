@@ -1,5 +1,6 @@
 ﻿using System.IO;
 using TNT.Core.Exceptions.Remote;
+using TNT.Core.Presentation.Deserializers;
 
 namespace TNT.Core.Presentation.Serializers
 {
@@ -13,8 +14,8 @@ namespace TNT.Core.Presentation.Serializers
             _serializer = new SequenceSerializer(
                    new ISerializer[]
                    {
-                        new NullableSerializer<short>(),
-                        new NullableSerializer<short>(),
+                        new ValueTypeSerializer<short>(),
+                        new ValueTypeSerializer<int>(),
                         new EnumSerializer<ErrorType>(),
                         new UnicodeSerializer()
                    });

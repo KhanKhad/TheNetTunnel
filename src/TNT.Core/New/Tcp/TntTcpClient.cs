@@ -95,9 +95,7 @@ namespace TNT.Core.New.Tcp
             Client.NoDelay = true;
             Client.Client.Blocking = false;
 
-            //_ = Task.Run(InternalReadAsync);
             _ = Task.Run(InternalWriteAsync);
-
         }
 
         private async Task InternalWriteAsync()
@@ -114,10 +112,7 @@ namespace TNT.Core.New.Tcp
                     var bytesToRead = await socket.ReceiveAsync(buffer, SocketFlags.None);
 
                     if (bytesToRead == 0)
-                    {
-                        await Task.Delay(300);
                         continue;
-                    }
 
                     unchecked
                     {
@@ -141,24 +136,6 @@ namespace TNT.Core.New.Tcp
             }
         }
 
-        public void Write(byte[] data)
-        {
-            if (!Client.Connected)
-                throw new ConnectionIsLostException("tcp channel is not connected");
-
-            try
-            {
-                var networkStream = Client.GetStream();
-
-                networkStream.Write(data);
-
-                _bytesSent += data.Length;
-            }
-            catch
-            {
-                Disconnect();
-            }
-        }
         public async Task WriteAsync(byte[] data)
         {
             if (!Client.Connected)
@@ -166,7 +143,7 @@ namespace TNT.Core.New.Tcp
 
             try
             {
-                await Client.Client.SendAsync(new ReadOnlyMemory<byte>(data, 0, data.Length), SocketFlags.None);
+                await Client.Client.SendAsync(new ReadOnlyMemory<byte>(data, 0, data.Length), SocketFlags.None).ConfigureAwait(false);
                 _bytesSent += data.Length;
             }
             catch

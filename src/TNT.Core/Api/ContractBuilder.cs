@@ -26,7 +26,7 @@ namespace TNT.Core.Api
         private IChannel _channel;
         private Func<IChannel> _channelFactory;
         private Func<Task<IChannel>> _channelFactoryAsync;
-        private ReflectionInfo _reflectionInfo;
+        private MethodsDescriptor _methodsDescriptor;
 
         /// <summary>
         /// Contract implementation
@@ -145,7 +145,6 @@ namespace TNT.Core.Api
                 throw new ArgumentNullException(nameof(_channel));
 
             var dispatcher = _receiveDispatcher ?? new ReceiveDispatcher();
-            dispatcher.Start();
 
             TContract contract = OriginContractFactory == null
                 ? CreateProxyContract(channel, dispatcher)
@@ -158,73 +157,68 @@ namespace TNT.Core.Api
 
         private TContract CreateOriginContract(IChannel channel, IDispatcher dispatcher)
         {
-            if(_reflectionInfo == null)
-            {
-                var memebers = ProxyContractFactory.ParseContractInterface(typeof(TContract));
-
-                var inputMessages = memebers.GetMethods().Select(m => new MessageTypeInfo
-                {
-                    ReturnType = m.Value.ReturnType,
-                    ArgumentTypes = m.Value.GetParameters().Select(p => p.ParameterType).ToArray(),
-                    MessageId = (short)m.Key
-                });
-
-                var outputMessages = memebers.GetProperties().Select(m => new MessageTypeInfo
-                {
-                    ArgumentTypes = ReflectionHelper.GetDelegateInfoOrNull(m.Value.PropertyType).ParameterTypes,
-                    ReturnType = ReflectionHelper.GetDelegateInfoOrNull(m.Value.PropertyType).ReturnType,
-                    MessageId = (short)m.Key
-                });
-
-                _reflectionInfo = new ReflectionInfo(
-                    SerializerFactory.CreateDefault(UserSerializationRules.ToArray()),
-                    DeserializerFactory.CreateDefault(UserDeserializationRules.ToArray()),
-                    outputMessages: outputMessages.ToArray(),
-                    inputMessages: inputMessages.ToArray());
-            }
-
             TContract contract = OriginContractFactory(channel);
 
-            dispatcher.SetContract(contract);
 
-            var newInterlocutor = new Interlocutor(_reflectionInfo, dispatcher, channel, _maxAnsDelay);
+            var contractType = contract.GetType();
+
+            var interfaceType = typeof(TContract);
+
+            var contractMemebers = OriginContractLinker.GetContractMemebers(contractType, interfaceType);
+
+            if (_methodsDescriptor == null)
+            {
+                _methodsDescriptor = new MethodsDescriptor();
+                _methodsDescriptor.CreateDescription(ProxyContractFactory.ParseContractInterface(typeof(TContract)));
+
+                foreach (var method in contractMemebers.GetMethods())
+                {
+                    _methodsDescriptor.SetHandler(method.Key, method.Value);
+                }
+
+                _methodsDescriptor.SetContract(contract);
+            }
+
+            var newInterlocutor = new Interlocutor(dispatcher, channel, _maxAnsDelay);
+            newInterlocutor.Initialize(_methodsDescriptor);
+
+            dispatcher.SetContract(contract);
+            dispatcher.Start();
+
+            OriginCallbackDelegatesHandlerFactory.CreateFor(contractMemebers, contract, newInterlocutor);
+
             newInterlocutor.Start();
 
-            OriginContractLinker.Link(contract, newInterlocutor);
             return contract;
         }
         private TContract CreateProxyContract(IChannel channel, IDispatcher dispatcher)
         {
-            if(_reflectionInfo == null)
+            var newInterlocutor = new Interlocutor(dispatcher, channel, _maxAnsDelay);
+            var contract = ProxyContractFactory.CreateProxyContract<TContract>(newInterlocutor, out var finalType, out var actionHandlers);
+
+            if(_methodsDescriptor == null)
             {
-                var memebers = ProxyContractFactory.ParseContractInterface(typeof(TContract));
+                _methodsDescriptor = new MethodsDescriptor();
+                _methodsDescriptor.CreateDescription(ProxyContractFactory.ParseContractInterface(typeof(TContract)));
 
-                var outputMessages = memebers.GetMethods().Select(m => new MessageTypeInfo
+                foreach (var actionHandler in actionHandlers)
                 {
-                    ReturnType = m.Value.ReturnType,
-                    ArgumentTypes = m.Value.GetParameters().Select(p => p.ParameterType).ToArray(),
-                    MessageId = (short)m.Key
-                });
+                    var mm = finalType.GetMethod(actionHandler.Value);
 
-                var inputMessages = memebers.GetProperties().Select(m => new MessageTypeInfo
-                {
-                    ArgumentTypes = ReflectionHelper.GetDelegateInfoOrNull(m.Value.PropertyType).ParameterTypes,
-                    ReturnType = ReflectionHelper.GetDelegateInfoOrNull(m.Value.PropertyType).ReturnType,
-                    MessageId = (short)m.Key
-                });
+                    //var params1 = new object[] { 4 };
+                    //var res = mm.Invoke(instance, params1);
 
-                _reflectionInfo = new ReflectionInfo(
-                    SerializerFactory.CreateDefault(UserSerializationRules.ToArray()),
-                    DeserializerFactory.CreateDefault(UserDeserializationRules.ToArray()),
-                    outputMessages: outputMessages.ToArray(),
-                    inputMessages: inputMessages.ToArray());
+                    _methodsDescriptor.SetHandler(actionHandler.Key, mm);
+                }
+                _methodsDescriptor.SetContract(contract);
             }
-            
-            var newInterlocutor = new Interlocutor(_reflectionInfo, dispatcher, channel, _maxAnsDelay);
-            newInterlocutor.Start();
 
-            var contract = ProxyContractFactory.CreateProxyContract<TContract>(newInterlocutor);
+
             dispatcher.SetContract(contract);
+            dispatcher.Start();
+
+            newInterlocutor.Initialize(_methodsDescriptor);
+            newInterlocutor.Start();
 
             return contract;
         }

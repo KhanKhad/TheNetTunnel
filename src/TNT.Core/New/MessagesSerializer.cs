@@ -11,14 +11,14 @@ namespace TNT.Core.New
 {
     public class MessagesSerializer
     {
-        private ReflectionInfo _reflectionHelper;
+        private MethodsDescriptor _methodsDescriptor;
 
         public int ReservedHeadLength => sizeof(uint);
         private static readonly byte[] _reservedEmptyBuffer = new byte[sizeof(uint)];
 
-        public MessagesSerializer(ReflectionInfo reflectionHelper)
+        public MessagesSerializer(MethodsDescriptor methodsDescriptor)
         {
-            _reflectionHelper = reflectionHelper;
+            _methodsDescriptor = methodsDescriptor;
         }
 
         public MemoryStream SerializeTntMessage(NewTntMessage tntMessage)
@@ -34,6 +34,8 @@ namespace TNT.Core.New
             Tools.WriteShort((short)messageType, to: stream);
             Tools.WriteInt(stream, tntMessage.AskId);
 
+            var methodDescription = _methodsDescriptor.DescribedMethods[messageId];
+
             try
             {
                 switch (messageType)
@@ -48,21 +50,27 @@ namespace TNT.Core.New
 
                     case TntMessageType.RequestMessage:
 
-                        var rqserializer = _reflectionHelper._outputSayMessageSerializes[messageId];
+                        if (methodDescription.HasArguments)
+                        {
+                            var serializer = methodDescription.ArgumentsSerializer;
 
-                        var values = (object[])tntMessage.Result;
+                            var values = (object[])tntMessage.Result;
 
-                        if (values.Length == 1)
-                            rqserializer.Serialize(values[0], stream);
-                        else if (values.Length > 1)
-                            rqserializer.Serialize(values, stream);
+                            if (values.Length == 1)
+                                serializer.Serialize(values[0], stream);
+                            else if (values.Length > 1)
+                                serializer.Serialize(values, stream);
+                        }
 
                         break;
 
                     case TntMessageType.SuccessfulResponseMessage:
 
-                        var rsserializer = _reflectionHelper._outputSayMessageSerializes[messageId];
-                        rsserializer.Serialize(tntMessage.Result, stream);
+                        if (methodDescription.HasReturnType)
+                        {
+                            var serializer = methodDescription.ReturnTypeSerializer;
+                            serializer.Serialize(tntMessage.Result, stream);
+                        }
 
                         break;
 

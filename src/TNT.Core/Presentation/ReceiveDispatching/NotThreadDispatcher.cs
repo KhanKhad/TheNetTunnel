@@ -42,22 +42,22 @@ namespace TNT.Core.Presentation.ReceiveDispatching
             throw new NotImplementedException();
         }
 
-        public Task Handle(MethodInfo handler, object[] args)
+        public Task HandleSyncSayMessage(MethodInfo handler, object[] args)
         {
             throw new NotImplementedException();
         }
 
-        public Task<object> HandleWithResult(MethodInfo handler, object[] args)
+        public Task<object> HandleSyncAskMessage(MethodInfo handler, object[] args)
         {
             throw new NotImplementedException();
         }
 
-        public Task HandleAsync(MethodInfo handler, object[] args)
+        public Task HandleAsyncSayMessage(MethodInfo handler, object[] args)
         {
             throw new NotImplementedException();
         }
 
-        public Task<object> HandleWithResultAsync(MethodInfo handler, object[] args)
+        public Task<object> HandleAsyncAskMessage(MethodInfo handler, object[] args)
         {
             throw new NotImplementedException();
         }

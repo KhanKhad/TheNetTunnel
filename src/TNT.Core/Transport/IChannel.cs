@@ -29,7 +29,6 @@ namespace TNT.Core.Transport
 
         void DisconnectBecauseOf(ErrorMessage error);
         Task WriteAsync(byte[] data);
-        void Write(byte[] array);
 
         int BytesReceived { get; }
         int BytesSent { get; }

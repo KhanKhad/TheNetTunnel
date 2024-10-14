@@ -10,13 +10,9 @@ namespace TNT.Core.Presentation.ReceiveDispatching
 
         void SetContract<TContract>(TContract contract) where TContract : class;
 
-
-        Task HandleEvent(Action<object[]> handler, object[] args);
-        Task<object> HandleFunc(Func<object[], object> handler, object[] args);
-
-        Task Handle(MethodInfo handler, object[] args);
-        Task<object> HandleWithResult(MethodInfo handler, object[] args);
-        Task HandleAsync(MethodInfo handler, object[] args);
-        Task<object> HandleWithResultAsync(MethodInfo handler, object[] args);
+        Task HandleSyncSayMessage(MethodInfo handler, object[] args);
+        Task<object> HandleSyncAskMessage(MethodInfo handler, object[] args);
+        Task HandleAsyncSayMessage(MethodInfo handler, object[] args);
+        Task<object> HandleAsyncAskMessage(MethodInfo handler, object[] args);
     }
 }

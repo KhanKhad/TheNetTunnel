@@ -72,26 +72,34 @@ namespace TNT.Core.Presentation.ReceiveDispatching
                 case DispatcherTaskTypes.SyncAskMessage:
                     result = dTask.MethodInfo.Invoke(_contract, dTask.Args);
                     break;
+
                 case DispatcherTaskTypes.AsyncSayMessage:
                     var task = (Task)dTask.MethodInfo.Invoke(_contract, dTask.Args);
-                    await task;
+                    
+                    //If user doesnt subscribe on Funk<Task> here will be null
+                    if (task != null)
+                        await task;
+
                     break;
                 case DispatcherTaskTypes.AsyncAskMessage:
                     var taskWithResult = (Task)dTask.MethodInfo.Invoke(_contract, dTask.Args);
 
-                    await taskWithResult.ConfigureAwait(false);
+                    //If user doesnt subscribe on Funk<Task> here will be null
+                    if (taskWithResult != null)
+                    {
+                        await taskWithResult.ConfigureAwait(false);
 
-                    var resultProperty = taskWithResult.GetType().GetProperty("Result");
-                    result = resultProperty.GetValue(taskWithResult);
-                    break;
-
-
-
-                case DispatcherTaskTypes.EventTask:
-                    dTask.ActionHandler.Invoke(dTask.Args);
-                    break;
-                case DispatcherTaskTypes.FuncTask:
-                    result = dTask.FunkHandler.Invoke(dTask.Args);
+                        var resultProperty = taskWithResult.GetType().GetProperty("Result");
+                        result = resultProperty.GetValue(taskWithResult);
+                    }
+                    else //we'll create a default value or null
+                    {
+                        var actualReturnType = dTask.MethodInfo.ReturnType.GenericTypeArguments[0];
+                        
+                        if (actualReturnType.IsValueType)
+                            result = Activator.CreateInstance(actualReturnType);
+                    }
+                    
                     break;
             }
 
@@ -99,14 +107,14 @@ namespace TNT.Core.Presentation.ReceiveDispatching
                 taskAwaiter.SetResult(result);
         }
 
-        public async Task Handle(Action<object[]> handler, object[] args)
+        public async Task HandleSyncSayMessage(MethodInfo handler, object[] args)
         {
             var newId = Interlocked.Increment(ref _maxAskId);
 
             var dTask = new DispatcherTask()
             {
                 Id = newId,
-                ActionHandler = handler,
+                MethodInfo = handler,
                 Args = args,
                 DispatcherTaskType = DispatcherTaskTypes.SyncSayMessage,
             };
@@ -118,14 +126,14 @@ namespace TNT.Core.Presentation.ReceiveDispatching
             await awaiter;
         }
 
-        public async Task<object> Handle(Func<object[], object> handler, object[] args)
+        public async Task<object> HandleSyncAskMessage(MethodInfo handler, object[] args)
         {
             var newId = Interlocked.Increment(ref _maxAskId);
 
             var dTask = new DispatcherTask()
             {
                 Id = newId,
-                FunkHandler = handler,
+                MethodInfo = handler,
                 Args = args,
                 DispatcherTaskType = DispatcherTaskTypes.SyncAskMessage,
             };
@@ -139,14 +147,14 @@ namespace TNT.Core.Presentation.ReceiveDispatching
             return result;
         }
 
-        public async Task HandleAsync(Func<object[], Task> handler, object[] args)
+        public async Task HandleAsyncSayMessage(MethodInfo handler, object[] args)
         {
             var newId = Interlocked.Increment(ref _maxAskId);
 
             var dTask = new DispatcherTask()
             {
                 Id = newId,
-                AsyncActionTask = handler,
+                MethodInfo = handler,
                 Args = args,
                 DispatcherTaskType = DispatcherTaskTypes.AsyncSayMessage,
             };
@@ -158,14 +166,14 @@ namespace TNT.Core.Presentation.ReceiveDispatching
             var result = await awaiter;
         }
 
-        public async Task<object> HandleAsync(Func<object[], Task<object>> handler, object[] args)
+        public async Task<object> HandleAsyncAskMessage(MethodInfo handler, object[] args)
         {
             var newId = Interlocked.Increment(ref _maxAskId);
 
             var dTask = new DispatcherTask()
             {
                 Id = newId,
-                AsyncFuncTask = handler,
+                MethodInfo = handler,
                 Args = args,
                 DispatcherTaskType = DispatcherTaskTypes.AsyncAskMessage,
             };
@@ -199,127 +207,6 @@ namespace TNT.Core.Presentation.ReceiveDispatching
 
             TasksChannel.Writer.Complete();
         }
-
-        public async Task Handle(MethodInfo handler, object[] args)
-        {
-            var newId = Interlocked.Increment(ref _maxAskId);
-
-            var dTask = new DispatcherTask()
-            {
-                Id = newId,
-                MethodInfo = handler,
-                Args = args,
-                DispatcherTaskType = DispatcherTaskTypes.SyncSayMessage,
-            };
-
-            var awaiter = GetAsyncMessageAwaiter(newId);
-
-            await TasksChannel.Writer.WriteAsync(dTask);
-
-            await awaiter;
-        }
-
-        public async Task<object> HandleWithResult(MethodInfo handler, object[] args)
-        {
-            var newId = Interlocked.Increment(ref _maxAskId);
-
-            var dTask = new DispatcherTask()
-            {
-                Id = newId,
-                MethodInfo = handler,
-                Args = args,
-                DispatcherTaskType = DispatcherTaskTypes.SyncAskMessage,
-            };
-
-            var awaiter = GetAsyncMessageAwaiter(newId);
-
-            await TasksChannel.Writer.WriteAsync(dTask);
-
-            var result = await awaiter;
-
-            return result;
-        }
-
-        public async Task HandleAsync(MethodInfo handler, object[] args)
-        {
-            var newId = Interlocked.Increment(ref _maxAskId);
-
-            var dTask = new DispatcherTask()
-            {
-                Id = newId,
-                MethodInfo = handler,
-                Args = args,
-                DispatcherTaskType = DispatcherTaskTypes.AsyncSayMessage,
-            };
-
-            var awaiter = GetAsyncMessageAwaiter(newId);
-
-            await TasksChannel.Writer.WriteAsync(dTask);
-
-            var result = await awaiter;
-        }
-
-        public async Task<object> HandleWithResultAsync(MethodInfo handler, object[] args)
-        {
-            var newId = Interlocked.Increment(ref _maxAskId);
-
-            var dTask = new DispatcherTask()
-            {
-                Id = newId,
-                MethodInfo = handler,
-                Args = args,
-                DispatcherTaskType = DispatcherTaskTypes.AsyncAskMessage,
-            };
-
-            var awaiter = GetAsyncMessageAwaiter(newId);
-
-            await TasksChannel.Writer.WriteAsync(dTask);
-
-            var result = await awaiter;
-
-            return result;
-        }
-
-
-        public async Task HandleEvent(Action<object[]> handler, object[] args)
-        {
-            var newId = Interlocked.Increment(ref _maxAskId);
-
-            var dTask = new DispatcherTask()
-            {
-                Id = newId,
-                ActionHandler = handler,
-                Args = args,
-                DispatcherTaskType = DispatcherTaskTypes.EventTask,
-            };
-
-            var awaiter = GetAsyncMessageAwaiter(newId);
-
-            await TasksChannel.Writer.WriteAsync(dTask);
-
-            var result = await awaiter;
-        }
-
-        public async Task<object> HandleFunc(Func<object[], object> handler, object[] args)
-        {
-            var newId = Interlocked.Increment(ref _maxAskId);
-
-            var dTask = new DispatcherTask()
-            {
-                Id = newId,
-                FunkHandler = handler,
-                Args = args,
-                DispatcherTaskType = DispatcherTaskTypes.FuncTask,
-            };
-
-            var awaiter = GetAsyncMessageAwaiter(newId);
-
-            await TasksChannel.Writer.WriteAsync(dTask);
-
-            var result = await awaiter;
-
-            return result;
-        }
     }
 
     public class DispatcherTask
@@ -327,11 +214,6 @@ namespace TNT.Core.Presentation.ReceiveDispatching
         public DispatcherTask() { }
 
         public DispatcherTaskTypes DispatcherTaskType;
-
-        public Func<object[], object> FunkHandler;
-        public Action<object[]> ActionHandler;
-        public Func<object[], Task> AsyncActionTask;
-        public Func<object[], Task<object>> AsyncFuncTask;
 
         public MethodInfo MethodInfo;
 
@@ -345,9 +227,5 @@ namespace TNT.Core.Presentation.ReceiveDispatching
         SyncAskMessage,
         AsyncSayMessage,
         AsyncAskMessage,
-
-
-        EventTask,
-        FuncTask,
     }
 }

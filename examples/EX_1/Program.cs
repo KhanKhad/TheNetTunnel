@@ -17,7 +17,7 @@ static class Program
         var contract = new ExampleContract();
         var server = TntBuilder
             .UseContract<IExampleContract>(contract)
-            .UseMultiOperationDispatcher()
+            //.UseMultiOperationDispatcher()
             .CreateTcpServer(IPAddress.Loopback, 12345);
         
         server.Start();
@@ -27,7 +27,7 @@ static class Program
         try
         {
             using var client = await TntBuilder.UseContract<IExampleContract>()
-                .SetMaxAnsTimeout(300000)
+                .SetMaxAnsTimeout(30000)
                 .CreateTcpClientConnectionAsync(IPAddress.Loopback, 12345);
 
             //var random = new Random();
@@ -38,20 +38,41 @@ static class Program
             //    var task = SendMsgTask(client, i);
             //}
 
-            await Task.Delay(1000);
+            ////await Task.Delay(1000);
+            //await Task.Delay(-1);
 
-            client.Contract.Action += AA;
-
+            client.Contract.Action += AAAction;
+            client.Contract.Func += AAFunc;
+            client.Contract.FuncTask += AASyncFunc;
+            client.Contract.FuncTaskResult += AAFuncRes;
 
             //await client.Contract.SendTask("Superman", $"message#{1}");
 
-            contract.Action.Invoke(true);
-            //await client.Contract.SendTask("Superman", $"message#{1}");
-
-            //for (int i = 0; i < 100; i++)
+            //for (int i = 0; i < 1000; i++)
             //{
-            //    var task = SendMsgTask(client, i);
+            //    var t = i;
+            //    _ = Task.Run(() =>
+            //    {
+            //        contract.Action.Invoke(t);
+            //    });
             //}
+
+            //await Task.Delay(-1);
+
+            for (int i = 0; i < 1000; i++)
+            {
+                var t = i;
+                _ = Task.Run(async () =>
+                {
+                    var res = await contract.FuncTaskResult.Invoke(t);
+
+                    if (!res)
+                    {
+
+                    }
+                        
+                });
+            }
 
             await Task.Delay(-1);
         }
@@ -61,9 +82,29 @@ static class Program
         }
     }
 
-    private static void AA(bool a)
+    private static Task<bool> AAFuncRes(int arg)
     {
-        Console.WriteLine("AAAAA");
+        Console.WriteLine($"AAAAA {arg}");
+
+        return Task.FromResult(true);
+    }
+
+    private static Task AASyncFunc(int arg)
+    {
+        Console.WriteLine($"AAAAA {arg}");
+
+        return Task.CompletedTask;
+    }
+
+    private static bool AAFunc(int a)
+    {
+        Console.WriteLine($"AAAAA {a}");
+
+        return true;
+    }
+    private static void AAAction(int a)
+    {
+        Console.WriteLine($"AAAAA {a}");
     }
 
 
@@ -92,37 +133,35 @@ static class Program
 public interface IExampleContract
 {
     [TntMessage(1)]
-    void Send(string user, string message);
+    Action<int> Action { get; set; }
+
     [TntMessage(2)]
-    bool Send1(string user, string message);
+    Func<int, bool> Func { get; set; }
 
     [TntMessage(3)]
-    Action<bool> Action { get; set; }
+    Func<int, Task> FuncTask { get; set; }
 
-    //[TntMessage(4)]
-    //Func<bool, bool> Func { get; set; }
-
-
+    [TntMessage(4)]
+    Func<int, Task<bool>> FuncTaskResult { get; set; }
 
     [TntMessage(11)]
-    Task SendTask(string user, string message);
+    void Send(string user, string message);
     [TntMessage(12)]
-    Task<bool> Send1Task(string user, string message);
+    bool Send1(string user, string message);
 
-    /*[TntMessage(13)]
-    Func<Task<bool>> FuncTask { get; set; }
-
+    [TntMessage(13)]
+    Task SendTask(string user, string message);
     [TntMessage(14)]
-    Func<bool, Task<bool>> FuncTaskResult { get; set; }*/
+    Task<bool> Send1Task(string user, string message);
 }
 
 //contract implementation
 public class ExampleContract : IExampleContract
 {
-    public Action<bool> Action { get; set; }
-    public Func<bool, bool> Func { get; set; }
-    //public Func<Task<bool>> FuncTask { get; set; }
-    //public Func<bool, Task<bool>> FuncTaskResult { get; set; }
+    public Action<int> Action { get; set; }
+    public Func<int, bool> Func { get; set; }
+    public Func<int, Task> FuncTask { get; set; }
+    public Func<int, Task<bool>> FuncTaskResult { get; set; }
 
     public ExampleContract()
     {

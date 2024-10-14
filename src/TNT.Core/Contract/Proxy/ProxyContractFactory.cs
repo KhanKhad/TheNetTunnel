@@ -18,7 +18,7 @@ namespace TNT.Core.Contract.Proxy
     {
         private static int _exemmplarCounter;
 
-        public static T CreateProxyContract<T>(IInterlocutor interlocutor)
+        public static T CreateProxyContract<T>(IInterlocutor interlocutor, out Type finalType, out Dictionary<int, string> actionHandlers)
         {
             var interfaceType = typeof(T);
             TypeBuilder typeBuilder =  CreateProxyTypeBuilder<T>();
@@ -84,7 +84,7 @@ namespace TNT.Core.Contract.Proxy
 
             #region interface delegate properties implementation
 
-            var actions = new Dictionary<int, string>();
+            actionHandlers = new Dictionary<int, string>();
 
             foreach (var property in contractMemebers.GetProperties())
             {
@@ -101,12 +101,7 @@ namespace TNT.Core.Contract.Proxy
                     delegateInfo,
                     propertyBuilder.FieldBuilder);
 
-
-                actions.Add(property.Key, handleMethodNuilder.Name);
-
-               /* constructorCodeGeneration.Add(
-                    iLGenerator => GenerateEventSubscribtion(iLGenerator, outputApiFieldInfo, property.Key,
-                    handleMethodNuilder));*/
+                actionHandlers.Add(property.Key, handleMethodNuilder.Name);
             }
             #endregion
 
@@ -115,20 +110,9 @@ namespace TNT.Core.Contract.Proxy
                 new [] {outputApiFieldInfo},
                 constructorCodeGeneration);
 
-            var finalType = typeBuilder.CreateTypeInfo().AsType();
+            finalType = typeBuilder.CreateTypeInfo().AsType();
 
             var instance = (T)Activator.CreateInstance(finalType, interlocutor);
-
-            foreach (var action in actions)
-            {
-                var mm = finalType.GetMethod(action.Value);
-
-                //mm.Invoke(instance, null);
-
-                if (mm.ReturnType == typeof(void))
-                    interlocutor.SetIncomeSayCallHandler(action.Key, mm);
-                else interlocutor.SetIncomeAskCallHandler(action.Key, mm);
-            }
 
             return instance;
         }
@@ -166,8 +150,6 @@ namespace TNT.Core.Contract.Proxy
             var typeCount = Interlocked.Increment(ref _exemmplarCounter);
             return EmitHelper.CreateTypeBuilder(typeof(T).Name + "_" + typeCount);
         }
-
-        
 
         private static MethodBuilder ImplementAndGenerateHandleMethod(
             TypeBuilder typeBuilder,
@@ -245,6 +227,16 @@ namespace TNT.Core.Contract.Proxy
             var callLabel = ilGen.DefineLabel();
 
             var localDelegateValue = ilGen.DeclareLocal(delegateFieldInfo.FieldType);
+            var hasReturnType = delegatePropertyInfo.ReturnType != typeof(void);
+
+            LocalBuilder returnValue = null;
+
+            if (hasReturnType)
+            {
+                returnValue = ilGen.DeclareLocal(delegatePropertyInfo.ReturnType);
+                ilGen.Emit(OpCodes.Ldloca_S, returnValue);
+                ilGen.Emit(OpCodes.Initobj, delegatePropertyInfo.ReturnType);
+            }
 
             //if (originDelegate == null)
             //return
@@ -265,10 +257,19 @@ namespace TNT.Core.Contract.Proxy
             {
                 ilGen.Emit(OpCodes.Ldarg_S, i + 1);
             }
-            
+
             ilGen.MarkLabel(callLabel);
+
             ilGen.Emit(OpCodes.Callvirt, delegatePropertyInfo.DelegateInvokeMethodInfo);
+
+            if (hasReturnType)
+                ilGen.Emit(OpCodes.Stloc, returnValue);
+
             ilGen.MarkLabel(endLabel);
+
+            if (hasReturnType)
+                ilGen.Emit(OpCodes.Ldloc, returnValue);
+
             ilGen.Emit(OpCodes.Ret);
             
             return handleMethodBuilder;
@@ -340,56 +341,6 @@ namespace TNT.Core.Contract.Proxy
             //ilGen.Emit(OpCodes.Ret);
 
             //return handleMethodBuilder;
-        }
-
-        private static void GenerateEventSubscribtion(
-            ILGenerator methodIlGenerator, 
-            FieldInfo rawContractFieldInfo,
-            int messageTypeId, MethodInfo handleMethod)
-        {
-            // Ctor code:
-            // 
-            // Ask:
-            //_rawContract.Subscribe<string>(71, HandleOnTick); //HandleOnTick - метод обработки
-            //
-            //
-            // Say:
-            //_rawContract.Subscribe(71,HandleOnTick);
-
-            //  IL_000F: ldarg.0
-            //IL_0010: ldfld UserQuery+SayingContract._rawContract
-            //IL_0015: ldc.i4.s    47
-            //IL_0017: ldarg.0
-            //IL_0018: ldftn UserQuery+SayingContract.HandleOnTick
-            //IL_001E: newobj System.Func<System.Object[], System.String>..ctor
-            //IL_0023: callvirt UserQuery+IRawOutputContract.Subscribe<String>
-
-            var il = methodIlGenerator;
-            il.Emit(OpCodes.Ldarg_0);
-            il.Emit(OpCodes.Ldfld, rawContractFieldInfo);
-            il.Emit(OpCodes.Ldc_I4, messageTypeId);
-            il.Emit(OpCodes.Ldarg_0);
-            il.Emit(OpCodes.Ldftn, handleMethod);
-
-            if (handleMethod.ReturnType == typeof(void))
-            {
-                var actionType = typeof(Action<>).MakeGenericType(typeof(object[]));
-                var actionConstructor = actionType.GetConstructor(new[] {typeof(object), typeof(IntPtr)});
-                il.Emit(OpCodes.Newobj, actionConstructor);
-                var subscribeMethod = typeof(IInterlocutor).GetMethod("SetIncomeActionsHandler");
-                il.Emit(OpCodes.Callvirt, subscribeMethod);
-            }
-            else
-            {
-                var funkType = typeof(Func<,>).MakeGenericType(typeof(object[]), handleMethod.ReturnType);
-                var funcConstructor = funkType.GetConstructor(new[] {typeof(object), typeof(IntPtr)});
-
-                il.Emit(OpCodes.Newobj, funcConstructor);
-                var subscribeMethodInfo = typeof(IInterlocutor).GetMethod("SetIncomeFuncHandler");
-
-                var subscribeMethodGenericInfo = subscribeMethodInfo.MakeGenericMethod(handleMethod.ReturnType);
-                il.Emit(OpCodes.Callvirt, subscribeMethodGenericInfo);
-            }
         }
     }
 }

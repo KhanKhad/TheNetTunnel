@@ -18,13 +18,12 @@ namespace TNT.Core.New
 {
     public class Responser
     {
-        private ReflectionInfo _reflectionHelper;
         private IDispatcher _receiveDispatcher;
+        private MethodsDescriptor _methodsDescriptor;
 
-
-        public Responser(ReflectionInfo reflectionHelper, IDispatcher receiveDispatcher)
+        public Responser(MethodsDescriptor methodsDescriptor, IDispatcher receiveDispatcher)
         {
-            _reflectionHelper = reflectionHelper;
+            _methodsDescriptor = methodsDescriptor;
             _receiveDispatcher = receiveDispatcher;
         }
 
@@ -39,38 +38,40 @@ namespace TNT.Core.New
 
             try
             {
-
                 var arguments = (object[])deserialized.Result;
 
-                if (_reflectionHelper._askSubscribtion.TryGetValue(id, out var askHandler))
+                var messageHandler = _methodsDescriptor.DescribedMethods[id];
+
+                if (_methodsDescriptor.DescribedMethods.TryGetValue(id, out var askHandler))
                 {
-                    var answer = await _receiveDispatcher.HandleWithResult(askHandler, arguments);
-                    result = CreateSuccessfulResponseMessage(answer, id, askId);
-                }
-                else if (_reflectionHelper._saySubscribtion.TryGetValue(id, out var sayHandler))
-                {
-                    await _receiveDispatcher.Handle(sayHandler, arguments);
-                    result = CreateSuccessfulResponseMessage(null, id, askId);
-                }
-                else if (_reflectionHelper._sayAsyncSubscribtion.TryGetValue(id, out var sayAsyncHandler))
-                {
-                    await _receiveDispatcher.HandleAsync(sayAsyncHandler, arguments);
-                    result = CreateSuccessfulResponseMessage(null, id, askId);
-                }
-                else if (_reflectionHelper._askAsyncSubscribtion.TryGetValue(id, out var askAsyncHandler))
-                {
-                    var answer = await _receiveDispatcher.HandleWithResultAsync(askAsyncHandler, arguments);
-                    result = CreateSuccessfulResponseMessage(answer, id, askId);
-                }
-                else if (_reflectionHelper._eventSubscribtion.TryGetValue(id, out var eventHandler))
-                {
-                    await _receiveDispatcher.HandleEvent(eventHandler, arguments);
-                    result = CreateSuccessfulResponseMessage(null, id, askId);
-                }
-                else if (_reflectionHelper._funcSubscribtion.TryGetValue(id, out var funcHandler))
-                {
-                    var answer = await _receiveDispatcher.HandleFunc(funcHandler, arguments);
-                    result = CreateSuccessfulResponseMessage(answer, id, askId);
+                    switch (messageHandler.MethodType)
+                    {
+                        case MethodTypes.SyncWithoutResult:
+                            await _receiveDispatcher.HandleSyncSayMessage(messageHandler.MethodHandler, arguments);
+                            result = CreateSuccessfulResponseMessage(null, id, askId);
+                            break;
+                        case MethodTypes.SyncWithResult:
+                            var sanswer = await _receiveDispatcher.HandleSyncAskMessage(messageHandler.MethodHandler, arguments);
+                            result = CreateSuccessfulResponseMessage(sanswer, id, askId);
+                            break;
+                        case MethodTypes.AsyncWithoutResult:
+                            await _receiveDispatcher.HandleAsyncSayMessage(messageHandler.MethodHandler, arguments);
+                            result = CreateSuccessfulResponseMessage(null, id, askId);
+                            break;
+                        case MethodTypes.AsyncWithResult:
+                            var aanswer = await _receiveDispatcher.HandleAsyncAskMessage(messageHandler.MethodHandler, arguments);
+                            result = CreateSuccessfulResponseMessage(aanswer, id, askId);
+                            break;
+                        default:
+
+                            var error = new ErrorMessage(id, askId, ErrorType.ContractSignatureError,
+                                $"UT|there isn't any handlers for this message: {id}|{askId}");
+
+                            result = CreateFatalFailedResponseMessage(error, id, askId);
+
+                            break;
+
+                    }
                 }
                 else
                 {

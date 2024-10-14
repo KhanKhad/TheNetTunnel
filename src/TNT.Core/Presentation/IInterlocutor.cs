@@ -37,26 +37,5 @@ namespace TNT.Core.Presentation
 
 
         Task<T> AskAsync<T>(int messageId, object[] values);
-        /// <summary>
-        /// Set income Say message Handler
-        /// </summary>
-        ///<exception cref="ArgumentException">already contains say messageId handler</exception>
-        void SetIncomeSayCallHandler(int messageId, MethodInfo value);
-        void SetIncomeSayCallAsyncHandler(int messageId, MethodInfo value);
-        /// <summary>
-        /// Set income Say message Handler.
-        /// </summary>
-        ///<exception cref="ArgumentException">already contains ask messageId handler</exception>
-        void SetIncomeAskCallHandler(int messageId, MethodInfo value);
-        void SetIncomeAskCallAsyncHandler(int messageId, MethodInfo value);
-
-
-        void SetIncomeActionsHandler(int messageId, Action<object[]> callback);
-        void SetIncomeFuncHandler<T>(int messageId, Func<object[], T> callback);
-
-        /// <summary>
-        /// Unsubscribes request handler
-        /// </summary>
-        void Unsubscribe(int messageId);
     }
 }

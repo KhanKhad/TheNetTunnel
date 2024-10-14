@@ -4,6 +4,7 @@ using System.IO;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using TNT.Core.Contract;
 using TNT.Core.Exceptions.Local;
 using TNT.Core.New.Tcp;
 using TNT.Core.Presentation;
@@ -17,9 +18,9 @@ namespace TNT.Core.New
         public IChannel Channel;
         public Responser _responser;
 
-        private ReflectionInfo _reflectionHelper;
         private MessagesSerializer _messagesSerializer;
         private MessagesDeserializer _messagesDeserializer;
+        private IDispatcher _receiveDispatcher;
         private readonly ReceivePduQueue _receiveMessageAssembler;
 
         private int _maxAskId;
@@ -27,23 +28,25 @@ namespace TNT.Core.New
 
         private ConcurrentDictionary<int, TaskCompletionSource<object>> MessageAwaiters;
 
-        public Interlocutor(ReflectionInfo reflectionHelper, IDispatcher receiveDispatcher, 
-            IChannel channel, int maxAnsDelay = 3000)
+        public Interlocutor(IDispatcher receiveDispatcher, IChannel channel, int maxAnsDelay = 3000)
         {
             _maxAnsDelay = maxAnsDelay;
 
             Channel = channel;
 
-            _reflectionHelper = reflectionHelper;
             _receiveMessageAssembler = new ReceivePduQueue();
-
-            _messagesSerializer = new MessagesSerializer(reflectionHelper);
-            _messagesDeserializer = new MessagesDeserializer(reflectionHelper);
-
-            _responser = new Responser(reflectionHelper, receiveDispatcher);
+            _receiveDispatcher = receiveDispatcher;
 
             MessageAwaiters = new ConcurrentDictionary<int, TaskCompletionSource<object>>();
         }
+
+        public void Initialize(MethodsDescriptor methodsDescriptor)
+        {
+            _messagesSerializer = new MessagesSerializer(methodsDescriptor);
+            _messagesDeserializer = new MessagesDeserializer(methodsDescriptor);
+            _responser = new Responser(methodsDescriptor, _receiveDispatcher);
+        }
+
 
         private volatile bool _alreadyStarted;
         public void Start()
@@ -269,39 +272,6 @@ namespace TNT.Core.New
                 return tks.Task;
 
             else throw new Exception("Same askId was already added");
-        }
-
-        public void Unsubscribe(int messageId)
-        {
-            _reflectionHelper.Unsubscribe(messageId);
-        }
-
-        public void SetIncomeSayCallHandler(int messageId, MethodInfo value)
-        {
-            _reflectionHelper.SetIncomeSayCallHandler(messageId, value);
-        }
-        public void SetIncomeSayCallAsyncHandler(int messageId, MethodInfo value)
-        {
-            _reflectionHelper.SetIncomeSayCallAsyncHandler(messageId, value);
-        }
-
-        public void SetIncomeAskCallHandler(int messageId, MethodInfo value)
-        {
-            _reflectionHelper.SetIncomeAskCallHandler(messageId, value);
-        }
-        public void SetIncomeAskCallAsyncHandler(int messageId, MethodInfo value)
-        {
-            _reflectionHelper.SetIncomeAskCallAsyncHandler(messageId, value);
-        }
-
-        public void SetIncomeActionsHandler(int messageId, Action<object[]> callback)
-        {
-            _reflectionHelper.SetIncomeActionsHandler(messageId, callback);
-        }
-
-        public void SetIncomeFuncHandler<T>(int messageId, Func<object[], T> callback)
-        {
-            _reflectionHelper.SetIncomeFuncHandler(messageId, callback);
         }
     }
 }
