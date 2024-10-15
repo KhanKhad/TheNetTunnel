@@ -92,9 +92,9 @@ namespace TNT.Core.Presentation
             {
                 var error = deserialized.ErrorMessageOrNull;
 
-                var result = _responser.CreateFatalFailedResponseMessage(error, 0, 0);
+                var result = _responser.CreateFatalFailedResponseMessage(error, error.MessageId, error.AskId);
 
-                await SendMessageAsync(result);
+                await SendMessageAsync(result).ConfigureAwait(false);
 
                 if (deserialized.NeedToDisconnect)
                     Disconnect();
@@ -169,7 +169,7 @@ namespace TNT.Core.Presentation
         {
             var serialized = _messagesSerializer.SerializeTntMessage(message);
 
-            Channel.WriteAsync(serialized.ToArray());
+            Channel.WriteAsync(serialized.ToArray()).GetAwaiter().GetResult();
         }
 
         public void Disconnect()
@@ -232,10 +232,18 @@ namespace TNT.Core.Presentation
 
             SendMessage(message);
 
-            if (awaiter.Wait(_maxAnsDelay))
-                return (T)awaiter.Result;
+            try
+            {
+                if (awaiter.Wait(_maxAnsDelay))
+                    return (T)awaiter.Result;
+            }
+            catch(AggregateException ae)
+            {
+                if(ae.InnerExceptions.Count == 1)
+                    throw ae.InnerException;
+            }
 
-            else throw new CallTimeoutException((short)messageId, newId);
+            throw new CallTimeoutException((short)messageId, newId);
         }
 
         public async Task<T> AskAsync<T>(int messageId, object[] values)

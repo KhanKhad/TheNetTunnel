@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using TNT.Core.Exceptions.Local;
+using TNT.Core.Exceptions.Remote;
 using TNT.Core.Presentation.Serializers;
 
 namespace TNT.Core.Presentation
@@ -23,7 +24,6 @@ namespace TNT.Core.Presentation
         public MemoryStream SerializeTntMessage(NewTntMessage tntMessage)
         {
             var stream = new MemoryStream(1024);
-
             stream.Write(_reservedEmptyBuffer, 0, ReservedHeadLength);
 
             var messageId = tntMessage.MessageId;
@@ -33,7 +33,23 @@ namespace TNT.Core.Presentation
             Tools.WriteShort((short)messageType, to: stream);
             stream.WriteInt(tntMessage.AskId);
 
-            var methodDescription = _methodsDescriptor.DescribedMethods[messageId];
+            MethodDesctiption methodDescription = null;
+
+            if (messageType == TntMessageType.RequestMessage ||
+                messageType == TntMessageType.SuccessfulResponseMessage)
+            {
+                if (!_methodsDescriptor.DescribedMethods.TryGetValue(messageId, out methodDescription))
+                {
+                    var rError = new ErrorMessage(messageId, tntMessage.AskId,
+                        ErrorType.ContractSignatureError,
+                        $"Message with contract id {messageId} is not implemented");
+
+                    var error = (ErrorMessage)tntMessage.Result;
+                    new ErrorMessageSerializer().SerializeT(error, stream);
+
+                    return stream;
+                }
+            }
 
             try
             {

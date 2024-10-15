@@ -39,7 +39,6 @@ namespace TNT.Core.Tcp
 
         public int ConnectionId;
 
-        private NetworkStream _stream;
 
         public TntTcpClient(IPEndPoint endPoint) : this()
         {
@@ -139,7 +138,12 @@ namespace TNT.Core.Tcp
         public async Task WriteAsync(byte[] data)
         {
             if (!Client.Connected)
+            {
+                if(!_alreadyStarted)
+                    throw new ConnectionIsNotEstablishedYet("tcp channel is not connected");
+
                 throw new ConnectionIsLostException("tcp channel is not connected");
+            }
 
             try
             {

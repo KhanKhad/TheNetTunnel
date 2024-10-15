@@ -1,8 +1,12 @@
 ﻿using System.Linq;
+using CommonTestTools;
+using System.Net;
 using CommonTestTools.Contracts;
 using NUnit.Framework;
 using TNT.Core.Api;
-using TNT.Core.Testing;
+using TNT.Core.Tcp;
+using System.Threading.Tasks;
+using System.Diagnostics.Contracts;
 
 namespace TNT.Core.Tests.FullStack;
 
@@ -10,62 +14,105 @@ namespace TNT.Core.Tests.FullStack;
 public class ServerTest
 {
     [Test]
-    public void ServerAcceptConnection_BeforeConnectRaised()
+    public async Task ServerAcceptConnection_BeforeConnectRaised()
     {
-        var server = new TestChannelServer<ITestContract>(TntBuilder.UseContract<ITestContract, TestContractMock>());
-        server.StartListening();
-        BeforeConnectEventArgs<ITestContract, TestChannel> connectionArgs = null;
-        server.BeforeConnect  += (sender, args) => connectionArgs = args;
+        TntTcpServer<ITestContract> server = null;
+        try
+        {
+            server = TntBuilder
+            .UseContract<ITestContract, TestContractMock>()
+            .CreateTcpServer(IPAddress.Loopback, 12346);
 
-        var clientChannel = TestChannel.CreateThreadSafe();
-        var proxyConnection = TntBuilder.UseContract<ITestContract>().UseChannel(clientChannel).Build();
+            BeforeConnectEventArgs<ITestContract> args = null;
+            server.BeforeConnect += (a, b) => args = b;
 
-        server.TestListener.ImmitateAccept(clientChannel);
+            server.Start();
 
-        Assert.IsNotNull(connectionArgs, "AfterConnect not raised");
+            var clientSide = await TntBuilder
+               .UseContract<ITestContract>()
+               .CreateTcpClientConnectionAsync(IPAddress.Loopback, 12346);
+
+            var serverSide = await server.WaitForAClient();
+
+            Assert.That(args, Is.Not.Null, "BeforeConnect is not raised");
+        }
+        finally
+        {
+            server?.Dispose();
+        }
     }
 
     [Test]
-    public void ServerAcceptConnection_AfterConnectRaised()
+    public async Task ServerAcceptConnection_AfterConnectRaised()
     {
-        var server = new TestChannelServer<ITestContract>(TntBuilder.UseContract<ITestContract,TestContractMock>());
-        server.StartListening(); 
-        IConnection<ITestContract, TestChannel> incomeContractConnection = null;
-        server.AfterConnect += (sender, income) => incomeContractConnection = income;
-        var clientChannel = TestChannel.CreateThreadSafe();
-        var proxyConnection = TntBuilder.UseContract<ITestContract>().UseChannel(clientChannel).Build();
-        server.TestListener.ImmitateAccept(clientChannel);
-        Assert.IsNotNull(incomeContractConnection, "AfterConnect not raised");
+        TntTcpServer<ITestContract> server = null;
+        try
+        {
+            server = TntBuilder
+            .UseContract<ITestContract, TestContractMock>()
+            .CreateTcpServer(IPAddress.Loopback, 12346);
+
+            IConnection<ITestContract> args = null;
+            server.AfterConnect += (a, b) => args = b;
+
+            server.Start();
+
+            var clientSide = await TntBuilder
+               .UseContract<ITestContract>()
+               .CreateTcpClientConnectionAsync(IPAddress.Loopback, 12346);
+
+            var serverSide = await server.WaitForAClient();
+
+            Assert.That(args, Is.Not.Null, "AfterConnect is not raised");
+        }
+        finally
+        {
+            server?.Dispose();
+        }
     }
 
 
     [Test]
-    public void ServerAcceptConnection_AllowReceiveEqualTrue()
+    public async Task ServerAcceptConnection_AllowReceiveEqualTrue()
     {
-        var server = new TestChannelServer<ITestContract>(TntBuilder.UseContract<ITestContract, TestContractMock>());
-        server.StartListening();
-        var clientChannel = TestChannel.CreateThreadSafe();
-        TntBuilder.UseContract<ITestContract>().UseChannel(clientChannel).Build();
-        server.TestListener.ImmitateAccept(clientChannel);
-        Assert.IsTrue(server.GetAllConnections().First().Channel.AllowReceive);
+        ServerAndClient<ITestContract, TestContractMock> serverAndClient = null;
+        try
+        {
+            serverAndClient = await ServerAndClient<ITestContract, TestContractMock>.Create();
+            Assert.That(serverAndClient.ClientSideConnection.Channel.IsConnected, Is.True);
+            Assert.That(serverAndClient.ServerSideConnection.Channel.IsConnected, Is.True);
+        }
+        finally
+        {
+            serverAndClient?.Dispose();
+        }
     }
 
     [Test]
-    public void ClientDisconnected_DisconnectedRaised()
+    public async Task ClientDisconnected_DisconnectedRaised()
     {
-        var server = new TestChannelServer<ITestContract>(TntBuilder.UseContract<ITestContract, TestContractMock>());
-        server.StartListening();
-        ClientDisconnectEventArgs<ITestContract, TestChannel> disconnectedConnection = null;
-            
-        server.Disconnected += (sender, args) => disconnectedConnection = args;
-        var clientChannel = TestChannel.CreateThreadSafe();
-        var proxyConnection = TntBuilder.UseContract<ITestContract>().UseChannel(clientChannel).Build();
-        var pair = server.TestListener.ImmitateAccept(clientChannel);
+        ServerAndClient<ITestContract, TestContractMock> serverAndClient = null;
+        try
+        {
+            serverAndClient = await ServerAndClient<ITestContract, TestContractMock>.Create();
 
-        pair.Disconnect();
+            var clientDisconnectEventRaised = false;
+            var serverDisconnectEventRaised = false;
 
-        Assert.IsNotNull(disconnectedConnection, "Disconnect not raised");
+            serverAndClient.ClientSideConnection.Channel.OnDisconnect += (a, b) => clientDisconnectEventRaised = true;
+            serverAndClient.ServerSideConnection.Channel.OnDisconnect += (a, b) => serverDisconnectEventRaised = true;
+
+            serverAndClient.ClientSideConnection.Dispose();
+
+            Assert.That(clientDisconnectEventRaised, "Disconnect not raised");
+
+            serverAndClient.ServerSideConnection.Dispose();
+
+            Assert.That(serverDisconnectEventRaised, "Disconnect not raised");
+        }
+        finally
+        {
+            serverAndClient?.Dispose();
+        }
     }
-
-
 }

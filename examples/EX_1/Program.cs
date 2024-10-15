@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using System.Diagnostics.Contracts;
 using System.Threading;
 using System.Diagnostics;
+using System.Linq;
 
 namespace EX_1;
 
@@ -14,9 +15,8 @@ static class Program
 {
     static async Task Main()
     {
-        var contract = new ExampleContract();
         var server = TntBuilder
-            .UseContract<IExampleContract>(contract)
+            .UseContract<IExampleContract, ExampleContract>()
             //.UseMultiOperationDispatcher()
             .CreateTcpServer(IPAddress.Loopback, 12345);
         
@@ -29,17 +29,6 @@ static class Program
             using var client = await TntBuilder.UseContract<IExampleContract>()
                 .SetMaxAnsTimeout(30000)
                 .CreateTcpClientConnectionAsync(IPAddress.Loopback, 12345);
-
-            //var random = new Random();
-
-            //for (int i = 0; i < 15000; i++)
-            //{
-            //    var tt = random.Next(50);
-            //    var task = SendMsgTask(client, i);
-            //}
-
-            ////await Task.Delay(1000);
-            //await Task.Delay(-1);
 
             client.Contract.Action += AAAction;
             client.Contract.Func += AAFunc;
@@ -59,18 +48,63 @@ static class Program
 
             //await Task.Delay(-1);
 
+            var firstClient = await server.WaitForAClient();
+
             for (int i = 0; i < 1000; i++)
             {
                 var t = i;
                 _ = Task.Run(async () =>
                 {
-                    var res = await contract.FuncTaskResult.Invoke(t);
+                    var res = await firstClient.Contract.FuncTaskResult.Invoke(t, 1);
 
                     if (!res)
                     {
 
                     }
-                        
+
+                });
+            }
+
+            var secondClientTask = server.WaitForAClient(true);
+
+            using var client2 = await TntBuilder.UseContract<IExampleContract>()
+                .SetMaxAnsTimeout(30000)
+                .CreateTcpClientConnectionAsync(IPAddress.Loopback, 12345);
+
+            client2.Contract.Action += AAAction;
+            client2.Contract.Func += AAFunc;
+            client2.Contract.FuncTask += AASyncFunc;
+            client2.Contract.FuncTaskResult += AAFuncRes;
+
+            var secondClient = await secondClientTask;
+
+            for (int i = 0; i < 1000; i++)
+            {
+                var t = i;
+                _ = Task.Run(async () =>
+                {
+                    var res = await secondClient.Contract.FuncTaskResult.Invoke(t, 2);
+
+                    if (!res)
+                    {
+
+                    }
+
+                });
+            }
+
+            for (int i = 0; i < 1000; i++)
+            {
+                var t = i;
+                _ = Task.Run(async () =>
+                {
+                    var res = await firstClient.Contract.FuncTaskResult.Invoke(t, 1);
+
+                    if (!res)
+                    {
+
+                    }
+
                 });
             }
 
@@ -82,9 +116,9 @@ static class Program
         }
     }
 
-    private static Task<bool> AAFuncRes(int arg)
+    private static Task<bool> AAFuncRes(int arg, int arg2)
     {
-        Console.WriteLine($"AAAAA {arg}");
+        Console.WriteLine($"AAAAA {arg}|{arg2}");
 
         return Task.FromResult(true);
     }
@@ -142,7 +176,7 @@ public interface IExampleContract
     Func<int, Task> FuncTask { get; set; }
 
     [TntMessage(4)]
-    Func<int, Task<bool>> FuncTaskResult { get; set; }
+    Func<int,int, Task<bool>> FuncTaskResult { get; set; }
 
     [TntMessage(11)]
     void Send(string user, string message);
@@ -161,7 +195,7 @@ public class ExampleContract : IExampleContract
     public Action<int> Action { get; set; }
     public Func<int, bool> Func { get; set; }
     public Func<int, Task> FuncTask { get; set; }
-    public Func<int, Task<bool>> FuncTaskResult { get; set; }
+    public Func<int, int, Task<bool>> FuncTaskResult { get; set; }
 
     public ExampleContract()
     {

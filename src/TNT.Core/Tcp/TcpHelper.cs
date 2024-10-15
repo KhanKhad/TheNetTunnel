@@ -42,7 +42,6 @@ namespace TNT.Core.Tcp
             return builder.UseChannelFactory(() => {
 
                 var channel = new TntTcpClient(endPoint);
-                channel.Start();
                 return channel;
 
             }).Build();
@@ -53,10 +52,9 @@ namespace TNT.Core.Tcp
              where TContract : class
 
         {
-            return builder.UseAsyncChannelFactory(async () => {
+            return builder.UseChannelFactory(() => {
 
                 var channel = new TntTcpClient(endPoint);
-                await channel.StartAsync();
                 return channel;
 
             }).BuildAsync();

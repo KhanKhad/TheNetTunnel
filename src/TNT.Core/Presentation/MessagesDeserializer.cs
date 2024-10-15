@@ -57,16 +57,22 @@ namespace TNT.Core.Presentation
                 };
             }
 
-            if (!_methodsDescriptor.DescribedMethods.TryGetValue(messageId, out var methodDescription))
-            {
-                var rError = new ErrorMessage(messageId, askId,
-                        ErrorType.ContractSignatureError,
-                        $"Message with contract id {messageId} is not implemented");
+            MethodDesctiption methodDescription = null;
 
-                return new MessageDeserializeResult()
+            if((TntMessageType)messageType == TntMessageType.RequestMessage ||
+                (TntMessageType)messageType == TntMessageType.SuccessfulResponseMessage)
+            {
+                if (!_methodsDescriptor.DescribedMethods.TryGetValue(messageId, out methodDescription))
                 {
-                    ErrorMessageOrNull = rError,
-                };
+                    var rError = new ErrorMessage(messageId, askId,
+                            ErrorType.ContractSignatureError,
+                            $"Message with contract id {messageId} is not implemented");
+
+                    return new MessageDeserializeResult()
+                    {
+                        ErrorMessageOrNull = rError,
+                    };
+                }
             }
 
             switch ((TntMessageType)messageType)

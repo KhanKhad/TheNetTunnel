@@ -27,6 +27,8 @@ namespace TNT.Core.Tcp
 
         private readonly ContractBuilder<TContract> _connectionBuilder;
 
+        private TaskCompletionSource<IConnection<TContract>> _waitForAClientTaskSource;
+
         public TntTcpServer(ContractBuilder<TContract> channelBuilder, IPEndPoint endPoint)
         {
             IPEndPoint = endPoint;
@@ -36,6 +38,8 @@ namespace TNT.Core.Tcp
             _tcpListener = new TcpListener(endPoint);
 
             _clients = new ConcurrentDictionary<int, IConnection<TContract>>();
+
+            _waitForAClientTaskSource = new TaskCompletionSource<IConnection<TContract>>();
         }
 
         private volatile bool _alreadyStarted;
@@ -51,6 +55,16 @@ namespace TNT.Core.Tcp
             _ = Task.Run(InternalStartAsync);
         }
 
+        public Task<IConnection<TContract>> WaitForAClient(bool newClient = false)
+        {
+            if (newClient)
+            {
+                //_waitForAClientTaskSource.
+                _waitForAClientTaskSource = new TaskCompletionSource<IConnection<TContract>>();
+            }
+
+            return _waitForAClientTaskSource.Task;
+        }
 
         private async Task InternalStartAsync()
         {
@@ -80,6 +94,8 @@ namespace TNT.Core.Tcp
                 _clients.TryAdd(newId, connection);
 
                 AfterConnect?.Invoke(this, connection);
+
+                _waitForAClientTaskSource.TrySetResult(connection);
             }
         }
 
@@ -112,6 +128,8 @@ namespace TNT.Core.Tcp
                 return;
 
             _disposed = true;
+
+            _tcpListener.Stop();
 
             var clients = _clients.Values;
             foreach (var client in clients)

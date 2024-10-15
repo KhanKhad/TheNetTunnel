@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using TNT.Core.Presentation;
 
 namespace CommonTestTools;
@@ -79,7 +80,17 @@ public class CordInterlocutorMock : IInterlocutor
     {
         throw new NotImplementedException();
     }
-        
+
+    public Task SayAsync(int messageId, object[] values)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<T> AskAsync<T>(int messageId, object[] values)
+    {
+        throw new NotImplementedException();
+    }
+
     public class SayOrAskCall
     {
         public int CordId { get; set; }

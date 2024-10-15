@@ -62,49 +62,58 @@ namespace TNT.Core.ReceiveDispatching
         {
             await Task.Yield();
 
-            object result = null;
-
-            switch (dTask.DispatcherTaskType)
+            try
             {
-                case DispatcherTaskTypes.SyncSayMessage:
-                    dTask.MethodInfo.Invoke(_contract, dTask.Args);
-                    break;
-                case DispatcherTaskTypes.SyncAskMessage:
-                    result = dTask.MethodInfo.Invoke(_contract, dTask.Args);
-                    break;
+                object result = null;
 
-                case DispatcherTaskTypes.AsyncSayMessage:
-                    var task = (Task)dTask.MethodInfo.Invoke(_contract, dTask.Args);
+                switch (dTask.DispatcherTaskType)
+                {
+                    case DispatcherTaskTypes.SyncSayMessage:
+                        dTask.MethodInfo.Invoke(_contract, dTask.Args);
+                        break;
+                    case DispatcherTaskTypes.SyncAskMessage:
+                        result = dTask.MethodInfo.Invoke(_contract, dTask.Args);
+                        break;
 
-                    //If user doesnt subscribe on Funk<Task> here will be null
-                    if (task != null)
-                        await task;
+                    case DispatcherTaskTypes.AsyncSayMessage:
+                        var task = (Task)dTask.MethodInfo.Invoke(_contract, dTask.Args);
 
-                    break;
-                case DispatcherTaskTypes.AsyncAskMessage:
-                    var taskWithResult = (Task)dTask.MethodInfo.Invoke(_contract, dTask.Args);
+                        //If user doesnt subscribe on Funk<Task> here will be null
+                        if (task != null)
+                            await task;
 
-                    //If user doesnt subscribe on Funk<Task> here will be null
-                    if (taskWithResult != null)
-                    {
-                        await taskWithResult.ConfigureAwait(false);
+                        break;
+                    case DispatcherTaskTypes.AsyncAskMessage:
+                        var taskWithResult = (Task)dTask.MethodInfo.Invoke(_contract, dTask.Args);
 
-                        var resultProperty = taskWithResult.GetType().GetProperty("Result");
-                        result = resultProperty.GetValue(taskWithResult);
-                    }
-                    else //we'll create a default value or null
-                    {
-                        var actualReturnType = dTask.MethodInfo.ReturnType.GenericTypeArguments[0];
+                        //If user doesnt subscribe on Funk<Task> here will be null
+                        if (taskWithResult != null)
+                        {
+                            await taskWithResult.ConfigureAwait(false);
 
-                        if (actualReturnType.IsValueType)
-                            result = Activator.CreateInstance(actualReturnType);
-                    }
+                            var resultProperty = taskWithResult.GetType().GetProperty("Result");
+                            result = resultProperty.GetValue(taskWithResult);
+                        }
+                        else //we'll create a default value or null
+                        {
+                            var actualReturnType = dTask.MethodInfo.ReturnType.GenericTypeArguments[0];
 
-                    break;
+                            if (actualReturnType.IsValueType)
+                                result = Activator.CreateInstance(actualReturnType);
+                        }
+
+                        break;
+                }
+
+                if (MessageAwaiters.TryRemove(dTask.Id, out var taskAwaiter))
+                    taskAwaiter.SetResult(result);
             }
-
-            if (MessageAwaiters.TryRemove(dTask.Id, out var taskAwaiter))
-                taskAwaiter.SetResult(result);
+            catch(Exception ex)
+            {
+                if (MessageAwaiters.TryRemove(dTask.Id, out var taskAwaiter))
+                    taskAwaiter.SetException(ex);
+            }
+            
         }
 
         public async Task HandleSyncSayMessage(MethodInfo handler, object[] args)

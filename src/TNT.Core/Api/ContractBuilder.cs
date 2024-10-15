@@ -158,7 +158,6 @@ namespace TNT.Core.Api
         {
             TContract contract = OriginContractFactory(channel);
 
-
             var contractType = contract.GetType();
 
             var interfaceType = typeof(TContract);

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace CommonTestTools.Contracts;
 
@@ -9,20 +10,39 @@ public class TestContractMock:ITestContract
 
     public int SayCalledCount { get; set; }
 
+    public List<string> SaySCalled { get; } = new List<string>();
+
     public void Say()
     {
         SayCalledCount++;
     }
-    public List<string> SaySCalled { get; } = new List<string>();
+
+    public Task SayAsync()
+    {
+        SayCalledCount++;
+        return Task.CompletedTask;
+    }
+    
     public void Say(string s)
     {
+        SayCalledCount++;
         SaySCalled.Add(s);
-        SayMethodWasCalled?.Invoke(this, s);
+    }
+    public Task SayAsync(string s)
+    {
+        SayCalledCount++;
+        SaySCalled.Add(s);
+        return Task.CompletedTask;
     }
 
-    public event Action<object, string> SayMethodWasCalled;
     public void Say(string s, int i, long l)
     {
+
+    }
+
+    public Task SayAsync(string s, int i, long l)
+    {
+        return Task.CompletedTask;
     }
 
     public int Ask()
@@ -30,10 +50,21 @@ public class TestContractMock:ITestContract
         return AskReturns;
     }
 
+    public Task<int> AskAsync()
+    {
+        return Task.FromResult(AskReturns);
+    }
+
     public string Ask(string s)
     {
         return "not implemented";
     }
+
+    public Task<string> AskAsync(string s)
+    {
+        return Task.FromResult("not implemented");
+    }
+
 
     private Func<string, int, long, string> _whenAskSILCalled = (s, i, l) => "0";
     public void WhenAskSILCalledCall(Func<string, int, long, string> whenAskSILCalled)
@@ -42,7 +73,36 @@ public class TestContractMock:ITestContract
     }
     public string Ask(string s, int i, long l)
     {
-        return _whenAskSILCalled(s,i,l);
+        return _whenAskSILCalled(s, i, l);
+    }
+
+    public Task<string> AskAsync(string s, int i, long l)
+    {
+        throw new NotImplementedException();
+    }
+
+    public void SayWithException()
+    {
+        throw new Exception("SayWithException");
+    }
+    public void SayWithException(string s)
+    {
+        throw new Exception("SayWithException");
+    }
+
+    public string AskWithException(string s)
+    {
+        throw new Exception("AskWithException");
+    }
+
+    public Task SayWithExceptionAsync(string s)
+    {
+        throw new Exception("SayWithExceptionAsync");
+    }
+
+    public Task<string> AskWithExceptionAsync()
+    {
+        throw new Exception("AskWithExceptionAsync");
     }
 
     public Action OnSay { get; set; }
@@ -51,4 +111,7 @@ public class TestContractMock:ITestContract
     public Func<int> OnAsk { get; set; }
     public Func<string, string> OnAskS { get; set; }
     public Func<string, int, long, string> OnAskSIL { get; set; }
+    public Func<Task<int>> FuncTask { get; set ; }
+    public Func<string, Task<string>> FuncTaskWithResult { get; set; }
+    public Func<string, int, long, Task<string>> FuncTaskWithResultIL { get; set; }
 }

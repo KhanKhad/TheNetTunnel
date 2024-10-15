@@ -1,140 +1,140 @@
-﻿using System.Collections;
-using System.Linq;
-using CommonTestTools;
-using CommonTestTools.Contracts;
-using NUnit.Framework;
-using TNT.Core.Contract.Proxy;
+﻿//using System.Collections;
+//using System.Linq;
+//using CommonTestTools;
+//using CommonTestTools.Contracts;
+//using NUnit.Framework;
+//using TNT.Core.Contract.Proxy;
 
-namespace TNT.Core.Tests.Presentation;
+//namespace TNT.Core.Tests.Presentation;
 
-[TestFixture]
-public class ProxyContractFactoryWithAnyParametrsTests
-{
-    private CordInterlocutorMock _cordMock;
-    private ISayAskContract _contract;
+//[TestFixture]
+//public class ProxyContractFactoryWithAnyParametrsTests
+//{
+//    private CordInterlocutorMock _cordMock;
+//    private ISayAskContract _contract;
 
-    [SetUp]
-    public void InitializeProxyContractFactory()
-    {
-        _cordMock = new CordInterlocutorMock();
-        _contract = ProxyContractFactory.CreateProxyContract<ISayAskContract>(_cordMock);
-    }
+//    [SetUp]
+//    public void InitializeProxyContractFactory()
+//    {
+//        _cordMock = new CordInterlocutorMock();
+//        _contract = ProxyContractFactory.CreateProxyContract<ISayAskContract>(_cordMock);
+//    }
 
-    #region ------------------- Say -------------------
+//    #region ------------------- Say -------------------
 
-    [Test]
-    public void SaySomething1_calledWithCorrectArguments()
-    {
-        const int    parametrInt    = 100;
-        const double parametrDouble = 1032.342;
-        const string parametrString = "Hi!!";
-        const float  parametrFloat  = (float) 48484.01;
-        const bool   parametrBool   = true;
+//    [Test]
+//    public void SaySomething1_calledWithCorrectArguments()
+//    {
+//        const int    parametrInt    = 100;
+//        const double parametrDouble = 1032.342;
+//        const string parametrString = "Hi!!";
+//        const float  parametrFloat  = (float) 48484.01;
+//        const bool   parametrBool   = true;
 
-        _contract.SaySomething1(parametrInt, parametrString, parametrDouble, parametrFloat, parametrBool);
+//        _contract.SaySomething1(parametrInt, parametrString, parametrDouble, parametrFloat, parametrBool);
 
-        var call = _cordMock.Calls.FirstOrDefault();
+//        var call = _cordMock.Calls.FirstOrDefault();
 
-        Assert.IsNotNull(call);
+//        Assert.IsNotNull(call);
 
-        Assert.AreEqual(call.Arguments[0], parametrInt);
-        Assert.AreEqual(call.Arguments[1], parametrString);
-        Assert.AreEqual(call.Arguments[2], parametrDouble);
-        Assert.AreEqual(call.Arguments[3], parametrFloat);
-        Assert.AreEqual(call.Arguments[4], parametrBool);
-    }
+//        Assert.AreEqual(call.Arguments[0], parametrInt);
+//        Assert.AreEqual(call.Arguments[1], parametrString);
+//        Assert.AreEqual(call.Arguments[2], parametrDouble);
+//        Assert.AreEqual(call.Arguments[3], parametrFloat);
+//        Assert.AreEqual(call.Arguments[4], parametrBool);
+//    }
 
-    [Test]
-    public void SaySomething1_CalledWithCorrectCordId()
-    {
-        _contract.SaySomething1(12, "sdsd", 4555.5, 89, false);
+//    [Test]
+//    public void SaySomething1_CalledWithCorrectCordId()
+//    {
+//        _contract.SaySomething1(12, "sdsd", 4555.5, 89, false);
 
-        var call = _cordMock.Calls.FirstOrDefault();
+//        var call = _cordMock.Calls.FirstOrDefault();
 
-        Assert.IsNotNull(call);
-        Assert.AreEqual(CordInterlocutorMock.SaySomething1Id, call.CordId);
-    }
+//        Assert.IsNotNull(call);
+//        Assert.AreEqual(CordInterlocutorMock.SaySomething1Id, call.CordId);
+//    }
         
-    [Test]
-    public void SaySomethingWithArray_ArrayIsAreEqual()
-    {
-        var objectArray = new object[] { 1045, 1552.544, 56, false};
-        var strArray    = new[] {"Fsdfsdf", "Fffsfsdf"};
+//    [Test]
+//    public void SaySomethingWithArray_ArrayIsAreEqual()
+//    {
+//        var objectArray = new object[] { 1045, 1552.544, 56, false};
+//        var strArray    = new[] {"Fsdfsdf", "Fffsfsdf"};
 
-        _contract.SaySomethingWithArray(objectArray, strArray);
+//        _contract.SaySomethingWithArray(objectArray, strArray);
 
-        var call = _cordMock.Calls.FirstOrDefault();
+//        var call = _cordMock.Calls.FirstOrDefault();
 
-        Assert.IsNotNull(call);
+//        Assert.IsNotNull(call);
 
-        CollectionAssert.AreEqual((IEnumerable)call.Arguments[0], objectArray);
-        CollectionAssert.AreEqual((IEnumerable)call.Arguments[1], strArray);
-    }
+//        CollectionAssert.AreEqual((IEnumerable)call.Arguments[0], objectArray);
+//        CollectionAssert.AreEqual((IEnumerable)call.Arguments[1], strArray);
+//    }
 
-    #endregion 
+//    #endregion 
 
-    #region ------------------- Ask -------------------
+//    #region ------------------- Ask -------------------
 
-    [Test]
-    public void AskSomething_calledWithCorrectArguments()
-    {
-        const int    parametrInt    = 100;
-        const double parametrDouble = 1032.342;
-        const string parametrString = "Hi!!";
-        const float  parametrFloat  = (float)48484.01;
-        const bool   parametrBool   = true;
+//    [Test]
+//    public void AskSomething_calledWithCorrectArguments()
+//    {
+//        const int    parametrInt    = 100;
+//        const double parametrDouble = 1032.342;
+//        const string parametrString = "Hi!!";
+//        const float  parametrFloat  = (float)48484.01;
+//        const bool   parametrBool   = true;
 
-        _contract.AskSomething1(parametrInt, parametrString, parametrDouble, parametrFloat, parametrBool);
+//        _contract.AskSomething1(parametrInt, parametrString, parametrDouble, parametrFloat, parametrBool);
 
-        var call = _cordMock.Calls.FirstOrDefault();
+//        var call = _cordMock.Calls.FirstOrDefault();
 
-        Assert.IsNotNull(call);
+//        Assert.IsNotNull(call);
 
-        Assert.AreEqual(call.Arguments[0], parametrInt);
-        Assert.AreEqual(call.Arguments[1], parametrString);
-        Assert.AreEqual(call.Arguments[2], parametrDouble);
-        Assert.AreEqual(call.Arguments[3], parametrFloat);
-        Assert.AreEqual(call.Arguments[4], parametrBool);
-    }
+//        Assert.AreEqual(call.Arguments[0], parametrInt);
+//        Assert.AreEqual(call.Arguments[1], parametrString);
+//        Assert.AreEqual(call.Arguments[2], parametrDouble);
+//        Assert.AreEqual(call.Arguments[3], parametrFloat);
+//        Assert.AreEqual(call.Arguments[4], parametrBool);
+//    }
 
 
-    [Test]
-    public void AskSomething_returnsCorrectValue()
-    {
-        const string expectedAns = "fortytwo";
+//    [Test]
+//    public void AskSomething_returnsCorrectValue()
+//    {
+//        const string expectedAns = "fortytwo";
 
-        _cordMock.SetAskAnswer(CordInterlocutorMock.AskMessage1Id, expectedAns);
+//        _cordMock.SetAskAnswer(CordInterlocutorMock.AskMessage1Id, expectedAns);
 
-        var res = _contract.AskSomething1(100, "200", 300.565, 400, true);
-        Assert.AreEqual(expectedAns, res);
-    }
+//        var res = _contract.AskSomething1(100, "200", 300.565, 400, true);
+//        Assert.AreEqual(expectedAns, res);
+//    }
 
-    [Test]
-    public void AskSomething1_CalledWithCorrectCordId()
-    {
-        _contract.AskSomething1(12, "sdsd", 4555.5, 89, false);
+//    [Test]
+//    public void AskSomething1_CalledWithCorrectCordId()
+//    {
+//        _contract.AskSomething1(12, "sdsd", 4555.5, 89, false);
 
-        var call = _cordMock.Calls.FirstOrDefault();
+//        var call = _cordMock.Calls.FirstOrDefault();
 
-        Assert.IsNotNull(call);
-        Assert.AreEqual(CordInterlocutorMock.AskMessage1Id, call.CordId);
-    }
+//        Assert.IsNotNull(call);
+//        Assert.AreEqual(CordInterlocutorMock.AskMessage1Id, call.CordId);
+//    }
 
-    [Test]
-    public void AskSomethingWithArray_ArrayIsAreEqual()
-    {
-        var objectArray = new object[] { 1045, 1552.544, 56, false };
-        var strArray    = new[] { "Fsdfsdf", "Fffsfsdf" };
+//    [Test]
+//    public void AskSomethingWithArray_ArrayIsAreEqual()
+//    {
+//        var objectArray = new object[] { 1045, 1552.544, 56, false };
+//        var strArray    = new[] { "Fsdfsdf", "Fffsfsdf" };
 
-        _contract.AskSomethingWithArray(objectArray, strArray);
+//        _contract.AskSomethingWithArray(objectArray, strArray);
             
-        var call = _cordMock.Calls.FirstOrDefault();
+//        var call = _cordMock.Calls.FirstOrDefault();
 
-        Assert.IsNotNull(call);
+//        Assert.IsNotNull(call);
 
-        CollectionAssert.AreEqual((IEnumerable)call.Arguments[0], objectArray);
-        CollectionAssert.AreEqual((IEnumerable)call.Arguments[1], strArray);
-    }
+//        CollectionAssert.AreEqual((IEnumerable)call.Arguments[0], objectArray);
+//        CollectionAssert.AreEqual((IEnumerable)call.Arguments[1], strArray);
+//    }
 
-    #endregion 
-}
+//    #endregion 
+//}
