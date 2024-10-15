@@ -6,8 +6,6 @@ using TNT;
 using TNT.Core.Api;
 using TNT.Core.Exceptions.Local;
 using TNT.Core.Exceptions.Remote;
-using TNT.Core.New.Tcp;
-using TNT.Core.Presentation.ReceiveDispatching;
 using TNT.Core.Tcp;
 
 namespace Tnt.LongTests.TcpLocalhostSpecificTest;

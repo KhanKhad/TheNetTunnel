@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace TNT.Core.New.Tcp
+namespace TNT.Core.Tcp
 {
     public class TcpData
     {

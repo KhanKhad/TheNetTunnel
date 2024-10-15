@@ -6,7 +6,7 @@ using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 
-namespace TNT.Core.Presentation.ReceiveDispatching
+namespace TNT.Core.ReceiveDispatching
 {
     public class ReceiveDispatcher : IDispatcher
     {
@@ -16,7 +16,7 @@ namespace TNT.Core.Presentation.ReceiveDispatching
         private bool _singleOperationMode;
 
         private ConcurrentDictionary<int, TaskCompletionSource<object>> MessageAwaiters;
-        
+
         public ReceiveDispatcher(bool singleOperationMode = true)
         {
             TasksChannel = Channel.CreateUnbounded<DispatcherTask>();
@@ -75,7 +75,7 @@ namespace TNT.Core.Presentation.ReceiveDispatching
 
                 case DispatcherTaskTypes.AsyncSayMessage:
                     var task = (Task)dTask.MethodInfo.Invoke(_contract, dTask.Args);
-                    
+
                     //If user doesnt subscribe on Funk<Task> here will be null
                     if (task != null)
                         await task;
@@ -95,11 +95,11 @@ namespace TNT.Core.Presentation.ReceiveDispatching
                     else //we'll create a default value or null
                     {
                         var actualReturnType = dTask.MethodInfo.ReturnType.GenericTypeArguments[0];
-                        
+
                         if (actualReturnType.IsValueType)
                             result = Activator.CreateInstance(actualReturnType);
                     }
-                    
+
                     break;
             }
 

@@ -8,7 +8,7 @@ using TNT.Core.Contract;
 using TNT.Core.Presentation.Deserializers;
 using TNT.Core.Presentation.Serializers;
 
-namespace TNT.Core.New
+namespace TNT.Core.Presentation
 {
     public class MethodsDescriptor
     {
@@ -18,7 +18,7 @@ namespace TNT.Core.New
         public DeserializerFactory DeserializerFactory;
 
 
-        public MethodsDescriptor() 
+        public MethodsDescriptor()
         {
             DescribedMethods = new Dictionary<int, MethodDesctiption>();
 
@@ -37,8 +37,8 @@ namespace TNT.Core.New
             foreach (var member in memebers.Memebers)
             {
                 var description = MethodDesctiption.Create(SerializerFactory, DeserializerFactory, member.Value);
-                
-                if(DescribedMethods.ContainsKey(member.Key))
+
+                if (DescribedMethods.ContainsKey(member.Key))
                     throw new Exception($"There is a message with same id: {member.Key}");
 
                 DescribedMethods.Add(member.Key, description);
@@ -69,13 +69,13 @@ namespace TNT.Core.New
         /// </summary>
         public Type ReturnTypeS;
 
-        public bool HasReturnType {  get; set; }
-        public ISerializer ReturnTypeSerializer {  get; set; }
-        public IDeserializer ReturnTypeDeserializer {  get; set; }
+        public bool HasReturnType { get; set; }
+        public ISerializer ReturnTypeSerializer { get; set; }
+        public IDeserializer ReturnTypeDeserializer { get; set; }
 
 
         public bool HasArguments { get; set; }
-        public int ArgumentsCount {  get; set; }
+        public int ArgumentsCount { get; set; }
         public ISerializer ArgumentsSerializer { get; set; }
         public IDeserializer ArgumentsDeserializer { get; set; }
 
@@ -86,19 +86,19 @@ namespace TNT.Core.New
 
         }
 
-        public static MethodDesctiption Create(SerializerFactory serializerFactory, 
+        public static MethodDesctiption Create(SerializerFactory serializerFactory,
             DeserializerFactory deserializerFactory, MemberInfo member)
         {
             var result = new MethodDesctiption();
 
-            if (member is MethodInfo methodInfo) 
+            if (member is MethodInfo methodInfo)
             {
                 result.ReturnType = methodInfo.ReturnType;
                 result.ArgumentTypes = methodInfo.GetParameters()
                     .Select(p => p.ParameterType).ToArray();
 
-            } 
-            else if(member is PropertyInfo propertyInfo)
+            }
+            else if (member is PropertyInfo propertyInfo)
             {
                 var delegateInfo = ReflectionHelper.GetDelegateInfoOrNull(propertyInfo.PropertyType);
 

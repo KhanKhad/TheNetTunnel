@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 using TNT.Core.Api;
 using TNT.Core.Presentation;
 
-namespace TNT.Core.New.Tcp
+namespace TNT.Core.Tcp
 {
     public class TntTcpServer<TContract> : IChannelServer<TContract> where TContract : class
     {
@@ -87,7 +87,7 @@ namespace TNT.Core.New.Tcp
         {
             var client = (TntTcpClient)arg1;
 
-            if(_clients.TryRemove(client.ConnectionId, out var connection))
+            if (_clients.TryRemove(client.ConnectionId, out var connection))
                 Disconnected?.Invoke(this, new ClientDisconnectEventArgs<TContract>(connection, arg2));
 
             client.Dispose();
@@ -103,7 +103,7 @@ namespace TNT.Core.New.Tcp
         public event Action<object, BeforeConnectEventArgs<TContract>> BeforeConnect;
         public event Action<object, IConnection<TContract>> AfterConnect;
         public event Action<object, ClientDisconnectEventArgs<TContract>> Disconnected;
-       
+
         private volatile bool _disposed;
 
         public void Dispose()
@@ -112,7 +112,7 @@ namespace TNT.Core.New.Tcp
                 return;
 
             _disposed = true;
-            
+
             var clients = _clients.Values;
             foreach (var client in clients)
                 client.Dispose();

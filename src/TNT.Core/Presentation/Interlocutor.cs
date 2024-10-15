@@ -6,12 +6,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using TNT.Core.Contract;
 using TNT.Core.Exceptions.Local;
-using TNT.Core.New.Tcp;
-using TNT.Core.Presentation;
-using TNT.Core.Presentation.ReceiveDispatching;
+using TNT.Core.ReceiveDispatching;
 using TNT.Core.Transport;
 
-namespace TNT.Core.New
+namespace TNT.Core.Presentation
 {
     public class Interlocutor : IInterlocutor
     {
@@ -113,7 +111,7 @@ namespace TNT.Core.New
                 var response = await _responser.CreateResponseAsync(deserialized.MessageOrNull);
                 await SendMessageAsync(response);
             }
-            else if(msgType == TntMessageType.PingMessage)
+            else if (msgType == TntMessageType.PingMessage)
             {
                 var response = _responser.CreatePingResponse(deserialized.MessageOrNull);
                 await SendMessageAsync(response);
@@ -133,7 +131,7 @@ namespace TNT.Core.New
 
                         break;
                     case TntMessageType.FailedResponseMessage:
-                        
+
                         //remove awaiter with an error
                         if (MessageAwaiters.TryRemove(askId, out var fmessageAwaiter))
                         {
@@ -214,7 +212,7 @@ namespace TNT.Core.New
             var result = await Task.WhenAny(awaiter, Task.Delay(_maxAnsDelay));
 
             if (result == awaiter)
-                 await awaiter;
+                await awaiter;
 
             else throw new CallTimeoutException((short)messageId, newId);
         }

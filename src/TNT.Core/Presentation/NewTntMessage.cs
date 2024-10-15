@@ -2,11 +2,11 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace TNT.Core.New
+namespace TNT.Core.Presentation
 {
     public class NewTntMessage
     {
-        public NewTntMessage() 
+        public NewTntMessage()
         {
 
         }

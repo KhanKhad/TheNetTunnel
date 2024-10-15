@@ -6,7 +6,6 @@ using System.Reflection.Emit;
 using System.Threading;
 using System.Threading.Tasks;
 using TNT.Core.Exceptions.ContractImplementation;
-using TNT.Core.New;
 using TNT.Core.Presentation;
 
 namespace TNT.Core.Contract.Origin

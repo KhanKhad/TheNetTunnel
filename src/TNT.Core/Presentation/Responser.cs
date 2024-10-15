@@ -9,12 +9,10 @@ using System.Threading.Channels;
 using System.Threading.Tasks;
 using TNT.Core.Exceptions.Local;
 using TNT.Core.Exceptions.Remote;
-using TNT.Core.New.Tcp;
-using TNT.Core.Presentation;
-using TNT.Core.Presentation.ReceiveDispatching;
+using TNT.Core.ReceiveDispatching;
 using TNT.Core.Transport;
 
-namespace TNT.Core.New
+namespace TNT.Core.Presentation
 {
     public class Responser
     {

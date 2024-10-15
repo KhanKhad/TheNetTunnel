@@ -5,9 +5,8 @@ using System.IO;
 using System.Text;
 using TNT.Core.Exceptions.Local;
 using TNT.Core.Presentation.Serializers;
-using TNT.Core.Presentation;
 
-namespace TNT.Core.New
+namespace TNT.Core.Presentation
 {
     public class MessagesSerializer
     {
@@ -29,10 +28,10 @@ namespace TNT.Core.New
 
             var messageId = tntMessage.MessageId;
             var messageType = tntMessage.MessageType;
-            
+
             Tools.WriteShort(messageId, to: stream);
             Tools.WriteShort((short)messageType, to: stream);
-            Tools.WriteInt(stream, tntMessage.AskId);
+            stream.WriteInt(tntMessage.AskId);
 
             var methodDescription = _methodsDescriptor.DescribedMethods[messageId];
 
@@ -88,7 +87,7 @@ namespace TNT.Core.New
                         throw new Exception("Unknown message type");
                 }
             }
-            catch (Exception ex) 
+            catch (Exception ex)
             {
                 //??
                 throw ex;

@@ -2,7 +2,6 @@
 using System.Net.Sockets;
 using System.Threading.Tasks;
 using TNT.Core.Api;
-using TNT.Core.New.Tcp;
 
 namespace TNT.Core.Tcp
 {

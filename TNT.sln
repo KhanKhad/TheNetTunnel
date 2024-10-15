@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.26403.7
+# Visual Studio Version 17
+VisualStudioVersion = 17.11.35327.3
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TNT.Core", "src\TNT.Core\TNT.Core.csproj", "{E4B6F70A-4A62-403F-BC5B-0B7C54F66C63}"
 EndProject
@@ -11,7 +11,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TNT.Core.Tests", "tests\TNT
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Examples", "Examples", "{4B0B8D2B-3E76-48DD-B519-D8FF94129342}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Core", "Core", "{55BE67C7-E649-47A0-ABE5-ABC4B89A5390}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{55BE67C7-E649-47A0-ABE5-ABC4B89A5390}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CommonTestTools", "tests\CommonTestTools\CommonTestTools.csproj", "{7351BA01-1401-4EFC-89CA-9222F9BAB07B}"
 EndProject

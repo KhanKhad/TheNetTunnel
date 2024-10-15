@@ -2,7 +2,7 @@
 using System.Reflection;
 using System.Threading.Tasks;
 
-namespace TNT.Core.Presentation.ReceiveDispatching
+namespace TNT.Core.ReceiveDispatching
 {
     public interface IDispatcher : IDisposable
     {

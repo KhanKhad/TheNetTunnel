@@ -15,7 +15,7 @@ using TNT.Core.Presentation;
 using TNT.Core.Transport;
 
 
-namespace TNT.Core.New.Tcp
+namespace TNT.Core.Tcp
 {
     public class TntTcpClient : IChannel
     {

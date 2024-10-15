@@ -3,10 +3,9 @@ using System.IO;
 using System.Linq;
 using TNT.Core.Contract;
 using TNT.Core.Exceptions.Remote;
-using TNT.Core.Presentation;
 using TNT.Core.Presentation.Deserializers;
 
-namespace TNT.Core.New
+namespace TNT.Core.Presentation
 {
     public class MessagesDeserializer
     {
@@ -58,7 +57,7 @@ namespace TNT.Core.New
                 };
             }
 
-            if(!_methodsDescriptor.DescribedMethods.TryGetValue(messageId, out var methodDescription))
+            if (!_methodsDescriptor.DescribedMethods.TryGetValue(messageId, out var methodDescription))
             {
                 var rError = new ErrorMessage(messageId, askId,
                         ErrorType.ContractSignatureError,
@@ -117,7 +116,7 @@ namespace TNT.Core.New
                             args = Deserialize(methodDescription.ArgumentsDeserializer,
                             methodDescription.ArgumentsCount, streamMessage);
                         }
-                        else 
+                        else
                             args = Array.Empty<object>();
 
                         NewTntMessage tntMessage;
@@ -201,7 +200,7 @@ namespace TNT.Core.New
                 case TntMessageType.FatalFailedResponseMessage:
 
                     var errorDeserializer = new ErrorMessageDeserializer();
-                    var deserializedError = errorDeserializer.Deserialize(streamMessage, 
+                    var deserializedError = errorDeserializer.Deserialize(streamMessage,
                         (int)(streamMessage.Length - streamMessage.Position));
 
                     return new MessageDeserializeResult()
@@ -243,14 +242,14 @@ namespace TNT.Core.New
             return arg;
         }
     }
-    
+
 
     public class MessageDeserializeResult
     {
-        public NewTntMessage MessageOrNull {  get; set; }
+        public NewTntMessage MessageOrNull { get; set; }
         public ErrorMessage ErrorMessageOrNull { get; set; }
-        public bool NeedToDisconnect {  get; set; }
-        public bool IsSuccessful {  get; set; }
+        public bool NeedToDisconnect { get; set; }
+        public bool IsSuccessful { get; set; }
 
         public MessageDeserializeResult()
         {

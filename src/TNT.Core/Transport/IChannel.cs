@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Threading.Channels;
 using System.Threading.Tasks;
-using TNT.Core.New.Tcp;
 using TNT.Core.Presentation;
+using TNT.Core.Tcp;
 
 namespace TNT.Core.Transport
 {

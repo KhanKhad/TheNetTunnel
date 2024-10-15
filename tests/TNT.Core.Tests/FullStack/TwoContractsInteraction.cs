@@ -4,7 +4,7 @@ using CommonTestTools;
 using CommonTestTools.Contracts;
 using NUnit.Framework;
 using TNT.Core.Api;
-using TNT.Core.Presentation.ReceiveDispatching;
+using TNT.Core.ReceiveDispatching;
 using TNT.Core.Testing;
 
 namespace TNT.Core.Tests.FullStack;
