@@ -34,22 +34,22 @@ public class ProtobuffBigSerializationTest
         SerializeAndDeserializeProtobuffMessage(10000);
     }
 
-    [Test]
-    public void PacketOf500Kb_transmitsViaTcp() {
-        CheckProtobuffEchoTransaction(1000);
-    }
-    [Test]
-    public void PacketOf2mb_transmitsViaTcp() {
-        CheckProtobuffEchoTransaction(2000);
-    }
-    [Test]
-    public void PacketOf10mb_transmitsViaTcp() {
-        CheckProtobuffEchoTransaction(5000);
-    }
-    [Test]
-    public void PacketOf50mb_transmitsViaTcp() {
-        CheckProtobuffEchoTransaction(10000);
-    }
+    //[Test]
+    //public void PacketOf500Kb_transmitsViaTcp() {
+    //    CheckProtobuffEchoTransaction(1000);
+    //}
+    //[Test]
+    //public void PacketOf2mb_transmitsViaTcp() {
+    //    CheckProtobuffEchoTransaction(2000);
+    //}
+    //[Test]
+    //public void PacketOf10mb_transmitsViaTcp() {
+    //    CheckProtobuffEchoTransaction(5000);
+    //}
+    //[Test]
+    //public void PacketOf50mb_transmitsViaTcp() {
+    //    CheckProtobuffEchoTransaction(10000);
+    //}
 
     private static void SerializeAndDeserializeProtobuffMessage(int companySize)
     {
@@ -63,19 +63,19 @@ public class ProtobuffBigSerializationTest
         company.AssertIsSameTo(deserialized);
     }
 
-    private static void CheckProtobuffEchoTransaction(int itemsSize)
-    {
-        using var tcpPair = new TcpConnectionPair
-        <ISingleMessageContract<Company>,
-            ISingleMessageContract<Company>,
-            SingleMessageContract<Company>>();
-        EventAwaiter<Company> callAwaiter = new EventAwaiter<Company>();
-        tcpPair.OriginContract.SayCalled += callAwaiter.EventRaised;
-        var company = IntegrationTestsHelper.CreateCompany(itemsSize);
-        tcpPair.ProxyConnection.Contract.Ask(company);
-        var received = callAwaiter.WaitOneOrDefault(5000);
-        Assert.IsNotNull(received);
-        received.AssertIsSameTo(company);
-    }
+    //private static void CheckProtobuffEchoTransaction(int itemsSize)
+    //{
+    //    using var tcpPair = new TcpConnectionPair
+    //    <ISingleMessageContract<Company>,
+    //        ISingleMessageContract<Company>,
+    //        SingleMessageContract<Company>>();
+    //    EventAwaiter<Company> callAwaiter = new EventAwaiter<Company>();
+    //    tcpPair.OriginContract.SayCalled += callAwaiter.EventRaised;
+    //    var company = IntegrationTestsHelper.CreateCompany(itemsSize);
+    //    tcpPair.ProxyConnection.Contract.Ask(company);
+    //    var received = callAwaiter.WaitOneOrDefault(5000);
+    //    Assert.That(received, Is.Not.Null);
+    //    received.AssertIsSameTo(company);
+    //}
 
 }

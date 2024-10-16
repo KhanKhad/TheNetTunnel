@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System;
+using System.Text;
 using TNT.Core.Exceptions.Remote;
 
 namespace TNT.Core.Presentation
@@ -19,6 +20,20 @@ namespace TNT.Core.Presentation
         public ErrorType ErrorType { get; set; }
         public string AdditionalExceptionInformation { get; set; }
         public  RemoteException Exception { get; }
+
+        public override bool Equals(object obj)
+        {
+            return obj is ErrorMessage message &&
+                   MessageId == message.MessageId &&
+                   AskId == message.AskId &&
+                   ErrorType == message.ErrorType &&
+                   AdditionalExceptionInformation == message.AdditionalExceptionInformation;
+        }
+
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(MessageId, AskId, ErrorType, AdditionalExceptionInformation);
+        }
 
         public override string ToString()
         {

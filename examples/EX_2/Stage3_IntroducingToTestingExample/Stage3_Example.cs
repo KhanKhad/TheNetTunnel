@@ -4,8 +4,6 @@ using System.Net;
 using TNT;
 using TNT.Core.Api;
 using TNT.Core.Contract;
-using TNT.Core.Presentation.ReceiveDispatching;
-using TNT.Core.Testing;
 using TNT.Core.Tcp;
 
 namespace EX_2.Stage3_IntroducingToTestingExample;

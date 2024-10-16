@@ -75,10 +75,10 @@ public class ServerTest
     [Test]
     public async Task ServerAcceptConnection_AllowReceiveEqualTrue()
     {
-        ServerAndClient<ITestContract, TestContractMock> serverAndClient = null;
+        ServerAndClient<ITestContract, ITestContract, TestContractMock> serverAndClient = null;
         try
         {
-            serverAndClient = await ServerAndClient<ITestContract, TestContractMock>.Create();
+            serverAndClient = await ServerAndClient<ITestContract, ITestContract, TestContractMock>.Create();
             Assert.That(serverAndClient.ClientSideConnection.Channel.IsConnected, Is.True);
             Assert.That(serverAndClient.ServerSideConnection.Channel.IsConnected, Is.True);
         }
@@ -91,10 +91,10 @@ public class ServerTest
     [Test]
     public async Task ClientDisconnected_DisconnectedRaised()
     {
-        ServerAndClient<ITestContract, TestContractMock> serverAndClient = null;
+        ServerAndClient<ITestContract, ITestContract, TestContractMock> serverAndClient = null;
         try
         {
-            serverAndClient = await ServerAndClient<ITestContract, TestContractMock>.Create();
+            serverAndClient = await ServerAndClient<ITestContract, ITestContract, TestContractMock>.Create();
 
             var clientDisconnectEventRaised = false;
             var serverDisconnectEventRaised = false;

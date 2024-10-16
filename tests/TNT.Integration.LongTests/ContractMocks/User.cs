@@ -15,8 +15,13 @@ public class User
 
     public void AssertIsSameTo(User user)
     {
-        Assert.AreEqual(user.Name, Name);
-        Assert.AreEqual(user.Age, Age);
-        CollectionAssert.AreEqual(user.Payload, Payload);
+        Assert.That(user.Name == Name);
+        Assert.That(user.Age == Age);
+        Assert.That(user.Payload.Length == Payload.Length);
+
+        for (int i = 0; i < Payload.Length; i++)
+        {
+            Assert.That(user.Payload[i] == Payload[i]);
+        }
     }
 }

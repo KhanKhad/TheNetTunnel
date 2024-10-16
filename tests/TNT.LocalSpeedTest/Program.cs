@@ -1,14 +1,16 @@
 ﻿using System;
 using System.Net;
 using TNT.Core.Api;
-using TNT.Core.Presentation.ReceiveDispatching;
 using TNT.SpeedTest;
 using TNT.SpeedTest.Contracts;
 using TNT.SpeedTest.OutputBandwidth;
 using TNT.SpeedTest.TransactionBandwidth;
 using TNT.Core.Transport;
 using TNT.Core.Tcp;
-using TNT.Core.Testing;
+using CommonTestTools.Contracts;
+using CommonTestTools;
+using System.Threading.Tasks;
+using System.Diagnostics.Contracts;
 
 namespace TNT.LocalSpeedTest;
 
@@ -16,7 +18,7 @@ class Program
 {
     private static readonly Output _output = new Output();
 
-    static void Main()
+    static async Task Main()
     {
         _output.WriteLine("Current time: "+ DateTime.Now);
         _output.WriteLine("Machine:" + System.Environment.MachineName);
@@ -26,11 +28,11 @@ class Program
         _output.WriteLine();
         _output.WriteLine();
 
-        TestLocalhost();
+        await TestLocalhost();
         _output.WriteLine();
         _output.WriteLine();
 
-        TestDirectTestConnection();
+        await TestDirectTestConnection();
         _output.WriteLine();
         _output.WriteLine("Measurements are done");
         while (true)
@@ -66,41 +68,56 @@ class Program
         }
     }
 
-    private static void TestDirectTestConnection()
+    private static async Task TestDirectTestConnection()
     {
         _output.WriteLine("-------------Direct test mock test--------------");
 
-        var pair = TntTestHelper.CreateThreadlessChannelPair();
-
-
-        var proxy = TntBuilder
-            .UseContract<ISpeedTestContract>()
-            .UseChannel(pair.ChannelA)
-            .Build();
-
-        var origin = TntBuilder
-            .UseContract<ISpeedTestContract, SpeedTestContract>()
-            .UseChannel(pair.ChannelB)
-            .Build();
-        pair.ConnectAndStartReceiving();
-
-        Test(proxy);
-
-        pair.Disconnect();
-    }
-
-    private static void TestLocalhost()
-    {
-        _output.WriteLine("-------------Localhost test--------------");
-        using var server = TntBuilder
+        var server = TntBuilder
             .UseContract<ISpeedTestContract, SpeedTestContract>()
             .CreateTcpServer(IPAddress.Loopback, 12345);
-        server.Start();
 
-        using var client = TntBuilder
-            .UseContract<ISpeedTestContract>()
-            .CreateTcpClientConnection(IPAddress.Loopback, 12345);
-        Test(client);
+        try
+        {
+            server.Start();
+
+            var clientSide = await TntBuilder
+               .UseContract<ISpeedTestContract>()
+               .CreateTcpClientConnectionAsync(IPAddress.Loopback, 12345);
+
+            var serverSide = await server.WaitForAClient();
+
+            Test(clientSide);
+        }
+        finally
+        {
+            server.Dispose();
+        }
+    }
+
+    private static async Task TestLocalhost()
+    {
+        _output.WriteLine("-------------Localhost test--------------");
+
+        var server = TntBuilder
+            .UseContract<ISpeedTestContract, SpeedTestContract>()
+            .CreateTcpServer(IPAddress.Loopback, 12345);
+
+        try
+        {
+            server.Start();
+
+            var clientSide = await TntBuilder
+               .UseContract<ISpeedTestContract>()
+               .CreateTcpClientConnectionAsync(IPAddress.Loopback, 12345);
+
+            var serverSide = await server.WaitForAClient();
+
+            Test(clientSide);
+        }
+        finally
+        {
+            server.Dispose();
+        }        
     }
 
     private static void Test(IConnection<ISpeedTestContract> client)

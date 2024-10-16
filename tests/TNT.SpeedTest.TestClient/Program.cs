@@ -90,7 +90,7 @@ static class Program
         client.Contract.SayBytes(new byte[] {1, 2, 3,});
         client.Contract.SayProtoStructEcho(new ProtoStruct());
         client.Contract.AskProtoStructEcho(new ProtoStruct());
-
+        
         var overheadTest = new TransactionOverheadTest(client.Contract, client.Channel, _output);
         overheadTest.MeasureOutputOverhead();
         _output.WriteLine();

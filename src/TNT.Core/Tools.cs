@@ -52,7 +52,7 @@ namespace TNT.Core
 
             @from.Read(buff, 0, size);
 
-            value = BitConverter.ToInt16(buff);
+            value = BitConverter.ToInt32(buff);
 
             return true;
         }

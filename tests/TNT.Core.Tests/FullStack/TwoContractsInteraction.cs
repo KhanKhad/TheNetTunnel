@@ -12,12 +12,12 @@ namespace TNT.Core.Tests.FullStack;
 [TestFixture]
 public class TwoContractsInteraction
 {
-    private ServerAndClient<ITestContract, TestContractMock> _serverAndClient;
+    private ServerAndClient<ITestContract, ITestContract, TestContractMock> _serverAndClient;
 
     [SetUp]
     public async Task TearUp()
     {
-        _serverAndClient = await ServerAndClient<ITestContract, TestContractMock>.Create();
+        _serverAndClient = await ServerAndClient<ITestContract, ITestContract, TestContractMock>.Create();
     }
 
     [TearDown]
@@ -41,86 +41,44 @@ public class TwoContractsInteraction
     }
 
 
-    //[TestCase("Hey you",12,24)]
-    //[TestCase("",234,0)]
-    //[TestCase(null,0,long.MaxValue)]
-    //public void ProxyAskCall_ReturnsCorrectValue(string s, int i, long l)
-    //{
-    //    var func = new Func<string,int,long,string>((s1, i2, l3) =>
-    //    {
-    //        return s1 + i2.ToString() + l3.ToString();
-    //    });
+    [TestCase("Hey you", 12, 24)]
+    [TestCase("", 234, 0)]
+    [TestCase(null, 0, long.MaxValue)]
+    public void ProxyAskCall_ReturnsCorrectValue(string s, int i, long l)
+    {
+        var func = new Func<string, int, long, string>((s1, i2, l3) =>
+        {
+            return s1 + i2.ToString() + l3.ToString();
+        });
 
+        ((TestContractMock)_serverAndClient.ServerSideConnection.Contract).WhenAskSILCalledCall(func);
 
-    //    var channelPair = TntTestHelper.CreateThreadSafeChannelPair();
+        
 
-    //    var proxyConnection = TntBuilder
-    //        .UseContract<ITestContract>()
-    //        .UseReceiveDispatcher<ReceiveDispatcher>()
-    //        .UseChannel(channelPair.ChannelA)
-    //        .Build();
+        var proxyResult = _serverAndClient.ClientSideConnection.Contract.Ask(s, i, l);
+        var originResult = func(s, i, l);
 
-    //    var originConnection = TntBuilder
-    //        .UseContract<ITestContract, TestContractMock>()
-    //        .UseContractInitalization((c,_)=> ((TestContractMock)c).WhenAskSILCalledCall(func))
-    //        .UseReceiveDispatcher<ReceiveDispatcher>()
-    //        .UseChannel(channelPair.ChannelB)
-    //        .Build();
+        Assert.That(originResult == proxyResult);
+    }
+    [TestCase("Hey you")]
+    [TestCase("")]
+    [TestCase(null)]
+    public void ProxyAskCall_ReturnsSettedValue(string returnedValue)
+    {
+        //set 'echo' handler
+        _serverAndClient.ClientSideConnection.Contract.OnAskS += (arg) => arg;
+        //call
+        var proxyResult = _serverAndClient.ServerSideConnection.Contract.OnAskS(returnedValue);
+        Assert.That(returnedValue == proxyResult);
+    }
+    [Test]
+    public async Task ConveyourDispatcher_NetworkDeadlockNotHappens()
+    {
+        var val = 0;
+        _serverAndClient.ClientSideConnection.Contract.OnAsk +=() => val = _serverAndClient.ClientSideConnection.Contract.Ask();
 
-    //    channelPair.ConnectAndStartReceiving();
-
-    //    var proxyResult = proxyConnection.Contract.Ask(s,i,l);
-    //    var originResult = func(s, i, l);
-    //    Assert.AreEqual(originResult, proxyResult);
-    //}
-    //[TestCase("Hey you")]
-    //[TestCase("")]
-    //[TestCase(null)]
-    //public void ProxyAskCall_ReturnsSettedValue(string returnedValue)
-    //{
-
-    //    var channelPair = TntTestHelper.CreateThreadSafeChannelPair();
-
-    //    var proxyConnection = TntBuilder
-    //        .UseContract<ITestContract>()
-    //        .UseReceiveDispatcher<ReceiveDispatcher>()
-    //        .UseChannel(channelPair.ChannelA)
-    //        .Build();
-
-    //    var originConnection = TntBuilder
-    //        .UseContract<ITestContract, TestContractMock>()
-    //        .UseContractInitalization((c, _) => c.OnAskS += (arg)=>arg)
-    //        .UseReceiveDispatcher<ReceiveDispatcher>()
-    //        .UseChannel(channelPair.ChannelB)
-    //        .Build();
-
-    //    channelPair.ConnectAndStartReceiving();
-    //    //set 'echo' handler
-    //    proxyConnection.Contract.OnAskS += (arg) => arg;
-    //    //call
-    //    var proxyResult = originConnection.Contract.OnAskS(returnedValue);
-    //    Assert.AreEqual(returnedValue, proxyResult);
-    //}
-    //[Test]
-    //public void ConveyourDispatcher_NetworkDeadlockNotHappens()
-    //{
-    //    var channelPair = TntTestHelper.CreateThreadSafeChannelPair();
-    //    var proxyConnection = TntBuilder
-    //        .UseContract<ITestContract>()
-    //        //On income ask request, calling rpc ask. 
-    //        //It can provoke an networkDeadlock 
-    //        .UseContractInitalization((c,_)=> c.OnAsk+=c.Ask)
-    //        .UseChannel(channelPair.ChannelA)
-    //        .Build();
-
-    //    var originConnection = TntBuilder
-    //        .UseContract<ITestContract, TestContractMock>()
-    //        .UseChannel(channelPair.ChannelB)
-    //        .Build();
-
-    //    channelPair.ConnectAndStartReceiving();
-
-    //    var task = TestTools.AssertNotBlocks(originConnection.Contract.OnAsk);
-    //    Assert.AreEqual(TestContractMock.AskReturns, task.Result);
-    //}
+        var rRes = await TestTools.AssertNotBlocks(_serverAndClient.ServerSideConnection.Contract.OnAsk);
+        Assert.That(TestContractMock.AskReturns == rRes);
+        Assert.That(TestContractMock.AskReturns == val);
+    }
 }

@@ -34,30 +34,32 @@ namespace CommonTestTools
     }
 
 
-    public class ServerAndClient<TContract, TImplementation>: IDisposable where TContract : class
-            where TImplementation : TContract, new()
+    public class ServerAndClient<TProxyContractInterface, TOriginContractInterface, TOriginContractImplementation> : IDisposable
+        where TProxyContractInterface : class
+        where TOriginContractInterface : class
+        where TOriginContractImplementation : class, TOriginContractInterface, new()
     {
 
-        public TntTcpServer<TContract> TntTcpServer {  get; set; }
+        public TntTcpServer<TOriginContractInterface> TntTcpServer {  get; set; }
 
-        public IConnection<TContract> ServerSideConnection { get; set; }
-        public IConnection<TContract> ClientSideConnection { get; set; }
+        public IConnection<TOriginContractInterface> ServerSideConnection { get; set; }
+        public IConnection<TProxyContractInterface> ClientSideConnection { get; set; }
 
-        public static async Task<ServerAndClient<TContract, TImplementation>> Create()            
+        public static async Task<ServerAndClient<TOriginContractInterface, TOriginContractInterface, TOriginContractImplementation>> Create()            
         {
             var server = TntBuilder
-            .UseContract<TContract, TImplementation>()
+            .UseContract<TOriginContractInterface, TOriginContractImplementation>()
             .CreateTcpServer(IPAddress.Loopback, 12345);
 
             server.Start();
 
             var clientSide = await TntBuilder
-               .UseContract<TContract>()
+               .UseContract<TOriginContractInterface>()
                .CreateTcpClientConnectionAsync(IPAddress.Loopback, 12345);
 
             var serverSide = await server.WaitForAClient();
 
-            var result = new ServerAndClient<TContract, TImplementation>()
+            var result = new ServerAndClient<TOriginContractInterface, TOriginContractInterface, TOriginContractImplementation>()
             {
                 TntTcpServer = server,
                 ClientSideConnection = clientSide,
@@ -66,6 +68,31 @@ namespace CommonTestTools
 
             return result;
         }
+
+        //public static async Task<ServerAndClient<TProxyContractInterface, TOriginContractInterface, TOriginContractImplementation>> Create()
+        //{
+        //    var server = TntBuilder
+        //    .UseContract<TContract, TImplementation>()
+        //    .CreateTcpServer(IPAddress.Loopback, 12345);
+
+        //    server.Start();
+
+        //    var clientSide = await TntBuilder
+        //       .UseContract<TContract>()
+        //       .CreateTcpClientConnectionAsync(IPAddress.Loopback, 12345);
+
+        //    var serverSide = await server.WaitForAClient();
+
+        //    var result = new ServerAndClient<TContract, TImplementation>()
+        //    {
+        //        TntTcpServer = server,
+        //        ClientSideConnection = clientSide,
+        //        ServerSideConnection = serverSide
+        //    };
+
+        //    return result;
+        //}
+
 
         public void Dispose()
         {

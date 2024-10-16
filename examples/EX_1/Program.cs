@@ -27,28 +27,22 @@ static class Program
         try
         {
             using var client = await TntBuilder.UseContract<IExampleContract>()
-                .SetMaxAnsTimeout(30000)
+                .SetMaxAnsTimeout(300000)
                 .CreateTcpClientConnectionAsync(IPAddress.Loopback, 12345);
 
-            client.Contract.Action += AAAction;
-            client.Contract.Func += AAFunc;
-            client.Contract.FuncTask += AASyncFunc;
-            client.Contract.FuncTaskResult += AAFuncRes;
-
-            //await client.Contract.SendTask("Superman", $"message#{1}");
-
-            //for (int i = 0; i < 1000; i++)
-            //{
-            //    var t = i;
-            //    _ = Task.Run(() =>
-            //    {
-            //        contract.Action.Invoke(t);
-            //    });
-            //}
-
-            //await Task.Delay(-1);
 
             var firstClient = await server.WaitForAClient();
+
+
+            for (int i = 0; i < int.MaxValue; i++)
+            {
+                var res = client.Contract.AskforTrue();
+                Console.WriteLine($"{i}");
+            }
+
+            await Task.Delay(-1);
+
+            
 
             for (int i = 0; i < 1000; i++)
             {
@@ -187,6 +181,10 @@ public interface IExampleContract
     Task SendTask(string user, string message);
     [TntMessage(14)]
     Task<bool> Send1Task(string user, string message);
+
+
+    [TntMessage(15)]
+    bool AskforTrue();
 }
 
 //contract implementation
@@ -222,5 +220,10 @@ public class ExampleContract : IExampleContract
     {
         Console.WriteLine($"[Server received:] {user} : {message}");
         return Task.CompletedTask;
+    }
+
+    public bool AskforTrue()
+    {
+        return true;
     }
 }

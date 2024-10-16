@@ -15,12 +15,12 @@ namespace TNT.Core.Tests.FullStack;
 [TestFixture]
 public class ExceptionsTest
 {
-    private ServerAndClient<ITestContract, TestContractMock> _serverAndClient;
+    private ServerAndClient<ITestContract, ITestContract, TestContractMock> _serverAndClient;
 
     [SetUp]
     public async Task TearUp()
     {
-        _serverAndClient = await ServerAndClient<ITestContract, TestContractMock>.Create();
+        _serverAndClient = await ServerAndClient<ITestContract,ITestContract, TestContractMock>.Create();
     }
 
     [TearDown]

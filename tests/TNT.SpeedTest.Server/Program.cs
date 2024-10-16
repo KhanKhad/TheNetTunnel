@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Net;
 using TNT.Core.Api;
-using TNT.Core.Presentation.ReceiveDispatching;
 using TNT.SpeedTest.Contracts;
 using TNT.Core.Tcp;
 
@@ -12,8 +11,10 @@ class Program
     static void Main(string[] args)
     {
         int port = 24731;
+
         var server = TntBuilder
             .UseContract<ISpeedTestContract, SpeedTestContract>()
+            .UseMultiOperationDispatcher()
             .CreateTcpServer(IPAddress.Any, port);
 
         server.Start();

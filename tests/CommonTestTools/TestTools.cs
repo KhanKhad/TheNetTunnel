@@ -29,7 +29,7 @@ public static class TestTools
         return task;
 
     }
-    public static Task<T> AssertNotBlocks<T>(Func<T> func, int maxTimeout = 100000)
+    public static Task<T> AssertNotBlocks<T>(Func<T> func, int maxTimeout = 1000)
     {
         var task = Task.Factory.StartNew(func);
         Assert.IsTrue(task.Wait(maxTimeout), "call is blocked");

@@ -62,7 +62,10 @@ public class TransactionOverheadTest
         sw.Start();
         int iterationsCount = 100000;
         for (int i = 0; i < iterationsCount; i++)
-            _proxy.AskForTrue();
+        {
+            var res = _proxy.AskForTrue();
+
+        }
 
         sw.Stop();
         _output.WriteLine($"    Delay: {(sw.ElapsedMilliseconds * 1000) / (double)iterationsCount} microseconds");
