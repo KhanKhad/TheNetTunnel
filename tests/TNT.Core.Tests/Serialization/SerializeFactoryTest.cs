@@ -73,7 +73,7 @@ public class SerializeFactoryTest
     [TestCase(42)]
     [TestCase(42.0)]
     [TestCase(42.0f)]
-    [TestCase(42l)]
+    [TestCase(42L)]
     [TestCase(true)]
     [TestCase(false)]
     [TestCase(MyEnumDefType.One)]

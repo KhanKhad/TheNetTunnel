@@ -18,18 +18,11 @@ public static class Helper
 
     public static string GenerateString(int size)
     {
-        //up to https://stackoverflow.com/questions/1344221/how-can-i-generate-random-alphanumeric-strings-in-c/1344255#1344255
-        char[] chars = new char[62];
-        chars =
-            "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890".ToCharArray();
-        byte[] data = new byte[1];
-        using (RNGCryptoServiceProvider crypto = new RNGCryptoServiceProvider())
-        {
-            crypto.GetNonZeroBytes(data);
-            data = new byte[size];
-            crypto.GetNonZeroBytes(data);
-        }
-        StringBuilder result = new StringBuilder(size);
+        var chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890".ToCharArray();
+        
+        var data = GenerateArray(size);
+
+        var result = new StringBuilder(size);
         foreach (byte b in data)
         {
             result.Append(chars[b % (chars.Length)]);

@@ -1,16 +1,17 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace CommonTestTools.Contracts;
 
-public class TestContractMock:ITestContract
+public class TestContractMock : ITestContract
 {
     public const int AskReturns = 42;
 
     public int SayCalledCount { get; set; }
 
-    public List<string> SaySCalled { get; } = new List<string>();
+    public ConcurrentBag<string> SaySCalled { get; } = new ConcurrentBag<string>();
 
     public void Say()
     {
@@ -57,12 +58,12 @@ public class TestContractMock:ITestContract
 
     public string Ask(string s)
     {
-        return "not implemented";
+        return s;
     }
 
     public Task<string> AskAsync(string s)
     {
-        return Task.FromResult("not implemented");
+        return Task.FromResult(s);
     }
 
 
@@ -111,7 +112,8 @@ public class TestContractMock:ITestContract
     public Func<int> OnAsk { get; set; }
     public Func<string, string> OnAskS { get; set; }
     public Func<string, int, long, string> OnAskSIL { get; set; }
-    public Func<Task<int>> FuncTask { get; set ; }
-    public Func<string, Task<string>> FuncTaskWithResult { get; set; }
+    public Func<Task<int>> FuncTaskWithResult { get; set ; }
+    public Func<string, Task<string>> FuncTaskWithResultAndParam { get; set; }
     public Func<string, int, long, Task<string>> FuncTaskWithResultIL { get; set; }
+    public Func<Task> FuncTask { get; set; }
 }

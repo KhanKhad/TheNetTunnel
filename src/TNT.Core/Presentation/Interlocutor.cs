@@ -92,7 +92,11 @@ namespace TNT.Core.Presentation
             {
                 var error = deserialized.ErrorMessageOrNull;
 
-                var result = _responser.CreateFatalFailedResponseMessage(error, error.MessageId, error.AskId);
+                NewTntMessage result;
+
+                if(deserialized.NeedToDisconnect)
+                    result = _responser.CreateFatalFailedResponseMessage(error, error.MessageId, error.AskId);
+                else result = _responser.CreateFailedResponseMessage(error, error.MessageId, error.AskId);
 
                 await SendMessageAsync(result).ConfigureAwait(false);
 
@@ -241,6 +245,7 @@ namespace TNT.Core.Presentation
             {
                 if(ae.InnerExceptions.Count == 1)
                     throw ae.InnerException;
+                else throw;
             }
 
             throw new CallTimeoutException((short)messageId, newId);

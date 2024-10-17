@@ -1,6 +1,5 @@
 ﻿using TNT.Core.Transport;
 using TNT.SpeedTest.Contracts;
-using TNT.Core.Transport;
 
 namespace TNT.SpeedTest.TransactionBandwidth;
 

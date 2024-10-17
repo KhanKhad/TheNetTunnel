@@ -19,7 +19,10 @@ namespace TNT.Core.ReceiveDispatching
 
         public ReceiveDispatcher(bool singleOperationMode = true)
         {
-            TasksChannel = Channel.CreateUnbounded<DispatcherTask>();
+            TasksChannel = Channel.CreateUnbounded<DispatcherTask>(new UnboundedChannelOptions()
+            {
+                SingleReader = true,
+            });
 
             _singleOperationMode = singleOperationMode;
 

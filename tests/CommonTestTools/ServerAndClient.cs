@@ -10,30 +10,6 @@ using TNT.Core.Tcp;
 
 namespace CommonTestTools
 {
-    public static class PresentationTools
-    {
-        public static async Task CreateConnectedServerAndClient<TContract, TImplementation>(IConnection<TContract> serverSide,
-            IConnection<TContract> clientSide) 
-
-            where TContract : class
-            where TImplementation : TContract, new()
-        {
-            var server = TntBuilder
-            .UseContract<TContract, TImplementation>()
-            .CreateTcpServer(IPAddress.Loopback, 12345);
-
-            server.Start();
-
-            clientSide = await TntBuilder
-               .UseContract<TContract>()
-               .CreateTcpClientConnectionAsync(IPAddress.Loopback, 12345);
-
-
-            serverSide = await server.WaitForAClient();
-        }
-    }
-
-
     public class ServerAndClient<TProxyContractInterface, TOriginContractInterface, TOriginContractImplementation> : IDisposable
         where TProxyContractInterface : class
         where TOriginContractInterface : class
@@ -45,21 +21,21 @@ namespace CommonTestTools
         public IConnection<TOriginContractInterface> ServerSideConnection { get; set; }
         public IConnection<TProxyContractInterface> ClientSideConnection { get; set; }
 
-        public static async Task<ServerAndClient<TOriginContractInterface, TOriginContractInterface, TOriginContractImplementation>> Create()            
+        public static async Task<ServerAndClient<TProxyContractInterface, TOriginContractInterface, TOriginContractImplementation>> Create(int port = 12345)            
         {
             var server = TntBuilder
             .UseContract<TOriginContractInterface, TOriginContractImplementation>()
-            .CreateTcpServer(IPAddress.Loopback, 12345);
+            .CreateTcpServer(IPAddress.Loopback, port);
 
             server.Start();
 
             var clientSide = await TntBuilder
-               .UseContract<TOriginContractInterface>()
-               .CreateTcpClientConnectionAsync(IPAddress.Loopback, 12345);
+               .UseContract<TProxyContractInterface>()
+               .CreateTcpClientConnectionAsync(IPAddress.Loopback, port);
 
             var serverSide = await server.WaitForAClient();
 
-            var result = new ServerAndClient<TOriginContractInterface, TOriginContractInterface, TOriginContractImplementation>()
+            var result = new ServerAndClient<TProxyContractInterface, TOriginContractInterface, TOriginContractImplementation>()
             {
                 TntTcpServer = server,
                 ClientSideConnection = clientSide,

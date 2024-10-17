@@ -27,7 +27,7 @@ static class Program
         try
         {
             using var client = await TntBuilder.UseContract<IExampleContract>()
-                .SetMaxAnsTimeout(300000)
+                .SetMaxAnsTimeout(30000)
                 .CreateTcpClientConnectionAsync(IPAddress.Loopback, 12345);
 
 
@@ -149,7 +149,7 @@ static class Program
                 if (res != true)
                     throw new Exception();
             }
-            catch (Exception ex) 
+            catch (Exception) 
             {
 
             }

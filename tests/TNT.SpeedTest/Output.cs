@@ -29,7 +29,7 @@ public class Output
             File.WriteAllText(path, _sb.ToString());
             return true;
         }
-        catch (Exception e)
+        catch (Exception)
         {
             return false;
         }

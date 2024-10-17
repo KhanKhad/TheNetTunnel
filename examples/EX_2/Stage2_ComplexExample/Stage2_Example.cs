@@ -25,7 +25,7 @@ public class Stage2_EasyStartExample
         {
             RunClient();
         }
-        catch (SocketException e)
+        catch (SocketException)
         {
             Console.WriteLine("Could not connect to the server");
             throw;

@@ -8,71 +8,89 @@ namespace CommonTestTools;
 
 public static class TestTools
 {
-    public static void AssertTrue(Func<bool> condition, int maxAwaitIntervalMs, string message = null)
+    public static async Task AssertNotBlocks(Action action, int timeout = 1000)
     {
-        Stopwatch sw = new Stopwatch();
-        sw.Start();
-        while (!condition())
+        var task = Task.Run(action);
+        var delayTask = Task.Delay(timeout);
+
+        var result = await Task.WhenAny(task, delayTask);
+
+        Assert.IsTrue(result == task, "call is blocked");
+
+        await task;
+    }
+    public static async Task<T> AssertNotBlocks<T>(Func<T> action, int timeout = 1000)
+    {
+        var task = Task.Run(action);
+        var delayTask = Task.Delay(timeout);
+
+        var result = await Task.WhenAny(task, delayTask);
+
+        Assert.IsTrue(result == task, "call is blocked");
+
+        return await task;
+    }
+    public static async Task AssertNotBlocks(Func<Task> action, int timeout = 1000)
+    {
+        var task = Task.Run(async () => await action());
+
+        var delayTask = Task.Delay(timeout);
+
+        var result = await Task.WhenAny(task, delayTask);
+
+        Assert.IsTrue(result == task, "call is blocked");
+
+        await task;
+    }
+    public static async Task<T> AssertNotBlocks<T>(Func<Task<T>> action, int timeout = 1000)
+    {
+        var task = Task.Run(async () =>  await action());
+        var delayTask = Task.Delay(timeout);
+
+        var result = await Task.WhenAny(task, delayTask);
+        Assert.IsTrue(result == task, "call is blocked");
+
+        return await task;
+    }
+
+    public static async Task AssertThrowsAndNotBlocks<TException>(Action action, int timeout = 1000)
+    {
+        var task = Task.Run(action);
+        var delayTask = Task.Delay(timeout);
+
+        var result = await Task.WhenAny(task, delayTask);
+
+        if (result == task)
         {
-            if (sw.ElapsedMilliseconds > maxAwaitIntervalMs)
+            try
             {
-                Assert.Fail(message);
-                return;
+                await task;
             }
-            Thread.Sleep(1);
+            catch (Exception e)
+            {
+                Assert.IsInstanceOfType<TException>(e);
+            }
         }
+        else Assert.Fail("call is blocked");
     }
-    public static Task AssertNotBlocks(Action  action, int maxTimeout = 1000)
+    public static async Task AssertThrowsAndNotBlocks<TException>(Func<Task> action, int timeout = 1000)
     {
-        var task = Task.Factory.StartNew(action);
-        Assert.IsTrue(task.Wait(maxTimeout), "call is blocked");
-        return task;
+        var task = Task.Run(async () => await action());
+        var delayTask = Task.Delay(timeout);
 
-    }
-    public static Task<T> AssertNotBlocks<T>(Func<T> func, int maxTimeout = 1000)
-    {
-        var task = Task.Factory.StartNew(func);
-        Assert.IsTrue(task.Wait(maxTimeout), "call is blocked");
-        return task;
+        var result = await Task.WhenAny(task, delayTask);
 
-    }
-    public static void AssertThrowsAndNotBlocks<TException>(Action action)
-    {
-        var task = AssertTryCatchAndTaskNotBlocks(action);
-        Assert.IsInstanceOfType<TException>(task.Result);
-    }
-
-    public static async Task AssertThrowsAndNotBlocksAsync<TException>(Func<Task> action)
-    {
-        var result = await AssertTryCatchAndTaskNotBlocksAsync(action);
-        Assert.IsInstanceOfType<TException>(result);
-    }
-
-    public static Task<Exception> AssertTryCatchAndTaskNotBlocks(Action action)
-    {
-        return AssertNotBlocks(
-            ()=> {   try
-                {
-                    action();
-                }
-                catch (Exception e)
-                {
-                    return e;
-                }
-                return null;
-            });
-    }
-    public static async Task<Exception> AssertTryCatchAndTaskNotBlocksAsync(Func<Task> action)
-    {
-        try
+        if (result == task)
         {
-            await action();
+            try
+            {
+                await task;
+            }
+            catch (Exception e)
+            {
+                Assert.IsInstanceOfType<TException>(e);
+            }
         }
-        catch (Exception e)
-        {
-            return e;
-        }
-
-        return null;
+        else Assert.Fail("call is blocked");
     }
 }

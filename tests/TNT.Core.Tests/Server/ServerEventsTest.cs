@@ -8,10 +8,10 @@ using TNT.Core.Tcp;
 using System.Threading.Tasks;
 using System.Diagnostics.Contracts;
 
-namespace TNT.Core.Tests.FullStack;
+namespace TNT.Core.Tests.Server;
 
 [TestFixture]
-public class ServerTest
+public class ServerEventsTest
 {
     [Test]
     public async Task ServerAcceptConnection_BeforeConnectRaised()

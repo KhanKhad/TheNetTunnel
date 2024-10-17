@@ -48,8 +48,9 @@ public interface ITestContract
     #endregion
 
     #region Async Actions/Funcs
-    [TntMessage(114)] Func<Task<int>> FuncTask { get; set; }
-    [TntMessage(115)] Func<string, Task<string>> FuncTaskWithResult { get; set; }
-    [TntMessage(116)] Func<string, int, long, Task<string>> FuncTaskWithResultIL { get; set; }
+    [TntMessage(114)] Func<Task> FuncTask { get; set; }
+    [TntMessage(115)] Func<Task<int>> FuncTaskWithResult { get; set; }
+    [TntMessage(116)] Func<string, Task<string>> FuncTaskWithResultAndParam { get; set; }
+    [TntMessage(117)] Func<string, int, long, Task<string>> FuncTaskWithResultIL { get; set; }
     #endregion
 }

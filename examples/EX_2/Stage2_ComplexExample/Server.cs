@@ -49,7 +49,7 @@ public class Server
                     User = user
                 });
             }
-            catch (TntCallException e)
+            catch (TntCallException)
             {
                 //handle disconnect here
             }

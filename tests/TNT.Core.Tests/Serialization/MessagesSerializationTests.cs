@@ -16,6 +16,7 @@ using TNT.Core.Exceptions.Remote;
 
 namespace TNT.Core.Tests.Serialization
 {
+    [TestFixture]
     public class MessagesSerializationTests
     {
         private MessagesSerializer _messagesSerializer;
