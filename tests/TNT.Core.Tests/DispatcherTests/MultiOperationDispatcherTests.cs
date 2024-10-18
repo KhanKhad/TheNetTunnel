@@ -18,7 +18,7 @@ namespace TNT.Core.Tests.DispatcherTests
         private ServerAndClient<ISingleOperationContract, ISingleOperationContract, SingleOperationContract> _serverAndClient;
 
         [SetUp]
-        public async Task TearUp()
+        public async Task SetUp()
         {
             var server = TntBuilder
             .UseContract<ISingleOperationContract, SingleOperationContract>()

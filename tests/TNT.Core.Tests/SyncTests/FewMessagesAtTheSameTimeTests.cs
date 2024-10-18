@@ -16,7 +16,7 @@ namespace TNT.Core.Tests.SyncTests
         private ServerAndClient<ITestContract, ITestContract, TestContractMock> _serverAndClient;
 
         [SetUp]
-        public async Task TearUp()
+        public async Task SetUp()
         {
             _serverAndClient = await ServerAndClient<ITestContract, ITestContract, TestContractMock>.Create();
         }

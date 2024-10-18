@@ -1,9 +1,11 @@
 ﻿using System.IO;
+using System.Threading.Tasks;
 using CommonTestTools;
 using NUnit.Framework;
 using Tnt.LongTests.ContractMocks;
 using TNT.Core.Presentation.Deserializers;
 using TNT.Core.Presentation.Serializers;
+using TNT.Integration.LongTests;
 
 namespace Tnt.LongTests.Serialization;
 
@@ -34,22 +36,26 @@ public class ProtobuffBigSerializationTest
         SerializeAndDeserializeProtobuffMessage(10000);
     }
 
-    //[Test]
-    //public void PacketOf500Kb_transmitsViaTcp() {
-    //    CheckProtobuffEchoTransaction(1000);
-    //}
-    //[Test]
-    //public void PacketOf2mb_transmitsViaTcp() {
-    //    CheckProtobuffEchoTransaction(2000);
-    //}
-    //[Test]
-    //public void PacketOf10mb_transmitsViaTcp() {
-    //    CheckProtobuffEchoTransaction(5000);
-    //}
-    //[Test]
-    //public void PacketOf50mb_transmitsViaTcp() {
-    //    CheckProtobuffEchoTransaction(10000);
-    //}
+    [Test]
+    public async Task PacketOf500Kb_transmitsViaTcp()
+    {
+        await CheckProtobuffEchoTransaction(1000);
+    }
+    [Test]
+    public async Task PacketOf2mb_transmitsViaTcp()
+    {
+        await CheckProtobuffEchoTransaction(2000);
+    }
+    [Test]
+    public async Task PacketOf10mb_transmitsViaTcp()
+    {
+        await CheckProtobuffEchoTransaction(5000);
+    }
+    [Test]
+    public async Task PacketOf50mb_transmitsViaTcp()
+    {
+        await CheckProtobuffEchoTransaction(10000);
+    }
 
     private static void SerializeAndDeserializeProtobuffMessage(int companySize)
     {
@@ -63,19 +69,20 @@ public class ProtobuffBigSerializationTest
         company.AssertIsSameTo(deserialized);
     }
 
-    //private static void CheckProtobuffEchoTransaction(int itemsSize)
-    //{
-    //    using var tcpPair = new TcpConnectionPair
-    //    <ISingleMessageContract<Company>,
-    //        ISingleMessageContract<Company>,
-    //        SingleMessageContract<Company>>();
-    //    EventAwaiter<Company> callAwaiter = new EventAwaiter<Company>();
-    //    tcpPair.OriginContract.SayCalled += callAwaiter.EventRaised;
-    //    var company = IntegrationTestsHelper.CreateCompany(itemsSize);
-    //    tcpPair.ProxyConnection.Contract.Ask(company);
-    //    var received = callAwaiter.WaitOneOrDefault(5000);
-    //    Assert.That(received, Is.Not.Null);
-    //    received.AssertIsSameTo(company);
-    //}
+    private static async Task CheckProtobuffEchoTransaction(int itemsSize)
+    {
+        using var serverAndClient = await ServerAndClient<ILongTestContract<Company>, ILongTestContract<Company>, LongTestContract<Company>>.Create();
 
+        EventAwaiter<Company> callAwaiter = new EventAwaiter<Company>();
+
+        var bag = ((LongTestContract<Company>)serverAndClient.ServerSideConnection.Contract).Messages;
+
+        var company = IntegrationTestsHelper.CreateCompany(itemsSize);
+
+        serverAndClient.ClientSideConnection.Contract.Ask(company);
+
+        Assert.That(bag.TryTake(out var message), Is.Not.Null);
+
+        message.AssertIsSameTo(company);
+    }
 }

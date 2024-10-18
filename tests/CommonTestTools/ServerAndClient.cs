@@ -45,31 +45,6 @@ namespace CommonTestTools
             return result;
         }
 
-        //public static async Task<ServerAndClient<TProxyContractInterface, TOriginContractInterface, TOriginContractImplementation>> Create()
-        //{
-        //    var server = TntBuilder
-        //    .UseContract<TContract, TImplementation>()
-        //    .CreateTcpServer(IPAddress.Loopback, 12345);
-
-        //    server.Start();
-
-        //    var clientSide = await TntBuilder
-        //       .UseContract<TContract>()
-        //       .CreateTcpClientConnectionAsync(IPAddress.Loopback, 12345);
-
-        //    var serverSide = await server.WaitForAClient();
-
-        //    var result = new ServerAndClient<TContract, TImplementation>()
-        //    {
-        //        TntTcpServer = server,
-        //        ClientSideConnection = clientSide,
-        //        ServerSideConnection = serverSide
-        //    };
-
-        //    return result;
-        //}
-
-
         public void Dispose()
         {
             TntTcpServer.Dispose();

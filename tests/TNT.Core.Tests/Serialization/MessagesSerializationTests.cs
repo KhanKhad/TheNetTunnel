@@ -24,7 +24,7 @@ namespace TNT.Core.Tests.Serialization
         private ReceivePduQueue _receiveMessageAssembler;
 
         [SetUp]
-        public void TearUp()
+        public void SetUp()
         {
             var methodsDescriptor = new MethodsDescriptor();
             methodsDescriptor.CreateDescription(ProxyContractFactory.ParseContractInterface(typeof(ITestContract)));

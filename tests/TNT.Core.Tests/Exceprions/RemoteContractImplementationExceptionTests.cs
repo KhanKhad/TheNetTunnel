@@ -17,7 +17,7 @@ namespace TNT.Core.Tests.Exceprions
         private ServerAndClient<IEmptyContract, ITestContract, TestContractMock> _emptyClient;
 
         [SetUp]
-        public async Task TearUp()
+        public async Task SetUp()
         {
             _emptyServer = await ServerAndClient<ITestContract, IEmptyContract, EmptyContract>.Create();
             _emptyClient = await ServerAndClient<IEmptyContract, ITestContract, TestContractMock>.Create(12346);

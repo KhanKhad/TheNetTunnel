@@ -15,7 +15,7 @@ namespace TNT.Core.Tests.AsyncTests
         private ServerAndClient<ITestContract, ITestContract, TestContractMock> _serverAndClient;
         private TestContractMock _serverSideContractImpl;
         [SetUp]
-        public async Task TearUp()
+        public async Task SetUp()
         {
             _serverAndClient = await ServerAndClient<ITestContract, ITestContract, TestContractMock>.Create();
             _serverSideContractImpl = (TestContractMock)_serverAndClient.ServerSideConnection.Contract;

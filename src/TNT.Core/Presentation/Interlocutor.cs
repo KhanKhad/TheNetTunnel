@@ -211,7 +211,7 @@ namespace TNT.Core.Presentation
                 Result = values,
             };
 
-            await SendMessageAsync(message);
+            await SendMessageAsync(message).ConfigureAwait(false);
 
             var result = await Task.WhenAny(awaiter, Task.Delay(_maxAnsDelay));
 
@@ -265,7 +265,7 @@ namespace TNT.Core.Presentation
                 Result = values,
             };
 
-            await SendMessageAsync(message);
+            await SendMessageAsync(message).ConfigureAwait(false);
 
             var result = await Task.WhenAny(awaiter, Task.Delay(_maxAnsDelay));
 
