@@ -59,8 +59,8 @@ namespace TNT.Core.Presentation
 
             MethodDesctiption methodDescription = null;
 
-            if((TntMessageType)messageType == TntMessageType.RequestMessage ||
-                (TntMessageType)messageType == TntMessageType.SuccessfulResponseMessage)
+            if((MessageType)messageType == MessageType.RequestMessage ||
+                (MessageType)messageType == MessageType.SuccessfulResponseMessage)
             {
                 if (!_methodsDescriptor.DescribedMethods.TryGetValue(messageId, out methodDescription))
                 {
@@ -75,11 +75,11 @@ namespace TNT.Core.Presentation
                 }
             }
 
-            switch ((TntMessageType)messageType)
+            switch ((MessageType)messageType)
             {
                 #region Ping
-                case TntMessageType.PingMessage:
-                case TntMessageType.PingResponseMessage:
+                case MessageType.PingMessage:
+                case MessageType.PingResponseMessage:
 
                     if (!streamMessage.TryReadShort(out var pingStatus))
                     {
@@ -99,10 +99,10 @@ namespace TNT.Core.Presentation
                         return new MessageDeserializeResult()
                         {
                             IsSuccessful = true,
-                            MessageOrNull = new NewTntMessage()
+                            MessageOrNull = new TntMessage()
                             {
                                 MessageId = messageId,
-                                MessageType = (TntMessageType)messageType,
+                                MessageType = (MessageType)messageType,
                                 AskId = askId,
                                 Result = pingStatus,
                             },
@@ -111,7 +111,7 @@ namespace TNT.Core.Presentation
                 #endregion
 
                 #region Request/Response
-                case TntMessageType.RequestMessage:
+                case MessageType.RequestMessage:
 
                     try
                     {
@@ -125,12 +125,12 @@ namespace TNT.Core.Presentation
                         else
                             args = Array.Empty<object>();
 
-                        NewTntMessage tntMessage;
+                        TntMessage tntMessage;
 
-                        tntMessage = new NewTntMessage()
+                        tntMessage = new TntMessage()
                         {
                             MessageId = messageId,
-                            MessageType = (TntMessageType)messageType,
+                            MessageType = (MessageType)messageType,
                             AskId = askId,
                             Result = args,
                         };
@@ -157,7 +157,7 @@ namespace TNT.Core.Presentation
                         };
                     }
 
-                case TntMessageType.SuccessfulResponseMessage:
+                case MessageType.SuccessfulResponseMessage:
 
                     try
                     {
@@ -170,12 +170,12 @@ namespace TNT.Core.Presentation
                         else
                             rObject = null;
 
-                        NewTntMessage tntMessage;
+                        TntMessage tntMessage;
 
-                        tntMessage = new NewTntMessage()
+                        tntMessage = new TntMessage()
                         {
                             MessageId = messageId,
-                            MessageType = (TntMessageType)messageType,
+                            MessageType = (MessageType)messageType,
                             AskId = askId,
                             Result = rObject,
                         };
@@ -202,8 +202,8 @@ namespace TNT.Core.Presentation
                     }
                 #endregion
 
-                case TntMessageType.FailedResponseMessage:
-                case TntMessageType.FatalFailedResponseMessage:
+                case MessageType.FailedResponseMessage:
+                case MessageType.FatalFailedResponseMessage:
 
                     var errorDeserializer = new ErrorMessageDeserializer();
                     var deserializedError = errorDeserializer.Deserialize(streamMessage,
@@ -212,16 +212,16 @@ namespace TNT.Core.Presentation
                     return new MessageDeserializeResult()
                     {
                         IsSuccessful = true,
-                        MessageOrNull = new NewTntMessage()
+                        MessageOrNull = new TntMessage()
                         {
                             MessageId = messageId,
-                            MessageType = (TntMessageType)messageType,
+                            MessageType = (MessageType)messageType,
                             AskId = askId,
                             Result = deserializedError,
                         },
                     };
 
-                case TntMessageType.Unknown:
+                case MessageType.Unknown:
                 default:
 
                     var error = new ErrorMessage(messageId, askId,
@@ -252,7 +252,7 @@ namespace TNT.Core.Presentation
 
     public class MessageDeserializeResult
     {
-        public NewTntMessage MessageOrNull { get; set; }
+        public TntMessage MessageOrNull { get; set; }
         public ErrorMessage ErrorMessageOrNull { get; set; }
         public bool NeedToDisconnect { get; set; }
         public bool IsSuccessful { get; set; }

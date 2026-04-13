@@ -29,6 +29,10 @@ namespace TNT.Core.Tcp
 
         private TaskCompletionSource<IConnection<TContract>> _waitForAClientTaskSource;
 
+        private CancellationTokenSource _internalWorkCts;
+        private Task _internalWorkAsync;
+
+
         public TntTcpServer(ContractBuilder<TContract> channelBuilder, IPEndPoint endPoint)
         {
             IPEndPoint = endPoint;
@@ -52,7 +56,8 @@ namespace TNT.Core.Tcp
 
             _tcpListener.Start();
 
-            _ = Task.Run(InternalStartAsync);
+            _internalWorkCts = new CancellationTokenSource();
+            _internalWorkAsync = Task.Run(async () => await InternalStartAsync(_internalWorkCts.Token));
         }
 
         public Task<IConnection<TContract>> WaitForAClient(bool newClient = false)
@@ -66,9 +71,9 @@ namespace TNT.Core.Tcp
             return _waitForAClientTaskSource.Task;
         }
 
-        private async Task InternalStartAsync()
+        private async Task InternalStartAsync(CancellationToken token)
         {
-            while (!_disposed)
+            while (!token.IsCancellationRequested)
             {
                 var tcpClient = await _tcpListener.AcceptTcpClientAsync();
                 var newId = _maxId++;
@@ -120,14 +125,17 @@ namespace TNT.Core.Tcp
         public event Action<object, IConnection<TContract>> AfterConnect;
         public event Action<object, ClientDisconnectEventArgs<TContract>> Disconnected;
 
-        private volatile bool _disposed;
+        private int _disposed;
 
         public void Dispose()
         {
-            if (_disposed)
+            if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
                 return;
 
-            _disposed = true;
+            _internalWorkCts.Cancel();
+            _internalWorkAsync.Wait();
+
+            _internalWorkCts.Dispose();
 
             _tcpListener.Stop();
 

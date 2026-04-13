@@ -7,15 +7,15 @@ namespace TNT.SpeedTest.Contracts;
 
 public interface ISpeedTestContract
 {
-    [TntMessage(1)]  byte[] AskBytesEcho(byte[] data);
-    [TntMessage(2)]  int[] AskIntegersEcho(int[] data);
-    [TntMessage(3)]  string AskTextEcho(string data);
-    [TntMessage(4)] ProtoStruct AskProtoStructEcho(ProtoStruct data);
-    [TntMessage(5)] void SayNothing();
-    [TntMessage(6)] void SayBytes(byte[] data);
-    [TntMessage(7)] void SayProtoStructEcho(ProtoStruct data);
-    [TntMessage(8)] void SayString(string data);
-    [TntMessage(9)] bool AskForTrue();
-    [TntMessage(10)] void SubscribeForSayCalled(int sayCalldTimes);
-    [TntMessage(11)] Action SaysCallsCountReceived { get; set; }
+    [TntMessageAttribute(1)]  byte[] AskBytesEcho(byte[] data);
+    [TntMessageAttribute(2)]  int[] AskIntegersEcho(int[] data);
+    [TntMessageAttribute(3)]  string AskTextEcho(string data);
+    [TntMessageAttribute(4)] ProtoStruct AskProtoStructEcho(ProtoStruct data);
+    [TntMessageAttribute(5)] void SayNothing();
+    [TntMessageAttribute(6)] void SayBytes(byte[] data);
+    [TntMessageAttribute(7)] void SayProtoStructEcho(ProtoStruct data);
+    [TntMessageAttribute(8)] void SayString(string data);
+    [TntMessageAttribute(9)] bool AskForTrue();
+    [TntMessageAttribute(10)] void SubscribeForSayCalled(int sayCalldTimes);
+    [TntMessageAttribute(11)] Action SaysCallsCountReceived { get; set; }
 }

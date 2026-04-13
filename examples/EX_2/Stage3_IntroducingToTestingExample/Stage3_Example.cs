@@ -64,7 +64,7 @@ public class Stage3_Example
 /// </summary>
 public interface IStage3EchoContract
 {
-    [TntMessage(1)] 
+    [TntMessageAttribute(1)] 
     string Send(string user, string message);
 }
 /// <summary>

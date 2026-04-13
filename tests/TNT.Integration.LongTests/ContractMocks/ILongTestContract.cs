@@ -7,16 +7,16 @@ namespace Tnt.LongTests.ContractMocks;
 
 public interface ILongTestContract<TMessageArg>
 {
-    [TntMessage(1)] void Say(TMessageArg s);
-    [TntMessage(2)] bool Ask(TMessageArg message);
+    [TntMessageAttribute(1)] void Say(TMessageArg s);
+    [TntMessageAttribute(2)] bool Ask(TMessageArg message);
 
-    [TntMessage(3)] Task SayAsync(TMessageArg s);
-    [TntMessage(4)] Task<bool> AskAsync(TMessageArg s);
+    [TntMessageAttribute(3)] Task SayAsync(TMessageArg s);
+    [TntMessageAttribute(4)] Task<bool> AskAsync(TMessageArg s);
 
 
-    [TntMessage(101)] Action<TMessageArg> OnSay { get; set; }
-    [TntMessage(102)] Func<TMessageArg, bool> OnAsk { get; set; }
+    [TntMessageAttribute(101)] Action<TMessageArg> OnSay { get; set; }
+    [TntMessageAttribute(102)] Func<TMessageArg, bool> OnAsk { get; set; }
 
-    [TntMessage(103)] Func<TMessageArg, Task> OnSayAsync { get; set; }
-    [TntMessage(104)] Func<TMessageArg, Task<bool>> OnAskAsync { get; set; }
+    [TntMessageAttribute(103)] Func<TMessageArg, Task> OnSayAsync { get; set; }
+    [TntMessageAttribute(104)] Func<TMessageArg, Task<bool>> OnAskAsync { get; set; }
 }

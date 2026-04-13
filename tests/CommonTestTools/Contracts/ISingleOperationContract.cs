@@ -9,10 +9,10 @@ namespace CommonTestTools.Contracts
 {
     public interface ISingleOperationContract
     {
-        [TntMessage(1)] void Say();
-        [TntMessage(4)] int Ask();
-        [TntMessage(11)] Task SayAsync();
-        [TntMessage(14)] Task<int> AskAsync();
+        [TntMessageAttribute(1)] void Say();
+        [TntMessageAttribute(4)] int Ask();
+        [TntMessageAttribute(11)] Task SayAsync();
+        [TntMessageAttribute(14)] Task<int> AskAsync();
     }
 
     public class SingleOperationContract : ISingleOperationContract

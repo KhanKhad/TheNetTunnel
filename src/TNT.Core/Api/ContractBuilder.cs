@@ -177,22 +177,22 @@ namespace TNT.Core.Api
                 _methodsDescriptor.SetContract(contract);
             }
 
-            var newInterlocutor = new Interlocutor(dispatcher, channel, _maxAnsDelay);
-            newInterlocutor.Initialize(_methodsDescriptor);
+            var interlocutor = new Interlocutor(dispatcher, channel, _maxAnsDelay);
+            interlocutor.Initialize(_methodsDescriptor);
 
             dispatcher.SetContract(contract);
             dispatcher.Start();
 
-            OriginCallbackDelegatesHandlerFactory.CreateFor(contractMemebers, contract, newInterlocutor);
+            OriginCallbackDelegatesHandlerFactory.CreateFor(contractMemebers, contract, interlocutor);
 
-            newInterlocutor.Start();
+            interlocutor.Start();
 
             return contract;
         }
         private TContract CreateProxyContract(IChannel channel, IDispatcher dispatcher)
         {
-            var newInterlocutor = new Interlocutor(dispatcher, channel, _maxAnsDelay);
-            var contract = ProxyContractFactory.CreateProxyContract<TContract>(newInterlocutor, out var finalType, out var actionHandlers);
+            var interlocutor = new Interlocutor(dispatcher, channel, _maxAnsDelay);
+            var contract = ProxyContractFactory.CreateProxyContract<TContract>(interlocutor, out var finalType, out var actionHandlers);
 
             if(_methodsDescriptor == null)
             {
@@ -215,8 +215,8 @@ namespace TNT.Core.Api
             dispatcher.SetContract(contract);
             dispatcher.Start();
 
-            newInterlocutor.Initialize(_methodsDescriptor);
-            newInterlocutor.Start();
+            interlocutor.Initialize(_methodsDescriptor);
+            interlocutor.Start();
 
             return contract;
         }

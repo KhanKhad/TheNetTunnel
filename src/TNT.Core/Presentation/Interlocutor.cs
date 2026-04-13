@@ -58,6 +58,11 @@ namespace TNT.Core.Presentation
             _ = Task.Run(ReadChannelAsync);
         }
 
+        public async Task SendInitializeMessageAsync()
+        {
+
+        }
+
         private async Task ReadChannelAsync()
         {
             var reader = Channel.ResponsesChannel.Reader;
@@ -92,7 +97,7 @@ namespace TNT.Core.Presentation
             {
                 var error = deserialized.ErrorMessageOrNull;
 
-                NewTntMessage result;
+                TntMessage result;
 
                 if(deserialized.NeedToDisconnect)
                     result = _responser.CreateFatalFailedResponseMessage(error, error.MessageId, error.AskId);
@@ -102,74 +107,74 @@ namespace TNT.Core.Presentation
 
                 if (deserialized.NeedToDisconnect)
                     Disconnect();
-
-                return;
             }
+            else
+            {
+                var message = deserialized.MessageOrNull;
+                var msgType = deserialized.MessageOrNull.MessageType;
+                var askId = deserialized.MessageOrNull.AskId;
 
-            var message = deserialized.MessageOrNull;
-            var msgType = deserialized.MessageOrNull.MessageType;
-            var askId = deserialized.MessageOrNull.AskId;
-
-            if (msgType == TntMessageType.RequestMessage)
-            {
-                var response = await _responser.CreateResponseAsync(deserialized.MessageOrNull);
-                await SendMessageAsync(response);
-            }
-            else if (msgType == TntMessageType.PingMessage)
-            {
-                var response = _responser.CreatePingResponse(deserialized.MessageOrNull);
-                await SendMessageAsync(response);
-            }
-            else //no need to response
-            {
-                switch (msgType)
+                if (msgType == MessageType.RequestMessage)
                 {
-                    case TntMessageType.PingResponseMessage:
-                    case TntMessageType.SuccessfulResponseMessage:
-
-                        //remove awaiter
-                        if (MessageAwaiters.TryRemove(askId, out var smessageAwaiter))
-                        {
-                            smessageAwaiter.SetResult(message.Result);
-                        }
-
-                        break;
-                    case TntMessageType.FailedResponseMessage:
-
-                        //remove awaiter with an error
-                        if (MessageAwaiters.TryRemove(askId, out var fmessageAwaiter))
-                        {
-                            var error = (ErrorMessage)message.Result;
-                            fmessageAwaiter.SetException(error.Exception);
-                        }
-
-                        break;
-                    case TntMessageType.FatalFailedResponseMessage:
-
-                        //remove awaiter with an error and disconnect
-                        if (MessageAwaiters.TryRemove(askId, out var ffmessageAwaiter))
-                        {
-                            var error = (ErrorMessage)message.Result;
-                            ffmessageAwaiter.SetException(error.Exception);
-                        }
-
-                        Disconnect();
-
-                        break;
-                    default:
-                        break;
+                    var response = await _responser.CreateResponseAsync(deserialized.MessageOrNull);
+                    await SendMessageAsync(response);
                 }
-            }
+                else if (msgType == MessageType.PingMessage)
+                {
+                    var response = _responser.CreatePingResponse(deserialized.MessageOrNull);
+                    await SendMessageAsync(response);
+                }
+                else //no need to response
+                {
+                    switch (msgType)
+                    {
+                        case MessageType.PingResponseMessage:
+                        case MessageType.SuccessfulResponseMessage:
+
+                            //remove awaiter
+                            if (MessageAwaiters.TryRemove(askId, out var smessageAwaiter))
+                            {
+                                smessageAwaiter.SetResult(message.Result);
+                            }
+
+                            break;
+                        case MessageType.FailedResponseMessage:
+
+                            //remove awaiter with an error
+                            if (MessageAwaiters.TryRemove(askId, out var fmessageAwaiter))
+                            {
+                                var error = (ErrorMessage)message.Result;
+                                fmessageAwaiter.SetException(error.Exception);
+                            }
+
+                            break;
+                        case MessageType.FatalFailedResponseMessage:
+
+                            //remove awaiter with an error and disconnect
+                            if (MessageAwaiters.TryRemove(askId, out var ffmessageAwaiter))
+                            {
+                                var error = (ErrorMessage)message.Result;
+                                ffmessageAwaiter.SetException(error.Exception);
+                            }
+
+                            Disconnect();
+
+                            break;
+                        default:
+                            break;
+                    }
+                }
+            }           
         }
 
-        public async Task SendMessageAsync(NewTntMessage message)
+        public async Task SendMessageAsync(TntMessage message)
         {
             var serialized = _messagesSerializer.SerializeTntMessage(message);
 
             await Channel.WriteAsync(serialized.ToArray());
         }
 
-        public void SendMessage(NewTntMessage message)
+        public void SendMessage(TntMessage message)
         {
             var serialized = _messagesSerializer.SerializeTntMessage(message);
 
@@ -187,11 +192,11 @@ namespace TNT.Core.Presentation
 
             var awaiter = GetAsyncMessageAwaiter(newId);
 
-            var message = new NewTntMessage()
+            var message = new TntMessage()
             {
                 AskId = newId,
                 MessageId = (short)messageId,
-                MessageType = TntMessageType.RequestMessage,
+                MessageType = MessageType.RequestMessage,
                 Result = values,
             };
 
@@ -203,11 +208,11 @@ namespace TNT.Core.Presentation
 
             var awaiter = GetAsyncMessageAwaiter(newId);
 
-            var message = new NewTntMessage()
+            var message = new TntMessage()
             {
                 AskId = newId,
                 MessageId = (short)messageId,
-                MessageType = TntMessageType.RequestMessage,
+                MessageType = MessageType.RequestMessage,
                 Result = values,
             };
 
@@ -226,11 +231,11 @@ namespace TNT.Core.Presentation
 
             var awaiter = GetAsyncMessageAwaiter(newId);
 
-            var message = new NewTntMessage()
+            var message = new TntMessage()
             {
                 AskId = newId,
                 MessageId = (short)messageId,
-                MessageType = TntMessageType.RequestMessage,
+                MessageType = MessageType.RequestMessage,
                 Result = values,
             };
 
@@ -257,11 +262,11 @@ namespace TNT.Core.Presentation
 
             var awaiter = GetAsyncMessageAwaiter(newId);
 
-            var message = new NewTntMessage()
+            var message = new TntMessage()
             {
                 AskId = newId,
                 MessageId = (short)messageId,
-                MessageType = TntMessageType.RequestMessage,
+                MessageType = MessageType.RequestMessage,
                 Result = values,
             };
 

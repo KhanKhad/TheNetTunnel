@@ -5,11 +5,11 @@ namespace TNT.Core.Contract
 {
     [AttributeUsage( AttributeTargets.Method
         | AttributeTargets.Property, AllowMultiple = false, Inherited= true)]
-    public class TntMessage: Attribute
+    public class TntMessageAttribute: Attribute
     {
         private readonly ushort _id;
 
-        public TntMessage(ushort id)
+        public TntMessageAttribute(ushort id)
         {
             _id = id;
         }

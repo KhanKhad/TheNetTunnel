@@ -28,7 +28,7 @@ namespace TNT.Core.Contract.Origin
                 if (overrided == null)
                     continue;
 
-                var attribute = meth.GetCustomAttribute<TntMessage>();
+                var attribute = meth.GetCustomAttribute<TntMessageAttribute>();
                 if (attribute == null)
                     throw new ContractMemberAttributeMissingException(interfaceType, meth.Name);
 
@@ -37,7 +37,7 @@ namespace TNT.Core.Contract.Origin
             }
             foreach (var propertyInfo in interfaceType.GetTypeInfo().GetProperties())
             {
-                var attribute = propertyInfo.GetCustomAttribute<TntMessage>();
+                var attribute = propertyInfo.GetCustomAttribute<TntMessageAttribute>();
 
                 if (attribute == null)
                     throw new ContractMemberAttributeMissingException(interfaceType, propertyInfo.Name);

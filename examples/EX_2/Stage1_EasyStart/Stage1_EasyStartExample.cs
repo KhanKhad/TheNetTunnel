@@ -58,7 +58,7 @@ public class Stage1_EasyStartExample
 /// </summary>
 public interface IStage1Contract
 {
-    [TntMessage(1)] 
+    [TntMessageAttribute(1)] 
     //Message type number 1. Return type is void so the message sends in "fire and foget" style
     void Send(string user, string message);
 }

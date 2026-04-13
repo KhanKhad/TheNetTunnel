@@ -39,17 +39,21 @@ static class Program
 }
 
 //contract
+[TntMinimalServerVersion("1.0.0")]
+[TntMinimalClientVersion("1.0.0")]
+[TntClientVersion("1.0.0")]
+[TntServerVersion("1.0.0")]
 public interface IExampleContract
 {
-    [TntMessage(1)] Action<int> Action { get; set; }
-    [TntMessage(2)] Func<int, bool> Func { get; set; }
-    [TntMessage(3)] Func<int, Task> FuncTask { get; set; }
-    [TntMessage(4)] Func<int,int, Task<bool>> FuncTaskWithResult { get; set; }
+    [TntMessageAttribute(1)] Action<int> Action { get; set; }
+    [TntMessageAttribute(2)] Func<int, bool> Func { get; set; }
+    [TntMessageAttribute(3)] Func<int, Task> FuncTask { get; set; }
+    [TntMessageAttribute(4)] Func<int,int, Task<bool>> FuncTaskWithResult { get; set; }
 
-    [TntMessage(11)] void Send(string user, string message);
-    [TntMessage(12)] bool SendWithResult(string user, string message);
-    [TntMessage(13)] Task SendTask(string user, string message);
-    [TntMessage(14)] Task<bool> SendTaskWithResult(string user, string message);
+    [TntMessageAttribute(11)] void Send(string user, string message);
+    [TntMessageAttribute(12)] bool SendWithResult(string user, string message);
+    [TntMessageAttribute(13)] Task SendTask(string user, string message);
+    [TntMessageAttribute(14)] Task<bool> SendTaskWithResult(string user, string message);
 }
 
 //contract implementation

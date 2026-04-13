@@ -25,9 +25,9 @@ namespace TNT.Core.Presentation
             _receiveDispatcher = receiveDispatcher;
         }
 
-        public async Task<NewTntMessage> CreateResponseAsync(NewTntMessage deserialized)
+        public async Task<TntMessage> CreateResponseAsync(TntMessage deserialized)
         {
-            NewTntMessage result;
+            TntMessage result;
 
             var type = deserialized.MessageType;
 
@@ -90,43 +90,43 @@ namespace TNT.Core.Presentation
             return result;
         }
 
-        public NewTntMessage CreatePingResponse(NewTntMessage msg)
+        public TntMessage CreatePingResponse(TntMessage msg)
         {
-            return new NewTntMessage()
+            return new TntMessage()
             {
                 AskId = msg.AskId,
-                MessageType = TntMessageType.PingResponseMessage,
+                MessageType = MessageType.PingResponseMessage,
                 Result = (short)1
             };
         }
 
-        public NewTntMessage CreateSuccessfulResponseMessage(object result, short messageId, int askId)
+        public TntMessage CreateSuccessfulResponseMessage(object result, short messageId, int askId)
         {
-            return new NewTntMessage()
+            return new TntMessage()
             {
                 AskId = askId,
                 MessageId = messageId,
-                MessageType = TntMessageType.SuccessfulResponseMessage,
+                MessageType = MessageType.SuccessfulResponseMessage,
                 Result = result,
             };
         }
-        public NewTntMessage CreateFailedResponseMessage(ErrorMessage errorMessage, short messageId, int askId)
+        public TntMessage CreateFailedResponseMessage(ErrorMessage errorMessage, short messageId, int askId)
         {
-            return new NewTntMessage()
+            return new TntMessage()
             {
                 AskId = askId,
                 MessageId = messageId,
-                MessageType = TntMessageType.FailedResponseMessage,
+                MessageType = MessageType.FailedResponseMessage,
                 Result = errorMessage,
             };
         }
-        public NewTntMessage CreateFatalFailedResponseMessage(ErrorMessage errorMessage, short messageId, int askId)
+        public TntMessage CreateFatalFailedResponseMessage(ErrorMessage errorMessage, short messageId, int askId)
         {
-            return new NewTntMessage()
+            return new TntMessage()
             {
                 AskId = askId,
                 MessageId = messageId,
-                MessageType = TntMessageType.FatalFailedResponseMessage,
+                MessageType = MessageType.FatalFailedResponseMessage,
                 Result = errorMessage,
             };
         }

@@ -39,7 +39,8 @@ namespace TNT.Core.Tcp
 
         public int ConnectionId;
 
-
+        private Task _internalWriteAsync;
+        private CancellationTokenSource _internalWriteCts;
         public TntTcpClient(IPEndPoint endPoint) : this()
         {
             Client = new TcpClient();
@@ -76,7 +77,8 @@ namespace TNT.Core.Tcp
             Client.NoDelay = true;
             Client.Client.Blocking = false;
 
-            _ = Task.Run(InternalWriteAsync);
+            _internalWriteCts = new CancellationTokenSource();
+            _internalWriteAsync = Task.Run(async () => await InternalWriteAsync(_internalWriteCts.Token));
         }
 
 
@@ -94,23 +96,24 @@ namespace TNT.Core.Tcp
             Client.NoDelay = true;
             Client.Client.Blocking = false;
 
-            _ = Task.Run(InternalWriteAsync);
+            _internalWriteCts = new CancellationTokenSource();
+            _internalWriteAsync = Task.Run(async () => await InternalWriteAsync(_internalWriteCts.Token));
         }
 
-        private async Task InternalWriteAsync()
+        private async Task InternalWriteAsync(CancellationToken token)
         {
             var bufferSize = 1024;
             var socket = Client.Client;
 
-            while (!_disconnected && !_disposed)
+            while (!token.IsCancellationRequested)
             {
                 try
                 {
                     var buffer = new byte[bufferSize];
 
-                    var bytesToRead = await socket.ReceiveAsync(buffer, SocketFlags.None);
+                    var bytesToRead = await socket.ReceiveAsync(buffer, SocketFlags.None, token);
 
-                    if (bytesToRead == 0)
+                    if (bytesToRead == 0 || token.IsCancellationRequested)
                         continue;
 
                     unchecked
@@ -126,7 +129,11 @@ namespace TNT.Core.Tcp
                         Sender = this,
                     };
 
-                    await ResponsesChannel.Writer.WriteAsync(data);
+                    await ResponsesChannel.Writer.WriteAsync(data, CancellationToken.None);
+                }
+                catch (TaskCanceledException)
+                {
+
                 }
                 catch
                 {
@@ -164,7 +171,7 @@ namespace TNT.Core.Tcp
             LocalEndpointName = EndPointToText(Client.Client.LocalEndPoint);
         }
 
-        private string EndPointToText(EndPoint endPoint)
+        private static string EndPointToText(EndPoint endPoint)
         {
             var endPointText = endPoint.ToString();
             var resultChars = new char[endPointText.Length];
@@ -184,14 +191,16 @@ namespace TNT.Core.Tcp
             return new string(resultChars);
         }
 
-        private volatile bool _disconnected;
+        private int _disconnected;
 
         public void DisconnectBecauseOf(ErrorMessage exceptionMessage)
         {
-            if (_disconnected)
+            if (Interlocked.CompareExchange(ref _disconnected, 1, 0) != 0)
                 return;
 
-            _disconnected = true;
+            _internalWriteCts.Cancel();
+            _internalWriteAsync.Wait();
+            _internalWriteCts.Dispose();
 
             ResponsesChannel.Writer.Complete();
             Client.Dispose();
@@ -204,16 +213,9 @@ namespace TNT.Core.Tcp
             DisconnectBecauseOf(null);
         }
 
-        private volatile bool _disposed;
         public void Dispose()
         {
-            if (_disposed)
-                return;
-
-            _disposed = true;
-
             Disconnect();
-
             OnDisconnect = null;
         }
     }

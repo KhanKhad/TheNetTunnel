@@ -25,41 +25,41 @@ public interface IContractWithPropertyWithoutAttribute
 
 public interface IContractWithNonDelegateProperty
 {
-    [TntMessage(1)]
+    [TntMessageAttribute(1)]
     int propertyWithoutAttribute { get; set; }
 }
 public interface IContractWithSameAskAndEventId
 {
-    [TntMessage(1)]
+    [TntMessageAttribute(1)]
     string Ask();
 
-    [TntMessage(1)]
+    [TntMessageAttribute(1)]
     Func<int> OnAsk { get; set; }
 }
 public interface IContractWithSameEventId
 {
-    [TntMessage(1)]
+    [TntMessageAttribute(1)]
     Action OnSay { get; set; }
 
-    [TntMessage(1)]
+    [TntMessageAttribute(1)]
     Func<int> OnAsk { get; set; }
 }
 public interface IContractWithSameSayId
 {
-    [TntMessage(1)]
+    [TntMessageAttribute(1)]
     void Say1();
 
-    [TntMessage(1)]
+    [TntMessageAttribute(1)]
     void Say2();
 }
 public interface IUnserializeableContract
 {
-    [TntMessage(1)]
+    [TntMessageAttribute(1)]
     void Say(EventArgs arg);
 }
 
 public interface IUnDeserializeableContract
 {
-    [TntMessage(1)]
+    [TntMessageAttribute(1)]
     EventArgs Ask();
 }

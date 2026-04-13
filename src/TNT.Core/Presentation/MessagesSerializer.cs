@@ -21,7 +21,7 @@ namespace TNT.Core.Presentation
             _methodsDescriptor = methodsDescriptor;
         }
 
-        public MemoryStream SerializeTntMessage(NewTntMessage tntMessage)
+        public MemoryStream SerializeTntMessage(TntMessage tntMessage)
         {
             var stream = new MemoryStream(1024);
             stream.Write(_reservedEmptyBuffer, 0, ReservedHeadLength);
@@ -35,8 +35,8 @@ namespace TNT.Core.Presentation
 
             MethodDesctiption methodDescription = null;
 
-            if (messageType == TntMessageType.RequestMessage ||
-                messageType == TntMessageType.SuccessfulResponseMessage)
+            if (messageType == MessageType.RequestMessage ||
+                messageType == MessageType.SuccessfulResponseMessage)
             {
                 if (!_methodsDescriptor.DescribedMethods.TryGetValue(messageId, out methodDescription))
                 {
@@ -55,15 +55,15 @@ namespace TNT.Core.Presentation
             {
                 switch (messageType)
                 {
-                    case TntMessageType.PingMessage:
-                    case TntMessageType.PingResponseMessage:
+                    case MessageType.PingMessage:
+                    case MessageType.PingResponseMessage:
 
                         var pingVal = (short)tntMessage.Result;
                         Tools.WriteShort(pingVal, to: stream);
 
                         break;
 
-                    case TntMessageType.RequestMessage:
+                    case MessageType.RequestMessage:
 
                         if (methodDescription.HasArguments)
                         {
@@ -79,7 +79,7 @@ namespace TNT.Core.Presentation
 
                         break;
 
-                    case TntMessageType.SuccessfulResponseMessage:
+                    case MessageType.SuccessfulResponseMessage:
 
                         if (methodDescription.HasReturnType)
                         {
@@ -89,8 +89,8 @@ namespace TNT.Core.Presentation
 
                         break;
 
-                    case TntMessageType.FailedResponseMessage:
-                    case TntMessageType.FatalFailedResponseMessage:
+                    case MessageType.FailedResponseMessage:
+                    case MessageType.FatalFailedResponseMessage:
 
                         var error = (ErrorMessage)tntMessage.Result;
                         new ErrorMessageSerializer().SerializeT(error, stream);
@@ -98,7 +98,7 @@ namespace TNT.Core.Presentation
                         break;
 
 
-                    case TntMessageType.Unknown:
+                    case MessageType.Unknown:
                     default:
                         throw new Exception("Unknown message type");
                 }

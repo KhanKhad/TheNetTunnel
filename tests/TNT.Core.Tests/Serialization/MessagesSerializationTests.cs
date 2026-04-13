@@ -41,11 +41,11 @@ namespace TNT.Core.Tests.Serialization
         [TestCase(0, short.MinValue)]
         public void ComparePingMessages(int askId, short messageId)
         {
-            var origin = new NewTntMessage()
+            var origin = new Presentation.TntMessage()
             {
                 AskId = askId,
                 MessageId = 0,
-                MessageType = TntMessageType.PingMessage,
+                MessageType = MessageType.PingMessage,
                 Result = messageId,
             };
 
@@ -70,11 +70,11 @@ namespace TNT.Core.Tests.Serialization
         [TestCase(0, short.MinValue)]
         public void ComparePingResponseMessages(int askId, short messageId)
         {
-            var origin = new NewTntMessage()
+            var origin = new Presentation.TntMessage()
             {
                 AskId = askId,
                 MessageId = 0,
-                MessageType = TntMessageType.PingResponseMessage,
+                MessageType = MessageType.PingResponseMessage,
                 Result = messageId,
             };
 
@@ -100,11 +100,11 @@ namespace TNT.Core.Tests.Serialization
 
         public void CompareRequestMessages(int askId, short messageId, object[] args)
         {
-            var origin = new NewTntMessage()
+            var origin = new Presentation.TntMessage()
             {
                 AskId = askId,
                 MessageId = messageId,
-                MessageType = TntMessageType.RequestMessage,
+                MessageType = MessageType.RequestMessage,
                 Result = args,
             };
 
@@ -128,11 +128,11 @@ namespace TNT.Core.Tests.Serialization
 
         public void CompareSuccessfulResponseMessage(int askId, short messageId, object res)
         {
-            var origin = new NewTntMessage()
+            var origin = new Presentation.TntMessage()
             {
                 AskId = askId,
                 MessageId = messageId,
-                MessageType = TntMessageType.SuccessfulResponseMessage,
+                MessageType = MessageType.SuccessfulResponseMessage,
                 Result = res,
             };
 
@@ -159,11 +159,11 @@ namespace TNT.Core.Tests.Serialization
         {
             var error = new ErrorMessage(messageId, askId, errorType, string.Empty);
 
-            var origin = new NewTntMessage()
+            var origin = new Presentation.TntMessage()
             {
                 AskId = askId,
                 MessageId = messageId,
-                MessageType = TntMessageType.FatalFailedResponseMessage,
+                MessageType = MessageType.FatalFailedResponseMessage,
                 Result = error,
             };
 
@@ -189,11 +189,11 @@ namespace TNT.Core.Tests.Serialization
         {
             var error = new ErrorMessage(messageId, askId, errorType, string.Empty);
 
-            var origin = new NewTntMessage()
+            var origin = new Presentation.TntMessage()
             {
                 AskId = askId,
                 MessageId = messageId,
-                MessageType = TntMessageType.FailedResponseMessage,
+                MessageType = MessageType.FailedResponseMessage,
                 Result = error,
             };
 
@@ -211,7 +211,7 @@ namespace TNT.Core.Tests.Serialization
             CompareTntMessages(origin, deserialized.MessageOrNull);
         }
 
-        public void CompareTntMessages(NewTntMessage first, NewTntMessage second)
+        public void CompareTntMessages(Presentation.TntMessage first, Presentation.TntMessage second)
         {
             Assert.That(first.MessageId == second.MessageId);
             Assert.That(first.MessageType == second.MessageType);

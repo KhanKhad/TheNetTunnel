@@ -125,7 +125,7 @@ namespace TNT.Core.Contract.Proxy
             {
                 if (methodInfo.IsSpecialName) continue;
 
-                var attribute = methodInfo.GetCustomAttribute<TntMessage>();
+                var attribute = methodInfo.GetCustomAttribute<TntMessageAttribute>();
                 if (attribute == null)
                     throw new ContractMemberAttributeMissingException(contractInterfaceType, methodInfo.Name);
 
@@ -135,7 +135,7 @@ namespace TNT.Core.Contract.Proxy
             }
             foreach (var propertyInfo in contractInterfaceType.GetProperties())
             {
-                var attribute = propertyInfo.GetCustomAttribute<TntMessage>();
+                var attribute = propertyInfo.GetCustomAttribute<TntMessageAttribute>();
                 if (attribute == null)
                     throw new ContractMemberAttributeMissingException(contractInterfaceType, propertyInfo.Name);
 
