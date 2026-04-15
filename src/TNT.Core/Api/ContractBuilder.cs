@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using System.Reflection;
 using TNT.Core.Contract.Origin;
 using TNT.Core.Contract.Proxy;
 using TNT.Core.Presentation;
@@ -26,6 +27,7 @@ namespace TNT.Core.Api
         private Func<IChannel> _channelFactory;
         private Func<Task<IChannel>> _channelFactoryAsync;
         private MethodsDescriptor _methodsDescriptor;
+        private bool _fullmode;
 
         /// <summary>
         /// Contract implementation
@@ -103,6 +105,12 @@ namespace TNT.Core.Api
         }
         #endregion
 
+        public ContractBuilder<TContract> SetFullMode()
+        {
+            _fullmode = true;
+            return this;
+        }
+
         public async Task<IConnection<TContract>> BuildAsync()
         {
             IChannel channel = null;
@@ -121,13 +129,22 @@ namespace TNT.Core.Api
 
             dispatcher.Start();
 
-            TContract contract = OriginContractFactory == null
+            (TContract contract, IInterlocutor interlocutor) = OriginContractFactory == null
                 ? CreateProxyContract(channel, dispatcher)
                 : CreateOriginContract(channel, dispatcher);
 
             await channel.StartAsync();
 
-            return new Connection<TContract>(contract, channel);
+            if (OriginContractFactory == null)
+            {
+                var (AvailableForWork, UnavailabilityReason) = await interlocutor.SendHelloMessageAsync();
+
+                //if (!AvailableForWork)
+                //    channel.Disconnect();
+            }
+
+
+            return new Connection<TContract>(contract, channel, interlocutor);
         }
         public IConnection<TContract> Build()
         {
@@ -145,16 +162,16 @@ namespace TNT.Core.Api
 
             var dispatcher = _receiveDispatcher ?? new ReceiveDispatcher();
 
-            TContract contract = OriginContractFactory == null
+            (TContract contract, IInterlocutor interlocutor) = OriginContractFactory == null
                 ? CreateProxyContract(channel, dispatcher)
                 : CreateOriginContract(channel, dispatcher);
 
             channel.Start();
 
-            return new Connection<TContract>(contract, channel);
+            return new Connection<TContract>(contract, channel, interlocutor);
         }
 
-        private TContract CreateOriginContract(IChannel channel, IDispatcher dispatcher)
+        private (TContract contract, IInterlocutor interlocutor) CreateOriginContract(IChannel channel, IDispatcher dispatcher)
         {
             TContract contract = OriginContractFactory(channel);
 
@@ -177,7 +194,10 @@ namespace TNT.Core.Api
                 _methodsDescriptor.SetContract(contract);
             }
 
-            var interlocutor = new Interlocutor(dispatcher, channel, _maxAnsDelay);
+            var interlocutorProperties = CreateProperties();
+            interlocutorProperties.ServerMode = true;
+
+            var interlocutor = new Interlocutor(dispatcher, channel, interlocutorProperties);
             interlocutor.Initialize(_methodsDescriptor);
 
             dispatcher.SetContract(contract);
@@ -187,11 +207,14 @@ namespace TNT.Core.Api
 
             interlocutor.Start();
 
-            return contract;
+            return (contract, interlocutor);
         }
-        private TContract CreateProxyContract(IChannel channel, IDispatcher dispatcher)
+
+        private (TContract contract, IInterlocutor interlocutor) CreateProxyContract(IChannel channel, IDispatcher dispatcher)
         {
-            var interlocutor = new Interlocutor(dispatcher, channel, _maxAnsDelay);
+            var interlocutorProperties = CreateProperties();
+
+            var interlocutor = new Interlocutor(dispatcher, channel, interlocutorProperties);
             var contract = ProxyContractFactory.CreateProxyContract<TContract>(interlocutor, out var finalType, out var actionHandlers);
 
             if(_methodsDescriptor == null)
@@ -200,17 +223,10 @@ namespace TNT.Core.Api
                 _methodsDescriptor.CreateDescription(ProxyContractFactory.ParseContractInterface(typeof(TContract)));
 
                 foreach (var actionHandler in actionHandlers)
-                {
-                    var mm = finalType.GetMethod(actionHandler.Value);
+                    _methodsDescriptor.SetHandler(actionHandler.Key, finalType.GetMethod(actionHandler.Value));
 
-                    //var params1 = new object[] { 4 };
-                    //var res = mm.Invoke(instance, params1);
-
-                    _methodsDescriptor.SetHandler(actionHandler.Key, mm);
-                }
                 _methodsDescriptor.SetContract(contract);
             }
-
 
             dispatcher.SetContract(contract);
             dispatcher.Start();
@@ -218,8 +234,24 @@ namespace TNT.Core.Api
             interlocutor.Initialize(_methodsDescriptor);
             interlocutor.Start();
 
-            return contract;
+            return (contract, interlocutor);
         }
 
+        private InterlocutorProperties CreateProperties()
+        {
+            var type = typeof(TContract);
+
+            var interlocutorProperties = new InterlocutorProperties()
+            {
+                ClientVersion = type.GetCustomAttribute<TntClientVersion>()?.Version ?? new Version(1, 0, 0),
+                ServerVersion = type.GetCustomAttribute<TntServerVersion>()?.Version ?? new Version(1, 0, 0),
+                MinimalClientVersion = type.GetCustomAttribute<TntMinimalClientVersion>()?.Version ?? new Version(1, 0, 0),
+                MinimalServerVersion = type.GetCustomAttribute<TntMinimalServerVersion>()?.Version ?? new Version(1, 0, 0),
+                Fullmode = _fullmode,
+                DefaultMaxAnsDelay = _maxAnsDelay,
+            };
+
+            return interlocutorProperties;
+        }
     }
 }

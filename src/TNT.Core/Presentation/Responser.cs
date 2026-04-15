@@ -90,6 +90,33 @@ namespace TNT.Core.Presentation
             return result;
         }
 
+        public (bool needDisconnect, TntMessage message)  CreateHelloMessageResponse(InterlocutorProperties properties, TntMessage msgRequest)
+        {
+            var request = msgRequest.Result as HelloMessageRequest;
+
+            var myVersion = properties.ServerMode ? properties.ServerVersion : properties.ClientVersion;
+            var minimalVersion = properties.ServerMode ? properties.MinimalClientVersion : properties.MinimalServerVersion;
+
+            HelloMessageResponse response;
+
+            if (request.MyVersion < minimalVersion || request.MinimalVersion > myVersion)
+                response = HelloMessageResponse.UnavailableVersion();
+            else if (properties.ServerMode && properties.Fullmode)
+                response = HelloMessageResponse.ConnectionsLimit();
+            else
+                response = HelloMessageResponse.Available();
+
+            var msg = new TntMessage()
+            {
+                AskId = msgRequest.AskId,
+                MessageType = MessageType.HelloMessageResponse,
+                Result = response
+            };
+
+            return (!response.AvailableForWork, msg);
+        }
+
+
         public TntMessage CreatePingResponse(TntMessage msg)
         {
             return new TntMessage()

@@ -22,11 +22,13 @@ static class Program
         
         server.Start();
 
+        var firstClientTask = server.WaitForAClient();
+
         using var client = await TntBuilder.UseContract<IExampleContract>()
                 .SetMaxAnsTimeout(30000)
                 .CreateTcpClientConnectionAsync(IPAddress.Loopback, 12345);
 
-        var firstClient = await server.WaitForAClient();
+        await firstClientTask;
 
         Console.WriteLine("Type your messages:");
         
@@ -39,10 +41,10 @@ static class Program
 }
 
 //contract
-[TntMinimalServerVersion("1.0.0")]
-[TntMinimalClientVersion("1.0.0")]
-[TntClientVersion("1.0.0")]
-[TntServerVersion("1.0.0")]
+[TntMinimalServerVersion(1, 0, 0)]
+[TntMinimalClientVersion(1, 0, 0)]
+[TntClientVersion(1, 0, 0)]
+[TntServerVersion(1, 0, 0)]
 public interface IExampleContract
 {
     [TntMessageAttribute(1)] Action<int> Action { get; set; }

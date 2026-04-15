@@ -9,53 +9,53 @@ namespace TNT.Core.Contract
     [AttributeUsage(AttributeTargets.Interface, AllowMultiple = false, Inherited = true)]
     public class TntClientVersion : Attribute
     {
-        private readonly string _version;
+        private readonly Version _version;
 
-        public TntClientVersion(string version)
+        public TntClientVersion(int major, int minor, int build)
         {
-            _version = version;
+            _version = new Version(major, minor, build);
         }
 
-        public string Version => _version;
+        public Version Version => _version;
     }
 
     [AttributeUsage(AttributeTargets.Interface, AllowMultiple = false, Inherited = true)]
     public class TntServerVersion : Attribute
     {
-        private readonly string _version;
+        private readonly Version _version;
 
-        public TntServerVersion(string version)
+        public TntServerVersion(int major, int minor, int build)
         {
-            _version = version;
+            _version = new Version(major, minor, build);
         }
 
-        public string Version => _version;
+        public Version Version => _version;
     }
 
 
     [AttributeUsage(AttributeTargets.Interface, AllowMultiple = false, Inherited = true)]
     public class TntMinimalClientVersion : Attribute
     {
-        private readonly string _version;
+        private readonly Version _version;
 
-        public TntMinimalClientVersion(string version)
+        public TntMinimalClientVersion(int major, int minor, int build)
         {
-            _version = version;
+            _version = new Version(major, minor, build);
         }
 
-        public string Version => _version;
+        public Version Version => _version;
     }
 
     [AttributeUsage(AttributeTargets.Interface, AllowMultiple = false, Inherited = true)]
     public class TntMinimalServerVersion : Attribute
     {
-        private readonly string _version;
+        private readonly Version _version;
 
-        public TntMinimalServerVersion(string version)
+        public TntMinimalServerVersion(int major, int minor, int build)
         {
-            _version = version;
+            _version = new Version(major, minor, build);
         }
 
-        public string Version => _version;
+        public Version Version => _version;
     }
 }

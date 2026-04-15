@@ -15,6 +15,7 @@ namespace TNT.Core.Presentation
     /// </summary>
     public interface IInterlocutor
     {
+        public Task<(bool AvailableForWork, string UnavailabilityReason)> SendHelloMessageAsync();
         /// <summary>
         /// Sends "Say" message with "values" arguments
         /// </summary>

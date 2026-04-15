@@ -1,4 +1,5 @@
 ﻿using System;
+using TNT.Core.Presentation;
 using TNT.Core.Transport;
 
 namespace TNT.Core.Api
@@ -7,5 +8,6 @@ namespace TNT.Core.Api
     {
         IChannel Channel { get; }
         TContract Contract { get; }
+        public IInterlocutor Interlocutor { get; }
     }
 }

@@ -20,6 +20,7 @@ namespace TNT.Core.Tcp
         private volatile int _maxId;
 
         private ConcurrentDictionary<int, IConnection<TContract>> _clients;
+        private ConcurrentDictionary<int, IConnection<TContract>> _restrictedClients;
 
         public int ConnectionsCount => _clients.Count;
 
@@ -31,9 +32,9 @@ namespace TNT.Core.Tcp
 
         private CancellationTokenSource _internalWorkCts;
         private Task _internalWorkAsync;
+        private int _maxConnections;
 
-
-        public TntTcpServer(ContractBuilder<TContract> channelBuilder, IPEndPoint endPoint)
+        public TntTcpServer(ContractBuilder<TContract> channelBuilder, IPEndPoint endPoint, int maxConnections)
         {
             IPEndPoint = endPoint;
 
@@ -42,8 +43,10 @@ namespace TNT.Core.Tcp
             _tcpListener = new TcpListener(endPoint);
 
             _clients = new ConcurrentDictionary<int, IConnection<TContract>>();
+            _restrictedClients = new ConcurrentDictionary<int, IConnection<TContract>>();
 
             _waitForAClientTaskSource = new TaskCompletionSource<IConnection<TContract>>();
+            _maxConnections = maxConnections;
         }
 
         private volatile bool _alreadyStarted;
@@ -60,14 +63,8 @@ namespace TNT.Core.Tcp
             _internalWorkAsync = Task.Run(async () => await InternalStartAsync(_internalWorkCts.Token));
         }
 
-        public Task<IConnection<TContract>> WaitForAClient(bool newClient = false)
+        public Task<IConnection<TContract>> WaitForAClient()
         {
-            if (newClient)
-            {
-                //_waitForAClientTaskSource.
-                _waitForAClientTaskSource = new TaskCompletionSource<IConnection<TContract>>();
-            }
-
             return _waitForAClientTaskSource.Task;
         }
 
@@ -75,33 +72,44 @@ namespace TNT.Core.Tcp
         {
             while (!token.IsCancellationRequested)
             {
-                var tcpClient = await _tcpListener.AcceptTcpClientAsync();
-                var newId = _maxId++;
-
-                var tntTcpClient = new TntTcpClient(tcpClient)
+                try
                 {
-                    ConnectionId = newId
-                };
+                    var tcpClient = await _tcpListener.AcceptTcpClientAsync(token);
 
-                tntTcpClient.OnDisconnect += TntTcpClient_OnDisconnect;
+                    if (token.IsCancellationRequested)
+                        break;
 
-                var connection = await _connectionBuilder.UseChannel(tntTcpClient).BuildAsync();
-
-                var beforeConnectEventArgs = new BeforeConnectEventArgs<TContract>(connection);
-                BeforeConnect?.Invoke(this, beforeConnectEventArgs);
-
-                if (!beforeConnectEventArgs.AllowConnection)
-                {
-                    connection.Dispose();
-                    return;
+                    await PrepareConnection(tcpClient);
                 }
-
-                _clients.TryAdd(newId, connection);
-
-                AfterConnect?.Invoke(this, connection);
-
-                _waitForAClientTaskSource.TrySetResult(connection);
+                catch { }
             }
+        }
+
+        private async Task PrepareConnection(TcpClient tcpClient)
+        {
+            var newId = _maxId++;
+
+            var tntTcpClient = new TntTcpClient(tcpClient)
+            {
+                ConnectionId = newId
+            };
+
+            tntTcpClient.OnDisconnect += TntTcpClient_OnDisconnect;
+
+            IConnection<TContract> connection;
+
+            if (_maxConnections > 0 && _clients.Count >= _maxConnections)
+            {
+                connection = await _connectionBuilder.UseChannel(tntTcpClient).SetFullMode().BuildAsync();
+                _restrictedClients.TryAdd(newId, connection);
+            }
+            else
+            {
+                connection = await _connectionBuilder.UseChannel(tntTcpClient).BuildAsync();
+                _clients.TryAdd(newId, connection);
+                _waitForAClientTaskSource.TrySetResult(connection);
+                _waitForAClientTaskSource = new TaskCompletionSource<IConnection<TContract>>();
+            }            
         }
 
         private void TntTcpClient_OnDisconnect(object arg1, ErrorMessage arg2)
@@ -110,6 +118,9 @@ namespace TNT.Core.Tcp
 
             if (_clients.TryRemove(client.ConnectionId, out var connection))
                 Disconnected?.Invoke(this, new ClientDisconnectEventArgs<TContract>(connection, arg2));
+
+            if (_restrictedClients.TryRemove(client.ConnectionId, out var restrictedConnection))
+                Disconnected?.Invoke(this, new ClientDisconnectEventArgs<TContract>(restrictedConnection, arg2));
 
             client.Dispose();
         }
@@ -137,6 +148,7 @@ namespace TNT.Core.Tcp
 
             _internalWorkCts.Dispose();
 
+            _waitForAClientTaskSource.TrySetCanceled();
             _tcpListener.Stop();
 
             var clients = _clients.Values;

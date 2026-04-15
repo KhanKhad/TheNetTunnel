@@ -35,78 +35,82 @@ namespace TNT.Core.Presentation
 
             MethodDesctiption methodDescription = null;
 
-            if (messageType == MessageType.RequestMessage ||
-                messageType == MessageType.SuccessfulResponseMessage)
+            if (messageType is not MessageType.RequestMessage and not MessageType.SuccessfulResponseMessage
+                || _methodsDescriptor.DescribedMethods.TryGetValue(messageId, out methodDescription))
             {
-                if (!_methodsDescriptor.DescribedMethods.TryGetValue(messageId, out methodDescription))
+                try
                 {
-                    var rError = new ErrorMessage(messageId, tntMessage.AskId,
-                        ErrorType.ContractSignatureError,
-                        $"Message with contract id {messageId} is not implemented");
+                    switch (messageType)
+                    {
+                        case MessageType.PingMessage:
+                        case MessageType.PingResponseMessage:
 
-                    var error = (ErrorMessage)tntMessage.Result;
-                    new ErrorMessageSerializer().SerializeT(error, stream);
+                            var pingVal = (short)tntMessage.Result;
+                            Tools.WriteShort(pingVal, to: stream);
 
-                    return stream;
+                            break;
+
+                        case MessageType.RequestMessage:
+
+                            if (methodDescription.HasArguments)
+                            {
+                                var serializer = methodDescription.ArgumentsSerializer;
+
+                                var values = (object[])tntMessage.Result;
+
+                                if (values.Length == 1)
+                                    serializer.Serialize(values[0], stream);
+                                else if (values.Length > 1)
+                                    serializer.Serialize(values, stream);
+                            }
+
+                            break;
+
+                        case MessageType.HelloMessageRequest:
+
+                            new HelloMessageRequestSerializer().SerializeT((HelloMessageRequest)tntMessage.Result, stream);
+
+                            break;
+
+                        case MessageType.HelloMessageResponse:
+
+                            new HelloMessageResponseSerializer().SerializeT((HelloMessageResponse)tntMessage.Result, stream);
+
+                            break;
+
+                        case MessageType.SuccessfulResponseMessage:
+
+                            if (methodDescription.HasReturnType)
+                            {
+                                var serializer = methodDescription.ReturnTypeSerializer;
+                                serializer.Serialize(tntMessage.Result, stream);
+                            }
+
+                            break;
+
+                        case MessageType.FailedResponseMessage:
+                        case MessageType.FatalFailedResponseMessage:
+
+                            var error = (ErrorMessage)tntMessage.Result;
+                            new ErrorMessageSerializer().SerializeT(error, stream);
+
+                            break;
+
+
+                        case MessageType.Unknown:
+                        default:
+                            throw new Exception("Unknown message type");
+                    }
+                }
+                catch
+                {
+                    throw;
                 }
             }
-
-            try
+            else
             {
-                switch (messageType)
-                {
-                    case MessageType.PingMessage:
-                    case MessageType.PingResponseMessage:
-
-                        var pingVal = (short)tntMessage.Result;
-                        Tools.WriteShort(pingVal, to: stream);
-
-                        break;
-
-                    case MessageType.RequestMessage:
-
-                        if (methodDescription.HasArguments)
-                        {
-                            var serializer = methodDescription.ArgumentsSerializer;
-
-                            var values = (object[])tntMessage.Result;
-
-                            if (values.Length == 1)
-                                serializer.Serialize(values[0], stream);
-                            else if (values.Length > 1)
-                                serializer.Serialize(values, stream);
-                        }
-
-                        break;
-
-                    case MessageType.SuccessfulResponseMessage:
-
-                        if (methodDescription.HasReturnType)
-                        {
-                            var serializer = methodDescription.ReturnTypeSerializer;
-                            serializer.Serialize(tntMessage.Result, stream);
-                        }
-
-                        break;
-
-                    case MessageType.FailedResponseMessage:
-                    case MessageType.FatalFailedResponseMessage:
-
-                        var error = (ErrorMessage)tntMessage.Result;
-                        new ErrorMessageSerializer().SerializeT(error, stream);
-
-                        break;
-
-
-                    case MessageType.Unknown:
-                    default:
-                        throw new Exception("Unknown message type");
-                }
-            }
-            catch (Exception ex)
-            {
-                //??
-                throw ex;
+                var rError = new ErrorMessage(messageId, tntMessage.AskId, ErrorType.ContractSignatureError, $"Message with contract id {messageId} is not implemented");
+                new ErrorMessageSerializer().SerializeT(rError, stream);
             }
 
             stream.Position = 0;

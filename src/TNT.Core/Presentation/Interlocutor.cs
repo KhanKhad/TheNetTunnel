@@ -2,6 +2,8 @@
 using System.Collections.Concurrent;
 using System.IO;
 using System.Reflection;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using TNT.Core.Contract;
@@ -22,13 +24,14 @@ namespace TNT.Core.Presentation
         private readonly ReceivePduQueue _receiveMessageAssembler;
 
         private int _maxAskId;
-        private readonly int _maxAnsDelay;
 
         private ConcurrentDictionary<int, TaskCompletionSource<object>> MessageAwaiters;
 
-        public Interlocutor(IDispatcher receiveDispatcher, IChannel channel, int maxAnsDelay = 3000)
+        public InterlocutorProperties Properties { get; private set; }
+
+        public Interlocutor(IDispatcher receiveDispatcher, IChannel channel, InterlocutorProperties properties)
         {
-            _maxAnsDelay = maxAnsDelay;
+            Properties = properties;
 
             Channel = channel;
 
@@ -46,42 +49,89 @@ namespace TNT.Core.Presentation
         }
 
 
-        private volatile bool _alreadyStarted;
+        private Task _readChannelAsync;
+        private CancellationTokenSource _readChannelCts;
+
         public void Start()
         {
-            if (_alreadyStarted)
+            if (_readChannelCts != null)
                 return;
 
-            _alreadyStarted = true;
-
             //we need to clear the SynchronisationContext
-            _ = Task.Run(ReadChannelAsync);
+            _readChannelCts = new CancellationTokenSource();
+            _readChannelAsync = Task.Run(async () => await ReadChannelAsync(_readChannelCts.Token));
         }
 
-        public async Task SendInitializeMessageAsync()
+        public async Task StopAsync() 
         {
+            if (_readChannelCts == null)
+                return;
 
+            _readChannelCts.Cancel();
+
+            await _readChannelAsync;
+
+            _readChannelCts.Dispose();
+
+            _readChannelCts = null;
         }
 
-        private async Task ReadChannelAsync()
+        public async Task<(bool AvailableForWork, string UnavailabilityReason)> SendHelloMessageAsync()
+        {
+            var newId = Interlocked.Increment(ref _maxAskId);
+
+            var awaiter = GetAsyncMessageAwaiter(newId);
+
+            var message = new TntMessage()
+            {
+                AskId = newId,
+                MessageId = 0,
+                MessageType = MessageType.HelloMessageRequest,
+                Result = Properties.CreateHelloMessage(),
+            };
+
+            await SendMessageAsync(message);
+
+            var result = await Task.WhenAny(awaiter, Task.Delay(Properties.DefaultMaxAnsDelay));
+
+            if (result == awaiter)
+            {
+                var response = (await awaiter) as HelloMessageResponse;
+                return (response.AvailableForWork, response.UnavailabilityReason);
+            }
+            else
+            {
+                RemoveAsyncMessageAwaiter(newId);
+                return (false, "No response to HelloMessage");
+            }
+        }
+
+        private async Task ReadChannelAsync(CancellationToken token)
         {
             var reader = Channel.ResponsesChannel.Reader;
 
-            await foreach (var response in reader.ReadAllAsync())
+            try
             {
-                var data = response.Bytes;
-
-                _receiveMessageAssembler.Enqueue(data);
-
-                while (true)
+                await foreach (var response in reader.ReadAllAsync(token))
                 {
-                    var message = _receiveMessageAssembler.DequeueOrNull();
+                    var data = response.Bytes;
 
-                    if (message == null)
-                        break;
+                    _receiveMessageAssembler.Enqueue(data);
 
-                    _ = NewMessageReceivedAsync(message);
+                    while (true)
+                    {
+                        var message = _receiveMessageAssembler.DequeueOrNull();
+
+                        if (message == null)
+                            break;
+
+                        _ = NewMessageReceivedAsync(message);
+                    }
                 }
+            }
+            catch
+            {
+
             }
         }
 
@@ -124,6 +174,15 @@ namespace TNT.Core.Presentation
                     var response = _responser.CreatePingResponse(deserialized.MessageOrNull);
                     await SendMessageAsync(response);
                 }
+                else if (msgType == MessageType.HelloMessageRequest)
+                {
+                    var (needDisconnect, response) = _responser.CreateHelloMessageResponse(Properties, deserialized.MessageOrNull);
+                    
+                    await SendMessageAsync(response);
+                    
+                    if (needDisconnect)
+                        Disconnect();
+                }
                 else //no need to response
                 {
                     switch (msgType)
@@ -148,6 +207,18 @@ namespace TNT.Core.Presentation
                             }
 
                             break;
+
+                        case MessageType.HelloMessageResponse:
+
+                            //remove awaiter with an error and disconnect
+                            if (MessageAwaiters.TryRemove(askId, out var hrmessageAwaiter))
+                                hrmessageAwaiter.SetResult((HelloMessageResponse)message.Result);
+
+                            if(!((HelloMessageResponse)message.Result).AvailableForWork)
+                                Disconnect();
+
+                            break;
+
                         case MessageType.FatalFailedResponseMessage:
 
                             //remove awaiter with an error and disconnect
@@ -160,6 +231,11 @@ namespace TNT.Core.Presentation
                             Disconnect();
 
                             break;
+
+                        case MessageType.DisconnectMessage:
+                            Disconnect();
+                            break;
+
                         default:
                             break;
                     }
@@ -190,8 +266,6 @@ namespace TNT.Core.Presentation
         {
             var newId = Interlocked.Increment(ref _maxAskId);
 
-            var awaiter = GetAsyncMessageAwaiter(newId);
-
             var message = new TntMessage()
             {
                 AskId = newId,
@@ -218,12 +292,16 @@ namespace TNT.Core.Presentation
 
             await SendMessageAsync(message).ConfigureAwait(false);
 
-            var result = await Task.WhenAny(awaiter, Task.Delay(_maxAnsDelay));
+            var result = await Task.WhenAny(awaiter, Task.Delay(Properties.DefaultMaxAnsDelay));
 
             if (result == awaiter)
                 await awaiter;
 
-            else throw new CallTimeoutException((short)messageId, newId);
+            else
+            {
+                RemoveAsyncMessageAwaiter(newId);
+                throw new CallTimeoutException((short)messageId, newId);
+            }
         }
         public T Ask<T>(int messageId, object[] values)
         {
@@ -243,16 +321,19 @@ namespace TNT.Core.Presentation
 
             try
             {
-                if (awaiter.Wait(_maxAnsDelay))
+                if (awaiter.Wait(Properties.DefaultMaxAnsDelay))
                     return (T)awaiter.Result;
             }
             catch(AggregateException ae)
             {
-                if(ae.InnerExceptions.Count == 1)
+                RemoveAsyncMessageAwaiter(newId);
+
+                if (ae.InnerExceptions.Count == 1)
                     throw ae.InnerException;
                 else throw;
             }
 
+            RemoveAsyncMessageAwaiter(newId);
             throw new CallTimeoutException((short)messageId, newId);
         }
 
@@ -272,12 +353,15 @@ namespace TNT.Core.Presentation
 
             await SendMessageAsync(message).ConfigureAwait(false);
 
-            var result = await Task.WhenAny(awaiter, Task.Delay(_maxAnsDelay));
+            var result = await Task.WhenAny(awaiter, Task.Delay(Properties.DefaultMaxAnsDelay));
 
             if (result == awaiter)
                 return (T)await awaiter;
-
-            else throw new CallTimeoutException((short)messageId, newId);
+            else
+            {
+                RemoveAsyncMessageAwaiter(newId);
+                throw new CallTimeoutException((short)messageId, newId);
+            }
         }
 
         public Task<object> GetAsyncMessageAwaiter(int askId)
@@ -288,6 +372,35 @@ namespace TNT.Core.Presentation
                 return tks.Task;
 
             else throw new Exception("Same askId was already added");
+        }
+
+        public void RemoveAsyncMessageAwaiter(int askId)
+        {
+            MessageAwaiters.TryRemove(askId, out _);
+        }
+    }
+
+    public class InterlocutorProperties
+    {
+        public bool Fullmode;
+        public bool ServerMode;
+
+        public Version MinimalServerVersion;
+        public Version MinimalClientVersion;
+        public Version ClientVersion;
+        public Version ServerVersion;
+
+        public int DefaultMaxAnsDelay;
+
+        public InterlocutorProperties() { }
+
+        public HelloMessageRequest CreateHelloMessage()
+        {
+            return new HelloMessageRequest()
+            {
+                MyVersion = ServerMode ? ServerVersion : ClientVersion,
+                MinimalVersion = ServerMode ? MinimalClientVersion : MinimalServerVersion,
+            };
         }
     }
 }

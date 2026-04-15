@@ -202,6 +202,43 @@ namespace TNT.Core.Presentation
                     }
                 #endregion
 
+
+                case MessageType.HelloMessageRequest:
+
+                    var helloMsgRequestDeserializer = new HelloMessageRequestDeserializer();
+                    var deserializedHelloMsgRequest = helloMsgRequestDeserializer.Deserialize(streamMessage,
+                        (int)(streamMessage.Length - streamMessage.Position));
+
+                    return new MessageDeserializeResult()
+                    {
+                        IsSuccessful = true,
+                        MessageOrNull = new TntMessage()
+                        {
+                            MessageId = messageId,
+                            MessageType = (MessageType)messageType,
+                            AskId = askId,
+                            Result = deserializedHelloMsgRequest,
+                        },
+                    };
+
+                case MessageType.HelloMessageResponse:
+
+                    var helloMsgResponseDeserializer = new HelloMessageResponseDeserializer();
+                    var deserializedHelloMsgResponse = helloMsgResponseDeserializer.Deserialize(streamMessage,
+                        (int)(streamMessage.Length - streamMessage.Position));
+
+                    return new MessageDeserializeResult()
+                    {
+                        IsSuccessful = true,
+                        MessageOrNull = new TntMessage()
+                        {
+                            MessageId = messageId,
+                            MessageType = (MessageType)messageType,
+                            AskId = askId,
+                            Result = deserializedHelloMsgResponse,
+                        },
+                    };
+
                 case MessageType.FailedResponseMessage:
                 case MessageType.FatalFailedResponseMessage:
 

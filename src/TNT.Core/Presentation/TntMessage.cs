@@ -21,8 +21,8 @@ namespace TNT.Core.Presentation
     {
         Unknown = 0,
 
-        Initialize = 1,
-        InitializeResponse = 2,
+        HelloMessageRequest = 1,
+        HelloMessageResponse = 2,
 
         PingMessage = 3,
         PingResponseMessage = 4,
@@ -32,5 +32,7 @@ namespace TNT.Core.Presentation
         SuccessfulResponseMessage = 6,
         FailedResponseMessage = 7,
         FatalFailedResponseMessage = 8,
+
+        DisconnectMessage = 255,
     }
 }

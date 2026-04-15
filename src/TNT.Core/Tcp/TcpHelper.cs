@@ -1,17 +1,19 @@
 ﻿using System.Net;
 using System.Net.Sockets;
+using System.Reflection;
 using System.Threading.Tasks;
 using TNT.Core.Api;
+using TNT.Core.Contract;
 
 namespace TNT.Core.Tcp
 {
     public static class TcpHelper
     {
         public static TntTcpServer<TContract> CreateTcpServer<TContract>(
-            this ContractBuilder<TContract> builder, IPAddress ip, int port)
+            this ContractBuilder<TContract> builder, IPAddress ip, int port, int maxConnections = -1)
             where TContract : class
         {
-            return new TntTcpServer<TContract>(builder, new IPEndPoint(ip, port));
+            return new TntTcpServer<TContract>(builder, new IPEndPoint(ip, port), maxConnections);
         }
 
         /// <summary>
