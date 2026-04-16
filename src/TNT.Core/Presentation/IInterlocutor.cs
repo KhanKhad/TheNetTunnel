@@ -13,8 +13,9 @@ namespace TNT.Core.Presentation
     /// <summary>
     /// Incapsulates interaction with remote contract
     /// </summary>
-    public interface IInterlocutor
+    public interface IInterlocutor: IAsyncDisposable, IDisposable
     {
+        public void Start();
         public Task<(bool AvailableForWork, string UnavailabilityReason)> SendHelloMessageAsync();
         /// <summary>
         /// Sends "Say" message with "values" arguments

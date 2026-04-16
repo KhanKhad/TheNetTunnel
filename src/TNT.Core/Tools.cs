@@ -25,7 +25,7 @@ namespace TNT.Core
                 size = Marshal.SizeOf(typeof(T));
             IntPtr p = Marshal.AllocHGlobal(size);
             Marshal.Copy(array, offset, p, size);
-            T ans = (T) Marshal.PtrToStructure(p, typeof(T));
+            T ans = (T)Marshal.PtrToStructure(p, typeof(T));
             Marshal.FreeHGlobal(p);
             return ans;
         }
@@ -64,7 +64,7 @@ namespace TNT.Core
             //Write second byte
             to.WriteByte((byte)(outputMessageId >> 8));
         }
-        
+
         public static short? TryReadShort(this MemoryStream from)
         {
             if (@from.Length - @from.Position < sizeof(short))
@@ -97,6 +97,7 @@ namespace TNT.Core
             int lasts = lenght;
 
             byte[] arr = ArrayPool<byte>.Shared.Rent(4096);
+
             while (lasts > 0)
             {
                 var lenghtB = lasts > 4096 ? 4096 : lasts;
@@ -104,6 +105,8 @@ namespace TNT.Core
                 targetStream.Write(arr, 0, lenghtB);
                 lasts -= lenghtB;
             }
+
+            ArrayPool<byte>.Shared.Return(arr);
         }
 
         public static void WriteToStream<T>(this T str, Stream stream, int size = -1)

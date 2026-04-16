@@ -29,8 +29,6 @@ namespace TNT.Core.Presentation
         {
             TntMessage result;
 
-            var type = deserialized.MessageType;
-
             var id = deserialized.MessageId;
             var askId = deserialized.AskId;
 
@@ -38,9 +36,7 @@ namespace TNT.Core.Presentation
             {
                 var arguments = (object[])deserialized.Result;
 
-                var messageHandler = _methodsDescriptor.DescribedMethods[id];
-
-                if (_methodsDescriptor.DescribedMethods.TryGetValue(id, out var askHandler))
+                if (_methodsDescriptor.DescribedMethods.TryGetValue(id, out var messageHandler))
                 {
                     switch (messageHandler.MethodType)
                     {

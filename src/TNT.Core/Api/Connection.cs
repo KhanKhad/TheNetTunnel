@@ -20,6 +20,7 @@ namespace TNT.Core.Api
 
         public void Dispose()
         {
+            Interlocutor.Dispose();
             Channel.Dispose();
         }
     }

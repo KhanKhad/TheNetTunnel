@@ -1,12 +1,9 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.IO;
-using System.Reflection;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Threading;
+using System.Runtime.ExceptionServices;
 using System.Threading.Tasks;
-using TNT.Core.Contract;
 using TNT.Core.Exceptions.Local;
 using TNT.Core.ReceiveDispatching;
 using TNT.Core.Transport;
@@ -62,20 +59,6 @@ namespace TNT.Core.Presentation
             _readChannelAsync = Task.Run(async () => await ReadChannelAsync(_readChannelCts.Token));
         }
 
-        public async Task StopAsync() 
-        {
-            if (_readChannelCts == null)
-                return;
-
-            _readChannelCts.Cancel();
-
-            await _readChannelAsync;
-
-            _readChannelCts.Dispose();
-
-            _readChannelCts = null;
-        }
-
         public async Task<(bool AvailableForWork, string UnavailabilityReason)> SendHelloMessageAsync()
         {
             var newId = Interlocked.Increment(ref _maxAskId);
@@ -97,7 +80,7 @@ namespace TNT.Core.Presentation
             if (result == awaiter)
             {
                 var response = (await awaiter) as HelloMessageResponse;
-                return (response.AvailableForWork, response.UnavailabilityReason);
+                return (response?.AvailableForWork ?? false, response?.UnavailabilityReason ?? "Invalid response");
             }
             else
             {
@@ -129,137 +112,141 @@ namespace TNT.Core.Presentation
                     }
                 }
             }
-            catch
+            catch (OperationCanceledException)
             {
-
+                // Expected when stopping the read loop
             }
         }
 
 
         private async Task NewMessageReceivedAsync(MemoryStream stream)
         {
-            //No need to wait for this message, we can start handling next immediately.
-            await Task.Yield();
-
-            var deserialized = _messagesDeserializer.Deserialize(stream);
-
-            if (!deserialized.IsSuccessful)
+            try
             {
-                var error = deserialized.ErrorMessageOrNull;
+                //No need to wait for this message, we can start handling next immediately.
+                await Task.Yield();
 
-                TntMessage result;
+                var deserialized = _messagesDeserializer.Deserialize(stream);
 
-                if(deserialized.NeedToDisconnect)
-                    result = _responser.CreateFatalFailedResponseMessage(error, error.MessageId, error.AskId);
-                else result = _responser.CreateFailedResponseMessage(error, error.MessageId, error.AskId);
+                stream.Dispose();
 
-                await SendMessageAsync(result).ConfigureAwait(false);
-
-                if (deserialized.NeedToDisconnect)
-                    Disconnect();
-            }
-            else
-            {
-                var message = deserialized.MessageOrNull;
-                var msgType = deserialized.MessageOrNull.MessageType;
-                var askId = deserialized.MessageOrNull.AskId;
-
-                if (msgType == MessageType.RequestMessage)
+                if (!deserialized.IsSuccessful)
                 {
-                    var response = await _responser.CreateResponseAsync(deserialized.MessageOrNull);
-                    await SendMessageAsync(response);
-                }
-                else if (msgType == MessageType.PingMessage)
-                {
-                    var response = _responser.CreatePingResponse(deserialized.MessageOrNull);
-                    await SendMessageAsync(response);
-                }
-                else if (msgType == MessageType.HelloMessageRequest)
-                {
-                    var (needDisconnect, response) = _responser.CreateHelloMessageResponse(Properties, deserialized.MessageOrNull);
-                    
-                    await SendMessageAsync(response);
-                    
-                    if (needDisconnect)
+                    var error = deserialized.ErrorMessageOrNull;
+
+                    TntMessage result;
+
+                    if (deserialized.NeedToDisconnect)
+                        result = _responser.CreateFatalFailedResponseMessage(error, error.MessageId, error.AskId);
+                    else result = _responser.CreateFailedResponseMessage(error, error.MessageId, error.AskId);
+
+                    await SendMessageAsync(result).ConfigureAwait(false);
+
+                    if (deserialized.NeedToDisconnect)
                         Disconnect();
                 }
-                else //no need to response
+                else
                 {
-                    switch (msgType)
+                    var message = deserialized.MessageOrNull;
+                    var msgType = deserialized.MessageOrNull.MessageType;
+                    var askId = deserialized.MessageOrNull.AskId;
+
+                    if (msgType == MessageType.RequestMessage)
                     {
-                        case MessageType.PingResponseMessage:
-                        case MessageType.SuccessfulResponseMessage:
+                        var response = await _responser.CreateResponseAsync(deserialized.MessageOrNull);
+                        await SendMessageAsync(response);
+                    }
+                    else if (msgType == MessageType.PingMessage)
+                    {
+                        var response = _responser.CreatePingResponse(deserialized.MessageOrNull);
+                        await SendMessageAsync(response);
+                    }
+                    else if (msgType == MessageType.HelloMessageRequest)
+                    {
+                        var (needDisconnect, response) = _responser.CreateHelloMessageResponse(Properties, deserialized.MessageOrNull);
 
-                            //remove awaiter
-                            if (MessageAwaiters.TryRemove(askId, out var smessageAwaiter))
-                            {
-                                smessageAwaiter.SetResult(message.Result);
-                            }
+                        await SendMessageAsync(response);
 
-                            break;
-                        case MessageType.FailedResponseMessage:
+                        if (needDisconnect)
+                            Disconnect();
+                    }
+                    else //no need to response
+                    {
+                        switch (msgType)
+                        {
+                            case MessageType.PingResponseMessage:
+                            case MessageType.SuccessfulResponseMessage:
 
-                            //remove awaiter with an error
-                            if (MessageAwaiters.TryRemove(askId, out var fmessageAwaiter))
-                            {
-                                var error = (ErrorMessage)message.Result;
-                                fmessageAwaiter.SetException(error.Exception);
-                            }
+                                //remove awaiter
+                                if (MessageAwaiters.TryRemove(askId, out var smessageAwaiter))
+                                {
+                                    smessageAwaiter.SetResult(message.Result);
+                                }
 
-                            break;
+                                break;
+                            case MessageType.FailedResponseMessage:
 
-                        case MessageType.HelloMessageResponse:
+                                //remove awaiter with an error
+                                if (MessageAwaiters.TryRemove(askId, out var fmessageAwaiter))
+                                {
+                                    var error = (ErrorMessage)message.Result;
+                                    fmessageAwaiter.SetException(error.Exception);
+                                }
 
-                            //remove awaiter with an error and disconnect
-                            if (MessageAwaiters.TryRemove(askId, out var hrmessageAwaiter))
-                                hrmessageAwaiter.SetResult((HelloMessageResponse)message.Result);
+                                break;
 
-                            if(!((HelloMessageResponse)message.Result).AvailableForWork)
+                            case MessageType.HelloMessageResponse:
+
+                                //remove awaiter with an error and disconnect
+                                if (MessageAwaiters.TryRemove(askId, out var hrmessageAwaiter))
+                                    hrmessageAwaiter.SetResult((HelloMessageResponse)message.Result);
+
+                                if (!((HelloMessageResponse)message.Result).AvailableForWork)
+                                    Disconnect();
+
+                                break;
+
+                            case MessageType.FatalFailedResponseMessage:
+
+                                //remove awaiter with an error and disconnect
+                                if (MessageAwaiters.TryRemove(askId, out var ffmessageAwaiter))
+                                {
+                                    var error = (ErrorMessage)message.Result;
+                                    ffmessageAwaiter.SetException(error.Exception);
+                                }
+
                                 Disconnect();
 
-                            break;
+                                break;
 
-                        case MessageType.FatalFailedResponseMessage:
+                            case MessageType.DisconnectMessage:
+                                Disconnect();
+                                break;
 
-                            //remove awaiter with an error and disconnect
-                            if (MessageAwaiters.TryRemove(askId, out var ffmessageAwaiter))
-                            {
-                                var error = (ErrorMessage)message.Result;
-                                ffmessageAwaiter.SetException(error.Exception);
-                            }
-
-                            Disconnect();
-
-                            break;
-
-                        case MessageType.DisconnectMessage:
-                            Disconnect();
-                            break;
-
-                        default:
-                            break;
+                            default:
+                                break;
+                        }
                     }
                 }
-            }           
+            }
+            catch (Exception)
+            {
+
+            }
         }
 
         public async Task SendMessageAsync(TntMessage message)
         {
-            var serialized = _messagesSerializer.SerializeTntMessage(message);
+            using var serialized = _messagesSerializer.SerializeTntMessage(message);
 
             await Channel.WriteAsync(serialized.ToArray());
         }
 
         public void SendMessage(TntMessage message)
         {
-            var serialized = _messagesSerializer.SerializeTntMessage(message);
+            using var serialized = _messagesSerializer.SerializeTntMessage(message);
 
             Channel.WriteAsync(serialized.ToArray()).GetAwaiter().GetResult();
-        }
-
-        public void Disconnect()
-        {
-            Channel.Disconnect();
         }
 
         public void Say(int messageId, object[] values)
@@ -329,8 +316,8 @@ namespace TNT.Core.Presentation
                 RemoveAsyncMessageAwaiter(newId);
 
                 if (ae.InnerExceptions.Count == 1)
-                    throw ae.InnerException;
-                else throw;
+                    ExceptionDispatchInfo.Capture(ae.InnerException).Throw();
+                throw;
             }
 
             RemoveAsyncMessageAwaiter(newId);
@@ -377,6 +364,58 @@ namespace TNT.Core.Presentation
         public void RemoveAsyncMessageAwaiter(int askId)
         {
             MessageAwaiters.TryRemove(askId, out _);
+        }
+
+        public void Disconnect()
+        {
+            Channel.Disconnect();
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            if (_readChannelCts == null)
+                return;
+
+            _readChannelCts.Cancel();
+
+            await _readChannelAsync;
+
+            _readChannelCts.Dispose();
+
+            _readChannelCts = null;
+
+            CancelAllAwaiters();
+
+            Disconnect();
+        }
+
+        public void Dispose()
+        {
+            if (_readChannelCts == null)
+                return;
+
+            _readChannelCts.Cancel();
+
+            _readChannelAsync.GetAwaiter().GetResult();
+
+            _readChannelCts.Dispose();
+
+            _readChannelCts = null;
+
+            CancelAllAwaiters();
+
+            Disconnect();
+        }
+
+        private void CancelAllAwaiters()
+        {
+            foreach (var kvp in MessageAwaiters)
+            {
+                if (MessageAwaiters.TryRemove(kvp.Key, out var tcs))
+                {
+                    tcs.TrySetCanceled();
+                }
+            }
         }
     }
 

@@ -127,8 +127,6 @@ namespace TNT.Core.Api
 
             var dispatcher = _receiveDispatcher ?? new ReceiveDispatcher();
 
-            dispatcher.Start();
-
             (TContract contract, IInterlocutor interlocutor) = OriginContractFactory == null
                 ? CreateProxyContract(channel, dispatcher)
                 : CreateOriginContract(channel, dispatcher);
@@ -139,10 +137,12 @@ namespace TNT.Core.Api
             {
                 var (AvailableForWork, UnavailabilityReason) = await interlocutor.SendHelloMessageAsync();
 
-                //if (!AvailableForWork)
-                //    channel.Disconnect();
+                if (!AvailableForWork)
+                {
+                    await interlocutor.DisposeAsync();
+                    throw new Exception($"Interlocutor is not available for work. Unavailability reason: {UnavailabilityReason}");
+                }
             }
-
 
             return new Connection<TContract>(contract, channel, interlocutor);
         }
@@ -167,6 +167,17 @@ namespace TNT.Core.Api
                 : CreateOriginContract(channel, dispatcher);
 
             channel.Start();
+
+            if (OriginContractFactory == null)
+            {
+                var (AvailableForWork, UnavailabilityReason) = interlocutor.SendHelloMessageAsync().GetAwaiter().GetResult();
+
+                if (!AvailableForWork)
+                {
+                    interlocutor.Dispose();
+                    throw new Exception($"Interlocutor is not available for work. Unavailability reason: {UnavailabilityReason}");
+                }
+            }
 
             return new Connection<TContract>(contract, channel, interlocutor);
         }
