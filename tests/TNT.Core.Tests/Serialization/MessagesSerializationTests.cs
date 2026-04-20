@@ -6,15 +6,15 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using TNT.Core.Presentation;
+using TheNetTunnel.Presentation;
 using System.Diagnostics.Contracts;
-using TNT.Core.Contract.Proxy;
-using TNT.Core.Contract;
-using TNT.Core.Presentation.Deserializers;
-using TNT.Core.Transport;
-using TNT.Core.Exceptions.Remote;
+using TheNetTunnel.Contract.Proxy;
+using TheNetTunnel.Contract;
+using TheNetTunnel.Presentation.Deserializers;
+using TheNetTunnel.Transport;
+using TheNetTunnel.Exceptions.Remote;
 
-namespace TNT.Core.Tests.Serialization
+namespace TheNetTunnel.Tests.Serialization
 {
     [TestFixture]
     public class MessagesSerializationTests

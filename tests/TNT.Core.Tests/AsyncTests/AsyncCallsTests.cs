@@ -7,7 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace TNT.Core.Tests.AsyncTests
+namespace TheNetTunnel.Tests.AsyncTests
 {
     [TestFixture]
     public class AsyncCallsTests

@@ -5,8 +5,8 @@ using System.Diagnostics.Contracts;
 using System.Net;
 using System.Text;
 using System.Threading.Tasks;
-using TNT.Core.Api;
-using TNT.Core.Tcp;
+using TheNetTunnel.Api;
+using TheNetTunnel.Tcp;
 
 namespace CommonTestTools
 {

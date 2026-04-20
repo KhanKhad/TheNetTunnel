@@ -1,0 +1,15 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace TheNetTunnel.Tcp
+{
+    public class TcpData
+    {
+        public TcpData() { }
+
+        public byte[] Bytes { get; set; }
+        public object Sender { get; set; }
+
+    }
+}

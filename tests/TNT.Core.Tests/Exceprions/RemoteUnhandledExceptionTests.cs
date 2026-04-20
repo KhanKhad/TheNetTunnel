@@ -6,9 +6,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using TNT.Core.Exceptions.Remote;
+using TheNetTunnel.Exceptions.Remote;
 
-namespace TNT.Core.Tests.Exceprions
+namespace TheNetTunnel.Tests.Exceprions
 {
     [TestFixture]
     public class RemoteUnhandledExceptionTests

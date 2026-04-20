@@ -8,7 +8,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace TNT.Core.Tests.AsyncTests
+namespace TheNetTunnel.Tests.AsyncTests
 {
     [TestFixture]
     public class DefaultAnswersTests

@@ -8,7 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Collections.Concurrent;
 
-namespace TNT.Core.Tests.AsyncTests
+namespace TheNetTunnel.Tests.AsyncTests
 {
     [TestFixture]
     public class FewMessagesAtTheSameTimeTests

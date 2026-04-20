@@ -2,10 +2,10 @@
 using CommonTestTools.Contracts;
 using NUnit.Framework;
 using System.Threading.Tasks;
-using TNT.Core.Api;
-using TNT.Core.Exceptions.ContractImplementation;
+using TheNetTunnel.Api;
+using TheNetTunnel.Exceptions.ContractImplementation;
 
-namespace TNT.Core.Tests.ContractBuilderTests
+namespace TheNetTunnel.Tests.ContractBuilderTests
 {
     [TestFixture]
     public class ContractBuildExceptionsTests

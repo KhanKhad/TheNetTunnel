@@ -5,7 +5,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\TNT.Core\TNT.Core.csproj" />
+    <ProjectReference Include="..\..\src\TheNetTunnel\TheNetTunnel.csproj" />
   </ItemGroup>
   
 </Project>

@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Net;
-using TNT.Core.Api;
+using TheNetTunnel.Api;
 using TNT.SpeedTest.Contracts;
-using TNT.Core.Tcp;
+using TheNetTunnel.Tcp;
 
 namespace TNT.SpeedTest.Server;
 

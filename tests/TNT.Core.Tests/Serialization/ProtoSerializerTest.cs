@@ -2,10 +2,10 @@
 using System.Linq;
 using NUnit.Framework;
 using ProtoBuf;
-using TNT.Core.Presentation.Deserializers;
-using TNT.Core.Presentation.Serializers;
+using TheNetTunnel.Presentation.Deserializers;
+using TheNetTunnel.Presentation.Serializers;
 
-namespace TNT.Core.Tests.Serialization;
+namespace TheNetTunnel.Tests.Serialization;
 
 [TestFixture]
 public class ProtoSerializerTest

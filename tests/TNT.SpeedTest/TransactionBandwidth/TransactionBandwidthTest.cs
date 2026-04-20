@@ -1,6 +1,6 @@
 using System;
 using System.Diagnostics;
-using TNT.Core.Transport;
+using TheNetTunnel.Transport;
 using TNT.SpeedTest.Contracts;
 
 namespace TNT.SpeedTest.TransactionBandwidth;

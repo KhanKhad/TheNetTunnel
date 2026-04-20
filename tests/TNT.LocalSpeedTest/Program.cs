@@ -1,12 +1,12 @@
 ﻿using System;
 using System.Net;
-using TNT.Core.Api;
+using TheNetTunnel.Api;
 using TNT.SpeedTest;
 using TNT.SpeedTest.Contracts;
 using TNT.SpeedTest.OutputBandwidth;
 using TNT.SpeedTest.TransactionBandwidth;
-using TNT.Core.Transport;
-using TNT.Core.Tcp;
+using TheNetTunnel.Transport;
+using TheNetTunnel.Tcp;
 using CommonTestTools.Contracts;
 using CommonTestTools;
 using System.Threading.Tasks;

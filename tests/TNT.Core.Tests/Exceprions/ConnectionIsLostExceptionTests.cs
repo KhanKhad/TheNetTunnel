@@ -6,9 +6,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using TNT.Core.Exceptions.Local;
+using TheNetTunnel.Exceptions.Local;
 
-namespace TNT.Core.Tests.Exceprions
+namespace TheNetTunnel.Tests.Exceprions
 {
     [TestFixture]
     public class ConnectionIsLostExceptionTests

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using TNT.Core.Contract;
+using TheNetTunnel.Contract;
 
 namespace CommonTestTools.Contracts
 {

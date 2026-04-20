@@ -3,8 +3,8 @@ using System.Threading.Tasks;
 using CommonTestTools;
 using NUnit.Framework;
 using Tnt.LongTests.ContractMocks;
-using TNT.Core.Presentation.Deserializers;
-using TNT.Core.Presentation.Serializers;
+using TheNetTunnel.Presentation.Deserializers;
+using TheNetTunnel.Presentation.Serializers;
 using TNT.Integration.LongTests;
 
 namespace Tnt.LongTests.Serialization;

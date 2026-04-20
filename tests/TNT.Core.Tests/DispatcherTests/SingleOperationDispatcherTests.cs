@@ -7,11 +7,11 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Net;
-using TNT.Core.Tcp;
-using TNT.Core.Api;
+using TheNetTunnel.Tcp;
+using TheNetTunnel.Api;
 using System.Collections.Concurrent;
 
-namespace TNT.Core.Tests.DispatcherTests
+namespace TheNetTunnel.Tests.DispatcherTests
 {
     [TestFixture]
     public class SingleOperationDispatcherTests

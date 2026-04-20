@@ -1,10 +1,10 @@
 ﻿using System;
 using System.IO;
 using NUnit.Framework;
-using TNT.Core.Presentation.Deserializers;
-using TNT.Core.Presentation.Serializers;
+using TheNetTunnel.Presentation.Deserializers;
+using TheNetTunnel.Presentation.Serializers;
 
-namespace TNT.Core.Tests.Serialization;
+namespace TheNetTunnel.Tests.Serialization;
 
 [TestFixture]
 public class GeneralSerializersTest

@@ -8,7 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Tnt.LongTests.ContractMocks;
 using System.Collections.Concurrent;
-using TNT.Core.Presentation;
+using TheNetTunnel.Presentation;
 
 namespace TNT.Integration.LongTests
 {

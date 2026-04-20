@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Threading.Tasks;
-using TNT;
-using TNT.Core.Contract;
+using TheNetTunnel.Contract;
 
 namespace CommonTestTools.Contracts;
 

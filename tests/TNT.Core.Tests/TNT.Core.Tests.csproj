@@ -14,7 +14,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\TNT.Core\TNT.Core.csproj" />
+    <ProjectReference Include="..\..\src\TheNetTunnel\TheNetTunnel.csproj" />
     <ProjectReference Include="..\CommonTestTools\CommonTestTools.csproj" />
   </ItemGroup>
 

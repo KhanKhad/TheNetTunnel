@@ -1,10 +1,9 @@
 ﻿using System;
 using System.Net;
 using System.Net.Sockets;
-using TNT;
-using TNT.Core.Api;
-using TNT.Core.Exceptions.Local;
-using TNT.Core.Tcp;
+using TheNetTunnel.Api;
+using TheNetTunnel.Exceptions.Local;
+using TheNetTunnel.Tcp;
 
 namespace EX_2.Stage2_ComplexExample;
 

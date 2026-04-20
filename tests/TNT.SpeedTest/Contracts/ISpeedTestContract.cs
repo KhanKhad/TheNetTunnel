@@ -1,7 +1,7 @@
 ﻿
 
 using System;
-using TNT.Core.Contract;
+using TheNetTunnel.Contract;
 
 namespace TNT.SpeedTest.Contracts;
 

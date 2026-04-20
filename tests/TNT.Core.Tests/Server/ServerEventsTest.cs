@@ -3,12 +3,12 @@ using CommonTestTools;
 using System.Net;
 using CommonTestTools.Contracts;
 using NUnit.Framework;
-using TNT.Core.Api;
-using TNT.Core.Tcp;
+using TheNetTunnel.Api;
+using TheNetTunnel.Tcp;
 using System.Threading.Tasks;
 using System.Diagnostics.Contracts;
 
-namespace TNT.Core.Tests.Server;
+namespace TheNetTunnel.Tests.Server;
 
 [TestFixture]
 public class ServerEventsTest

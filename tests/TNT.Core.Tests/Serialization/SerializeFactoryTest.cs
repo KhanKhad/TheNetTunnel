@@ -6,11 +6,11 @@ using System.Runtime.InteropServices;
 using Newtonsoft.Json.Linq;
 using NUnit.Framework;
 using ProtoBuf;
-using TNT.Core.Exceptions.ContractImplementation;
-using TNT.Core.Presentation.Deserializers;
-using TNT.Core.Presentation.Serializers;
+using TheNetTunnel.Exceptions.ContractImplementation;
+using TheNetTunnel.Presentation.Deserializers;
+using TheNetTunnel.Presentation.Serializers;
 
-namespace TNT.Core.Tests.Serialization;
+namespace TheNetTunnel.Tests.Serialization;
 
 [TestFixture]
 public class SerializeFactoryTest

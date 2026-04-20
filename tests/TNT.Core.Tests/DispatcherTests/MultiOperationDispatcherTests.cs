@@ -7,10 +7,10 @@ using System.Linq;
 using System.Net;
 using System.Text;
 using System.Threading.Tasks;
-using TNT.Core.Api;
-using TNT.Core.Tcp;
+using TheNetTunnel.Api;
+using TheNetTunnel.Tcp;
 
-namespace TNT.Core.Tests.DispatcherTests
+namespace TheNetTunnel.Tests.DispatcherTests
 {
     [TestFixture]
     public class MultiOperationDispatcherTests

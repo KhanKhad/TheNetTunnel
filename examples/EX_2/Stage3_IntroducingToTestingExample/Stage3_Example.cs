@@ -1,10 +1,9 @@
 ﻿using EX_2.Stage2_ComplexExample;
 using System;
 using System.Net;
-using TNT;
-using TNT.Core.Api;
-using TNT.Core.Contract;
-using TNT.Core.Tcp;
+using TheNetTunnel.Api;
+using TheNetTunnel.Contract;
+using TheNetTunnel.Tcp;
 
 namespace EX_2.Stage3_IntroducingToTestingExample;
 

@@ -7,7 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace TNT.Core.Tests.SyncTests
+namespace TheNetTunnel.Tests.SyncTests
 {
     [TestFixture]
     public class SyncCallsTests

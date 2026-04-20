@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Net;
-using TNT.Core.Tcp;
-using TNT.Core.Api;
-using TNT.Core.Contract;
+using TheNetTunnel.Tcp;
+using TheNetTunnel.Api;
+using TheNetTunnel.Contract;
 
 namespace EX_2.Stage1_EasyStart;
 
