@@ -29,17 +29,13 @@ namespace TheNetTunnel.ReceiveDispatching
             MessageAwaiters = new ConcurrentDictionary<int, TaskCompletionSource<object>>();
         }
 
-        private volatile bool _alreadyStarted;
+        private CancellationTokenSource _workCts;
+        private Task _readChannelAsync;
 
         public void Start()
         {
-            if (_alreadyStarted)
-                return;
-
-            _alreadyStarted = true;
-
-            //we need to clear the SynchronisationContext
-            _ = Task.Run(ReadChannelAsync);
+            _workCts = new CancellationTokenSource();
+            _readChannelAsync = Task.Run(ReadChannelAsync);
         }
 
         private object _contract;
@@ -209,13 +205,32 @@ namespace TheNetTunnel.ReceiveDispatching
             else throw new Exception("Same askId was already added");
         }
 
-        private volatile bool _disposed;
         public void Dispose()
         {
-            if (_disposed)
+            if (_workCts == null)
                 return;
 
-            _disposed = true;
+            _workCts.Cancel();
+
+            _readChannelAsync.GetAwaiter().GetResult();
+
+            _workCts.Dispose();
+            _workCts = null;
+
+            TasksChannel.Writer.Complete();
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            if (_workCts == null)
+                return;
+
+            _workCts.Cancel();
+
+            await _readChannelAsync;
+
+            _workCts.Dispose();
+            _workCts = null;
 
             TasksChannel.Writer.Complete();
         }

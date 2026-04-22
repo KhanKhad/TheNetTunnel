@@ -428,6 +428,8 @@ namespace TheNetTunnel.Presentation
 
             _workCts.Dispose();
             _workCts = null;
+
+            await _receiveDispatcher.DisposeAsync();
         }
 
         public void Dispose()
@@ -442,6 +444,8 @@ namespace TheNetTunnel.Presentation
 
             _workCts.Dispose();
             _workCts = null;
+
+            _receiveDispatcher.Dispose();
         }
 
         private void CancelAllAwaiters()

@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 
 namespace TheNetTunnel.ReceiveDispatching
 {
-    public interface IDispatcher : IDisposable
+    public interface IDispatcher : IDisposable, IAsyncDisposable
     {
         void Start();
 
