@@ -35,7 +35,7 @@ namespace TheNetTunnel.ReceiveDispatching
         public void Start()
         {
             _workCts = new CancellationTokenSource();
-            _readChannelAsync = Task.Run(ReadChannelAsync);
+            _readChannelAsync = Task.Run(async () => await ReadChannelAsync(_workCts.Token));
         }
 
         private object _contract;
@@ -44,16 +44,23 @@ namespace TheNetTunnel.ReceiveDispatching
             _contract = contract;
         }
 
-        private async Task ReadChannelAsync()
+        private async Task ReadChannelAsync(CancellationToken token)
         {
             var reader = TasksChannel.Reader;
 
-            await foreach (var dTask in reader.ReadAllAsync())
+            try
             {
-                var task = HandleDispatcherTask(dTask);
+                await foreach (var dTask in reader.ReadAllAsync(token))
+                {
+                    var task = HandleDispatcherTask(dTask);
 
-                if (_singleOperationMode)
-                    await task;
+                    if (_singleOperationMode)
+                        await task;
+                }
+            }
+            catch (Exception) 
+            {
+
             }
         }
 
