@@ -47,16 +47,18 @@ namespace TheNetTunnel.Presentation
 
 
         private Task _readChannelAsync;
-        private CancellationTokenSource _readChannelCts;
+        private Task _pingTaskAsync;
+        private CancellationTokenSource _workCts;
 
         public void Start()
         {
-            if (_readChannelCts != null)
+            if (_workCts != null)
                 return;
 
             //we need to clear the SynchronisationContext
-            _readChannelCts = new CancellationTokenSource();
-            _readChannelAsync = Task.Run(async () => await ReadChannelAsync(_readChannelCts.Token));
+            _workCts = new CancellationTokenSource();
+            _readChannelAsync = Task.Run(async () => await ReadChannelAsync(_workCts.Token));
+            _pingTaskAsync = Task.Run(async () => await PingTaskAsync(_workCts.Token));
         }
 
         public async Task<(bool AvailableForWork, string UnavailabilityReason)> SendHelloMessageAsync()
@@ -86,6 +88,33 @@ namespace TheNetTunnel.Presentation
             {
                 RemoveAsyncMessageAwaiter(newId);
                 return (false, "No response to HelloMessage");
+            }
+        }
+
+        public async Task PingTaskAsync(CancellationToken token)
+        {
+            while (!token.IsCancellationRequested && _workCts != null && !_workCts.IsCancellationRequested)
+            {
+                try
+                {
+                    var pingMessage = new TntMessage()
+                    {
+                        AskId = Interlocked.Increment(ref _maxAskId),
+                        MessageId = 0,
+                        MessageType = MessageType.PingMessage,
+                        Result = (short)1,
+                    };
+                    await SendMessageAsync(pingMessage);
+                    await Task.Delay(Properties.DefaultPingInterval, token);
+                }
+                catch(ConnectionIsLostException)
+                {
+                    Disconnect();
+                }
+                catch
+                {
+
+                }
             }
         }
 
@@ -251,6 +280,8 @@ namespace TheNetTunnel.Presentation
 
         public void Say(int messageId, object[] values)
         {
+            ThrowIfDisconnected();
+
             var newId = Interlocked.Increment(ref _maxAskId);
 
             var message = new TntMessage()
@@ -265,6 +296,8 @@ namespace TheNetTunnel.Presentation
         }
         public async Task SayAsync(int messageId, object[] values)
         {
+            ThrowIfDisconnected();
+
             var newId = Interlocked.Increment(ref _maxAskId);
 
             var awaiter = GetAsyncMessageAwaiter(newId);
@@ -292,6 +325,8 @@ namespace TheNetTunnel.Presentation
         }
         public T Ask<T>(int messageId, object[] values)
         {
+            ThrowIfDisconnected();
+
             var newId = Interlocked.Increment(ref _maxAskId);
 
             var awaiter = GetAsyncMessageAwaiter(newId);
@@ -326,6 +361,8 @@ namespace TheNetTunnel.Presentation
 
         public async Task<T> AskAsync<T>(int messageId, object[] values)
         {
+            ThrowIfDisconnected();
+
             var newId = Interlocked.Increment(ref _maxAskId);
 
             var awaiter = GetAsyncMessageAwaiter(newId);
@@ -366,45 +403,45 @@ namespace TheNetTunnel.Presentation
             MessageAwaiters.TryRemove(askId, out _);
         }
 
+        private void ThrowIfDisconnected()
+        {
+            if (_workCts == null || _workCts.IsCancellationRequested)
+                throw new ConnectionIsLostException("Interlocutor is disconnected");
+        }
+
         public void Disconnect()
         {
+            _workCts.Cancel();
+            CancelAllAwaiters();
             Channel.Disconnect();
         }
 
         public async ValueTask DisposeAsync()
         {
-            if (_readChannelCts == null)
+            if (_workCts == null)
                 return;
 
-            _readChannelCts.Cancel();
+            Disconnect();
 
             await _readChannelAsync;
+            await _pingTaskAsync;
 
-            _readChannelCts.Dispose();
-
-            _readChannelCts = null;
-
-            CancelAllAwaiters();
-
-            Disconnect();
+            _workCts.Dispose();
+            _workCts = null;
         }
 
         public void Dispose()
         {
-            if (_readChannelCts == null)
+            if (_workCts == null)
                 return;
 
-            _readChannelCts.Cancel();
+            Disconnect();
 
             _readChannelAsync.GetAwaiter().GetResult();
+            _pingTaskAsync.GetAwaiter().GetResult();
 
-            _readChannelCts.Dispose();
-
-            _readChannelCts = null;
-
-            CancelAllAwaiters();
-
-            Disconnect();
+            _workCts.Dispose();
+            _workCts = null;
         }
 
         private void CancelAllAwaiters()
@@ -430,8 +467,10 @@ namespace TheNetTunnel.Presentation
         public Version ServerVersion;
 
         public int DefaultMaxAnsDelay;
+        public int DefaultPingInterval;
 
         public InterlocutorProperties() { }
+
 
         public HelloMessageRequest CreateHelloMessage()
         {

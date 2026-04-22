@@ -72,13 +72,7 @@ namespace TheNetTunnel.Tcp
             if (!Client.Connected)
                 Client.Connect(IPEndPoint.Address, IPEndPoint.Port);
 
-            SetEndPoints();
-
-            Client.NoDelay = true;
-            Client.Client.Blocking = false;
-
-            _internalWriteCts = new CancellationTokenSource();
-            _internalWriteAsync = Task.Run(async () => await InternalWriteAsync(_internalWriteCts.Token));
+            InternalStart();
         }
 
 
@@ -91,6 +85,11 @@ namespace TheNetTunnel.Tcp
             if (!Client.Connected)
                 await Client.ConnectAsync(IPEndPoint.Address, IPEndPoint.Port).ConfigureAwait(false);
 
+            InternalStart();
+        }
+
+        private void InternalStart()
+        {
             SetEndPoints();
 
             Client.NoDelay = true;
@@ -135,9 +134,9 @@ namespace TheNetTunnel.Tcp
                 {
 
                 }
-                catch
+                catch(Exception)
                 {
-                    Disconnect();
+
                 }
             }
         }

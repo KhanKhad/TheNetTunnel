@@ -260,6 +260,7 @@ namespace TheNetTunnel.Api
                 MinimalServerVersion = type.GetCustomAttribute<TntMinimalServerVersion>()?.Version ?? new Version(1, 0, 0),
                 Fullmode = _fullmode,
                 DefaultMaxAnsDelay = _maxAnsDelay,
+                DefaultPingInterval = 5000,
             };
 
             return interlocutorProperties;

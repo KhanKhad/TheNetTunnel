@@ -119,10 +119,10 @@ namespace TheNetTunnel.Tcp
             if (_clients.TryRemove(client.ConnectionId, out var connection))
                 Disconnected?.Invoke(this, new ClientDisconnectEventArgs<TContract>(connection, arg2));
 
-            if (_restrictedClients.TryRemove(client.ConnectionId, out var restrictedConnection))
-                Disconnected?.Invoke(this, new ClientDisconnectEventArgs<TContract>(restrictedConnection, arg2));
+            else if (_restrictedClients.TryRemove(client.ConnectionId, out connection))
+                Disconnected?.Invoke(this, new ClientDisconnectEventArgs<TContract>(connection, arg2));
 
-            client.Dispose();
+            connection?.Dispose();
         }
 
         public void ClientDisconnected(int id)
@@ -153,6 +153,10 @@ namespace TheNetTunnel.Tcp
 
             var clients = _clients.Values;
             foreach (var client in clients)
+                client.Dispose();
+
+            var restrictedClients = _restrictedClients.Values;
+            foreach (var client in restrictedClients)
                 client.Dispose();
         }
 
