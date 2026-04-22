@@ -25,7 +25,7 @@ namespace TheNetTunnel.Presentation
         private ConcurrentDictionary<int, TaskCompletionSource<object>> MessageAwaiters;
 
         public InterlocutorProperties Properties { get; private set; }
-
+        private TaskCompletionSource _firstRequestTks;
         public Interlocutor(IDispatcher receiveDispatcher, IChannel channel, InterlocutorProperties properties)
         {
             Properties = properties;
@@ -36,6 +36,7 @@ namespace TheNetTunnel.Presentation
             _receiveDispatcher = receiveDispatcher;
 
             MessageAwaiters = new ConcurrentDictionary<int, TaskCompletionSource<object>>();
+            _firstRequestTks = new TaskCompletionSource();
         }
 
         public void Initialize(MethodsDescriptor methodsDescriptor)
@@ -97,6 +98,9 @@ namespace TheNetTunnel.Presentation
             {
                 try
                 {
+                    if (Properties.ServerMode)
+                        await _firstRequestTks.Task;
+
                     var pingMessage = new TntMessage()
                     {
                         AskId = Interlocked.Increment(ref _maxAskId),
@@ -137,6 +141,7 @@ namespace TheNetTunnel.Presentation
                         if (message == null)
                             break;
 
+                        _firstRequestTks.TrySetResult();
                         _ = NewMessageReceivedAsync(message);
                     }
                 }
@@ -423,6 +428,7 @@ namespace TheNetTunnel.Presentation
 
             Disconnect();
 
+            _firstRequestTks.TrySetCanceled();
             await _readChannelAsync;
             await _pingTaskAsync;
 
@@ -439,6 +445,7 @@ namespace TheNetTunnel.Presentation
 
             Disconnect();
 
+            _firstRequestTks.TrySetCanceled();
             _readChannelAsync.GetAwaiter().GetResult();
             _pingTaskAsync.GetAwaiter().GetResult();
 

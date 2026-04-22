@@ -27,11 +27,13 @@ namespace TheNetTunnel.Tests.DispatcherTests
 
             server.Start();
 
+            var clientTask = server.WaitForAClient();
+
             var clientSide = await TntBuilder
                .UseContract<ISingleOperationContract>()
                .CreateTcpClientConnectionAsync(IPAddress.Loopback, 12345);
 
-            var serverSide = await server.WaitForAClient();
+            var serverSide = await clientTask;
 
             _serverAndClient = new ServerAndClient<ISingleOperationContract, ISingleOperationContract, SingleOperationContract>()
             {

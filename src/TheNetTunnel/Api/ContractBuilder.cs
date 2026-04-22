@@ -127,11 +127,11 @@ namespace TheNetTunnel.Api
 
             var dispatcher = _receiveDispatcher ?? new ReceiveDispatcher();
 
+            await channel.StartAsync();
+
             (TContract contract, IInterlocutor interlocutor) = OriginContractFactory == null
                 ? CreateProxyContract(channel, dispatcher)
                 : CreateOriginContract(channel, dispatcher);
-
-            await channel.StartAsync();
 
             if (OriginContractFactory == null)
             {
@@ -162,11 +162,11 @@ namespace TheNetTunnel.Api
 
             var dispatcher = _receiveDispatcher ?? new ReceiveDispatcher();
 
+            channel.Start();
+
             (TContract contract, IInterlocutor interlocutor) = OriginContractFactory == null
                 ? CreateProxyContract(channel, dispatcher)
                 : CreateOriginContract(channel, dispatcher);
-
-            channel.Start();
 
             if (OriginContractFactory == null)
             {

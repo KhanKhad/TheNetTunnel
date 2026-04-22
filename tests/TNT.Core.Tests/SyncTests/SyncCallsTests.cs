@@ -17,7 +17,7 @@ namespace TheNetTunnel.Tests.SyncTests
         [SetUp]
         public async Task SetUp()
         {
-            _serverAndClient = await ServerAndClient<ITestContract, ITestContract, TestContractMock>.Create();
+            _serverAndClient = await ServerAndClient<ITestContract, ITestContract, TestContractMock>.CreateAsync();
             _serverSideContractImpl = (TestContractMock)_serverAndClient.ServerSideConnection.Contract;
         }
 

@@ -19,8 +19,8 @@ namespace TheNetTunnel.Tests.Exceprions
         [SetUp]
         public async Task SetUp()
         {
-            _emptyServer = await ServerAndClient<ITestContract, IEmptyContract, EmptyContract>.Create();
-            _emptyClient = await ServerAndClient<IEmptyContract, ITestContract, TestContractMock>.Create(12346);
+            _emptyServer = await ServerAndClient<ITestContract, IEmptyContract, EmptyContract>.CreateAsync();
+            _emptyClient = await ServerAndClient<IEmptyContract, ITestContract, TestContractMock>.CreateAsync(12346);
         }
 
         [TearDown]

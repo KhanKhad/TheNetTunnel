@@ -58,7 +58,7 @@ namespace TheNetTunnel.ReceiveDispatching
                         await task;
                 }
             }
-            catch (Exception) 
+            catch
             {
 
             }

@@ -146,7 +146,7 @@ namespace TheNetTunnel.Tcp
             if (!Client.Connected)
             {
                 if(!_alreadyStarted)
-                    throw new ConnectionIsNotEstablishedYet("tcp channel is not connected");
+                    throw new ConnectionIsNotEstablishedYet("tcp channel is not connected yet");
 
                 throw new ConnectionIsLostException("tcp channel is not connected");
             }

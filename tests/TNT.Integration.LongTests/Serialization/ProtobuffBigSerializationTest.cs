@@ -71,7 +71,7 @@ public class ProtobuffBigSerializationTest
 
     private static async Task CheckProtobuffEchoTransaction(int itemsSize)
     {
-        using var serverAndClient = await ServerAndClient<ILongTestContract<Company>, ILongTestContract<Company>, LongTestContract<Company>>.Create();
+        using var serverAndClient = await ServerAndClient<ILongTestContract<Company>, ILongTestContract<Company>, LongTestContract<Company>>.CreateAsync();
 
         EventAwaiter<Company> callAwaiter = new EventAwaiter<Company>();
 

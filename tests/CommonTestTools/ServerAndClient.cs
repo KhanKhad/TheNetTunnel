@@ -21,7 +21,7 @@ namespace CommonTestTools
         public IConnection<TOriginContractInterface> ServerSideConnection { get; set; }
         public IConnection<TProxyContractInterface> ClientSideConnection { get; set; }
 
-        public static async Task<ServerAndClient<TProxyContractInterface, TOriginContractInterface, TOriginContractImplementation>> Create(int port = 12345)            
+        public static async Task<ServerAndClient<TProxyContractInterface, TOriginContractInterface, TOriginContractImplementation>> CreateAsync(int port = 12345)            
         {
             var server = TntBuilder
             .UseContract<TOriginContractInterface, TOriginContractImplementation>()
@@ -29,11 +29,13 @@ namespace CommonTestTools
 
             server.Start();
 
+            var waitForAClientTask = server.WaitForAClient();
+
             var clientSide = await TntBuilder
                .UseContract<TProxyContractInterface>()
                .CreateTcpClientConnectionAsync(IPAddress.Loopback, port);
 
-            var serverSide = await server.WaitForAClient();
+            var serverSide = await waitForAClientTask;
 
             var result = new ServerAndClient<TProxyContractInterface, TOriginContractInterface, TOriginContractImplementation>()
             {

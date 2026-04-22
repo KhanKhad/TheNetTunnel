@@ -24,11 +24,11 @@ namespace TNT.Integration.LongTests
         [SetUp]
         public async Task SetUp()
         {
-            _serverAndClientCompany = await ServerAndClient<ILongTestContract<Company>, ILongTestContract<Company>, LongTestContract<Company>>.Create();
+            _serverAndClientCompany = await ServerAndClient<ILongTestContract<Company>, ILongTestContract<Company>, LongTestContract<Company>>.CreateAsync();
 
             _serverContractCompany = (LongTestContract<Company>)_serverAndClientCompany.ServerSideConnection.Contract;
 
-            _serverAndClientString = await ServerAndClient<ILongTestContract<string>, ILongTestContract<string>, LongTestContract<string>>.Create(12346);
+            _serverAndClientString = await ServerAndClient<ILongTestContract<string>, ILongTestContract<string>, LongTestContract<string>>.CreateAsync(12346);
 
             _serverContractString = (LongTestContract<string>)_serverAndClientString.ServerSideConnection.Contract;
         }

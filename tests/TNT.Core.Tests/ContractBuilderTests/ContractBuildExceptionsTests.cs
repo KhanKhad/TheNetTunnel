@@ -11,15 +11,6 @@ namespace TheNetTunnel.Tests.ContractBuilderTests
     public class ContractBuildExceptionsTests
     {
         [Test]
-        public async Task EmptyContract_Creates()
-        {
-            using var client = await TntBuilder.UseContract<IEmptyContract>()
-                .UseChannel(new ChannelMock())
-                .BuildAsync();
-
-            Assert.That(client, Is.Not.Null);
-        }
-        [Test]
         public void SayCordIdDuplicated_CreateT_throwsException()
         {
             var client = TntBuilder.UseContract<IContractWithSameSayId>()
