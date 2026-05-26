@@ -14,7 +14,7 @@ using TheNetTunnel.ReceiveDispatching;
 
 namespace TheNetTunnel.Api
 {
-    public class ContractBuilder<TContract> where TContract:class
+    public class ContractBuilder<TContract> : IDisposable where TContract:class
     {
         private IDispatcher _receiveDispatcher;
         private int _maxAnsDelay = 30000;
@@ -27,7 +27,6 @@ namespace TheNetTunnel.Api
         private Func<IChannel> _channelFactory;
         private Func<Task<IChannel>> _channelFactoryAsync;
         private MethodsDescriptor _methodsDescriptor;
-        private bool _fullmode;
 
         /// <summary>
         /// Contract implementation
@@ -105,13 +104,7 @@ namespace TheNetTunnel.Api
         }
         #endregion
 
-        public ContractBuilder<TContract> SetFullMode()
-        {
-            _fullmode = true;
-            return this;
-        }
-
-        public async Task<IConnection<TContract>> BuildAsync()
+        public async Task<IConnection<TContract>> BuildAsync(bool fullmode = false)
         {
             IChannel channel = null;
 
@@ -129,13 +122,14 @@ namespace TheNetTunnel.Api
 
             await channel.StartAsync();
 
-            (TContract contract, IInterlocutor interlocutor) = OriginContractFactory == null
-                ? CreateProxyContract(channel, dispatcher)
-                : CreateOriginContract(channel, dispatcher);
+            TContract contract;
+            IInterlocutor interlocutor;
 
             if (OriginContractFactory == null)
             {
-                var (AvailableForWork, UnavailabilityReason) = await interlocutor.SendHelloMessageAsync();
+                (contract, interlocutor) = CreateProxyContract(channel, dispatcher);
+
+                var (AvailableForWork, UnavailabilityReason) = interlocutor.SendHelloMessageAsync().ConfigureAwait(false).GetAwaiter().GetResult();
 
                 if (!AvailableForWork)
                 {
@@ -143,17 +137,19 @@ namespace TheNetTunnel.Api
                     throw new Exception($"Interlocutor is not available for work. Unavailability reason: {UnavailabilityReason}");
                 }
             }
+            else
+                (contract, interlocutor) = CreateOriginContract(channel, dispatcher, fullmode);
 
             return new Connection<TContract>(contract, channel, interlocutor);
         }
-        public IConnection<TContract> Build()
+        public IConnection<TContract> Build(bool fullmode = false)
         {
             IChannel channel = null;
 
             if (_channel != null)
                 channel = _channel;
             else if (_channelFactoryAsync != null)
-                channel = _channelFactoryAsync().Result;
+                channel = _channelFactoryAsync().ConfigureAwait(false).GetAwaiter().GetResult();
             else if (_channelFactory != null)
                 channel = _channelFactory();
 
@@ -164,13 +160,14 @@ namespace TheNetTunnel.Api
 
             channel.Start();
 
-            (TContract contract, IInterlocutor interlocutor) = OriginContractFactory == null
-                ? CreateProxyContract(channel, dispatcher)
-                : CreateOriginContract(channel, dispatcher);
+            TContract contract;
+            IInterlocutor interlocutor;
 
             if (OriginContractFactory == null)
             {
-                var (AvailableForWork, UnavailabilityReason) = interlocutor.SendHelloMessageAsync().GetAwaiter().GetResult();
+                (contract, interlocutor) = CreateProxyContract(channel, dispatcher);
+
+                var (AvailableForWork, UnavailabilityReason) = interlocutor.SendHelloMessageAsync().ConfigureAwait(false).GetAwaiter().GetResult();
 
                 if (!AvailableForWork)
                 {
@@ -178,11 +175,13 @@ namespace TheNetTunnel.Api
                     throw new Exception($"Interlocutor is not available for work. Unavailability reason: {UnavailabilityReason}");
                 }
             }
+            else
+                (contract, interlocutor) = CreateOriginContract(channel, dispatcher, fullmode);
 
             return new Connection<TContract>(contract, channel, interlocutor);
         }
 
-        private (TContract contract, IInterlocutor interlocutor) CreateOriginContract(IChannel channel, IDispatcher dispatcher)
+        private (TContract contract, IInterlocutor interlocutor) CreateOriginContract(IChannel channel, IDispatcher dispatcher, bool fullmode)
         {
             TContract contract = OriginContractFactory(channel);
 
@@ -205,7 +204,7 @@ namespace TheNetTunnel.Api
                 _methodsDescriptor.SetContract(contract);
             }
 
-            var interlocutorProperties = CreateProperties();
+            var interlocutorProperties = CreateProperties(fullmode);
             interlocutorProperties.ServerMode = true;
 
             var interlocutor = new Interlocutor(dispatcher, channel, interlocutorProperties);
@@ -223,7 +222,7 @@ namespace TheNetTunnel.Api
 
         private (TContract contract, IInterlocutor interlocutor) CreateProxyContract(IChannel channel, IDispatcher dispatcher)
         {
-            var interlocutorProperties = CreateProperties();
+            var interlocutorProperties = CreateProperties(false);
 
             var interlocutor = new Interlocutor(dispatcher, channel, interlocutorProperties);
             var contract = ProxyContractFactory.CreateProxyContract<TContract>(interlocutor, out var finalType, out var actionHandlers);
@@ -248,7 +247,7 @@ namespace TheNetTunnel.Api
             return (contract, interlocutor);
         }
 
-        private InterlocutorProperties CreateProperties()
+        private InterlocutorProperties CreateProperties(bool fullmode)
         {
             var type = typeof(TContract);
 
@@ -258,12 +257,17 @@ namespace TheNetTunnel.Api
                 ServerVersion = type.GetCustomAttribute<TntServerVersion>()?.Version ?? new Version(1, 0, 0),
                 MinimalClientVersion = type.GetCustomAttribute<TntMinimalClientVersion>()?.Version ?? new Version(1, 0, 0),
                 MinimalServerVersion = type.GetCustomAttribute<TntMinimalServerVersion>()?.Version ?? new Version(1, 0, 0),
-                Fullmode = _fullmode,
+                Fullmode = fullmode,
                 DefaultMaxAnsDelay = _maxAnsDelay,
                 DefaultPingInterval = 5000,
             };
 
             return interlocutorProperties;
+        }
+
+        public void Dispose()
+        {
+            _receiveDispatcher.Dispose();
         }
     }
 }

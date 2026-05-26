@@ -219,7 +219,7 @@ namespace TheNetTunnel.ReceiveDispatching
 
             _workCts.Cancel();
 
-            _readChannelAsync.GetAwaiter().GetResult();
+            _readChannelAsync.ConfigureAwait(false).GetAwaiter().GetResult();
 
             _workCts.Dispose();
             _workCts = null;

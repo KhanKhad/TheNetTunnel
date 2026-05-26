@@ -280,7 +280,7 @@ namespace TheNetTunnel.Presentation
         {
             using var serialized = _messagesSerializer.SerializeTntMessage(message);
 
-            Channel.WriteAsync(serialized.ToArray()).GetAwaiter().GetResult();
+            Channel.WriteAsync(serialized.ToArray()).ConfigureAwait(false).GetAwaiter().GetResult();
         }
 
         public void Say(int messageId, object[] values)
@@ -434,8 +434,6 @@ namespace TheNetTunnel.Presentation
 
             _workCts.Dispose();
             _workCts = null;
-
-            await _receiveDispatcher.DisposeAsync();
         }
 
         public void Dispose()
@@ -446,13 +444,11 @@ namespace TheNetTunnel.Presentation
             Disconnect();
 
             _firstRequestTks.TrySetCanceled();
-            _readChannelAsync.GetAwaiter().GetResult();
-            _pingTaskAsync.GetAwaiter().GetResult();
+            _readChannelAsync.ConfigureAwait(false).GetAwaiter().GetResult();
+            _pingTaskAsync.ConfigureAwait(false).GetAwaiter().GetResult();
 
             _workCts.Dispose();
             _workCts = null;
-
-            _receiveDispatcher.Dispose();
         }
 
         private void CancelAllAwaiters()

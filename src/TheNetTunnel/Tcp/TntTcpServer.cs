@@ -100,7 +100,7 @@ namespace TheNetTunnel.Tcp
 
             if (_maxConnections > 0 && _clients.Count >= _maxConnections)
             {
-                connection = await _connectionBuilder.UseChannel(tntTcpClient).SetFullMode().BuildAsync();
+                connection = await _connectionBuilder.UseChannel(tntTcpClient).BuildAsync(true);
                 _restrictedClients.TryAdd(newId, connection);
             }
             else
@@ -158,6 +158,8 @@ namespace TheNetTunnel.Tcp
             var restrictedClients = _restrictedClients.Values;
             foreach (var client in restrictedClients)
                 client.Dispose();
+
+            _connectionBuilder.Dispose();
         }
 
         public IEnumerable<IConnection<TContract>> GetAllConnections()
