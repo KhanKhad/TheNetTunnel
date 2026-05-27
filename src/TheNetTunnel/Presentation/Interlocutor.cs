@@ -5,6 +5,7 @@ using System.Threading;
 using System.Runtime.ExceptionServices;
 using System.Threading.Tasks;
 using TheNetTunnel.Exceptions.Local;
+using TheNetTunnel.Exceptions.Remote;
 using TheNetTunnel.ReceiveDispatching;
 using TheNetTunnel.Transport;
 
@@ -111,9 +112,11 @@ namespace TheNetTunnel.Presentation
                     await SendMessageAsync(pingMessage);
                     await Task.Delay(Properties.DefaultPingInterval, token);
                 }
-                catch(ConnectionIsLostException)
+                catch(ConnectionIsLostException e)
                 {
-                    Disconnect();
+                    Disconnect(new ErrorMessage(0, 0,
+                        ErrorType.ConnectionAlreadyLost,
+                        $"Connection lost while sending ping heartbeat: {e.Message}"));
                 }
                 catch
                 {
@@ -177,7 +180,7 @@ namespace TheNetTunnel.Presentation
                     await SendMessageAsync(result).ConfigureAwait(false);
 
                     if (deserialized.NeedToDisconnect)
-                        Disconnect();
+                        Disconnect(error);
                 }
                 else
                 {
@@ -202,7 +205,12 @@ namespace TheNetTunnel.Presentation
                         await SendMessageAsync(response);
 
                         if (needDisconnect)
-                            Disconnect();
+                        {
+                            var helloResponse = (HelloMessageResponse)response.Result;
+                            Disconnect(new ErrorMessage(0, askId,
+                                ErrorType.HandshakeRejected,
+                                $"Handshake rejected — client does not meet requirements: {helloResponse.UnavailabilityReason}"));
+                        }
                     }
                     else //no need to response
                     {
@@ -230,31 +238,36 @@ namespace TheNetTunnel.Presentation
                                 break;
 
                             case MessageType.HelloMessageResponse:
+                            {
+                                var helloResponse = (HelloMessageResponse)message.Result;
 
-                                //remove awaiter with an error and disconnect
                                 if (MessageAwaiters.TryRemove(askId, out var hrmessageAwaiter))
-                                    hrmessageAwaiter.SetResult((HelloMessageResponse)message.Result);
+                                    hrmessageAwaiter.SetResult(helloResponse);
 
-                                if (!((HelloMessageResponse)message.Result).AvailableForWork)
-                                    Disconnect();
+                                if (!helloResponse.AvailableForWork)
+                                    Disconnect(new ErrorMessage(0, askId,
+                                        ErrorType.HandshakeRejected,
+                                        $"Server rejected connection: {helloResponse.UnavailabilityReason}"));
 
                                 break;
+                            }
 
                             case MessageType.FatalFailedResponseMessage:
+                            {
+                                var fatalError = (ErrorMessage)message.Result;
 
-                                //remove awaiter with an error and disconnect
                                 if (MessageAwaiters.TryRemove(askId, out var ffmessageAwaiter))
-                                {
-                                    var error = (ErrorMessage)message.Result;
-                                    ffmessageAwaiter.SetException(error.Exception);
-                                }
+                                    ffmessageAwaiter.SetException(fatalError.Exception);
 
-                                Disconnect();
+                                Disconnect(fatalError);
 
                                 break;
+                            }
 
                             case MessageType.DisconnectMessage:
-                                Disconnect();
+                                Disconnect(new ErrorMessage(0, askId,
+                                    ErrorType.ConnectionAlreadyLost,
+                                    "Disconnect message received from remote endpoint"));
                                 break;
 
                             default:
@@ -414,11 +427,11 @@ namespace TheNetTunnel.Presentation
                 throw new ConnectionIsLostException("Interlocutor is disconnected");
         }
 
-        public void Disconnect()
+        public void Disconnect(ErrorMessage error = null)
         {
-            _workCts.Cancel();
+            _workCts?.Cancel();
             CancelAllAwaiters();
-            Channel.Disconnect();
+            Channel.DisconnectBecauseOf(error);
         }
 
         public async ValueTask DisposeAsync()

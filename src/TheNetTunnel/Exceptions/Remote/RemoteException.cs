@@ -31,14 +31,18 @@ namespace TheNetTunnel.Exceptions.Remote
             switch (type)
             {
                 case ErrorType.UnhandledUserExceptionError:
-                    return new RemoteUnhandledException(messageId,askId, null, additionalInfo);
+                    return new RemoteUnhandledException(messageId, askId, null, additionalInfo);
                 case ErrorType.SerializationError:
                     return new RemoteSerializationException(messageId, askId, isFatal, additionalInfo);
                 case ErrorType.ContractSignatureError:
                     return new RemoteContractImplementationException(messageId.Value, askId, isFatal, additionalInfo);
+                case ErrorType.ConnectionAlreadyLost:
+                    return new RemoteConnectionLostException(messageId, askId, additionalInfo);
+                case ErrorType.HandshakeRejected:
+                    return new RemoteHandshakeRejectedException(messageId, askId, additionalInfo);
                 default:
                     throw new InvalidOperationException(
-                        $"Exception type {type} is unknown. Exception message: {additionalInfo}"); 
+                        $"Exception type {type} is unknown. Exception message: {additionalInfo}");
             }
         }
     }

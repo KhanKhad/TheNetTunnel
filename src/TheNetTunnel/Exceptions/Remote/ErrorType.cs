@@ -7,5 +7,6 @@
         ContractSignatureError         = 6,
         MaxNumberOfConnectionsExceeded = 7,
         ConnectionAlreadyLost          = 8,
+        HandshakeRejected              = 9,
     }
 }
