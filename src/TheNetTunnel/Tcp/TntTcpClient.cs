@@ -141,7 +141,7 @@ namespace TheNetTunnel.Tcp
             }
         }
 
-        public async Task WriteAsync(byte[] data)
+        public async Task WriteAsync(ReadOnlyMemory<byte> data)
         {
             if (!Client.Connected)
             {
@@ -153,7 +153,7 @@ namespace TheNetTunnel.Tcp
 
             try
             {
-                await Client.Client.SendAsync(new ReadOnlyMemory<byte>(data, 0, data.Length), SocketFlags.None).ConfigureAwait(false);
+                await Client.Client.SendAsync(data, SocketFlags.None).ConfigureAwait(false);
                 _bytesSent += data.Length;
             }
             catch

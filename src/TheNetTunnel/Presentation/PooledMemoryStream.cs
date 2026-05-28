@@ -1,0 +1,207 @@
+using System;
+using System.Buffers;
+using System.IO;
+
+namespace TheNetTunnel.Presentation
+{
+    /// <summary>
+    /// Expandable Stream whose backing storage is rented from <see cref="ArrayPool{Byte}"/>.
+    /// When the stream is disposed, the underlying buffer is returned to the pool.
+    /// </summary>
+    public sealed class PooledMemoryStream : Stream
+    {
+        private readonly ArrayPool<byte> _pool;
+        private byte[] _buffer;
+        private int _position;
+        private int _length;
+        private bool _disposed;
+
+        public PooledMemoryStream(int initialCapacity = 1024)
+            : this(ArrayPool<byte>.Shared, initialCapacity)
+        {
+        }
+
+        public PooledMemoryStream(ArrayPool<byte> pool, int initialCapacity)
+        {
+            _pool = pool ?? throw new ArgumentNullException(nameof(pool));
+            if (initialCapacity < 0)
+                throw new ArgumentOutOfRangeException(nameof(initialCapacity));
+
+            _buffer = _pool.Rent(initialCapacity == 0 ? 1 : initialCapacity);
+            _position = 0;
+            _length = 0;
+        }
+
+        public override bool CanRead => !_disposed;
+        public override bool CanSeek => !_disposed;
+        public override bool CanWrite => !_disposed;
+
+        public override long Length
+        {
+            get
+            {
+                ThrowIfDisposed();
+                return _length;
+            }
+        }
+
+        public override long Position
+        {
+            get
+            {
+                ThrowIfDisposed();
+                return _position;
+            }
+            set
+            {
+                ThrowIfDisposed();
+                if (value < 0 || value > int.MaxValue)
+                    throw new ArgumentOutOfRangeException(nameof(value));
+                _position = (int)value;
+            }
+        }
+
+        public ArraySegment<byte> GetWrittenSegment()
+        {
+            ThrowIfDisposed();
+            return new ArraySegment<byte>(_buffer, 0, _length);
+        }
+
+        public ReadOnlyMemory<byte> GetWrittenMemory()
+        {
+            ThrowIfDisposed();
+            return new ReadOnlyMemory<byte>(_buffer, 0, _length);
+        }
+
+        public byte[] ToArray()
+        {
+            ThrowIfDisposed();
+            var result = new byte[_length];
+            Buffer.BlockCopy(_buffer, 0, result, 0, _length);
+            return result;
+        }
+
+        public override void Flush()
+        {
+        }
+
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            ThrowIfDisposed();
+            if (buffer == null) throw new ArgumentNullException(nameof(buffer));
+            if (offset < 0 || count < 0 || buffer.Length - offset < count)
+                throw new ArgumentOutOfRangeException();
+
+            var available = _length - _position;
+            if (available <= 0)
+                return 0;
+
+            var toCopy = available < count ? available : count;
+            Buffer.BlockCopy(_buffer, _position, buffer, offset, toCopy);
+            _position += toCopy;
+            return toCopy;
+        }
+
+        public override long Seek(long offset, SeekOrigin origin)
+        {
+            ThrowIfDisposed();
+            long newPosition = origin switch
+            {
+                SeekOrigin.Begin => offset,
+                SeekOrigin.Current => _position + offset,
+                SeekOrigin.End => _length + offset,
+                _ => throw new ArgumentOutOfRangeException(nameof(origin))
+            };
+
+            if (newPosition < 0 || newPosition > int.MaxValue)
+                throw new IOException("Seek out of range");
+
+            _position = (int)newPosition;
+            return _position;
+        }
+
+        public override void SetLength(long value)
+        {
+            ThrowIfDisposed();
+            if (value < 0 || value > int.MaxValue)
+                throw new ArgumentOutOfRangeException(nameof(value));
+
+            var newLength = (int)value;
+            EnsureCapacity(newLength);
+            if (newLength > _length)
+                Array.Clear(_buffer, _length, newLength - _length);
+            _length = newLength;
+            if (_position > _length)
+                _position = _length;
+        }
+
+        public override void Write(byte[] buffer, int offset, int count)
+        {
+            ThrowIfDisposed();
+            if (buffer == null) throw new ArgumentNullException(nameof(buffer));
+            if (offset < 0 || count < 0 || buffer.Length - offset < count)
+                throw new ArgumentOutOfRangeException();
+
+            var endPos = _position + count;
+            EnsureCapacity(endPos);
+
+            if (_position > _length)
+                Array.Clear(_buffer, _length, _position - _length);
+
+            Buffer.BlockCopy(buffer, offset, _buffer, _position, count);
+            _position = endPos;
+            if (_position > _length)
+                _length = _position;
+        }
+
+        public override void WriteByte(byte value)
+        {
+            ThrowIfDisposed();
+            var endPos = _position + 1;
+            EnsureCapacity(endPos);
+
+            if (_position > _length)
+                Array.Clear(_buffer, _length, _position - _length);
+
+            _buffer[_position] = value;
+            _position = endPos;
+            if (_position > _length)
+                _length = _position;
+        }
+
+        private void EnsureCapacity(int requiredCapacity)
+        {
+            if (requiredCapacity <= _buffer.Length)
+                return;
+
+            var newCapacity = _buffer.Length * 2;
+            if (newCapacity < requiredCapacity)
+                newCapacity = requiredCapacity;
+
+            var newBuffer = _pool.Rent(newCapacity);
+            Buffer.BlockCopy(_buffer, 0, newBuffer, 0, _length);
+            _pool.Return(_buffer);
+            _buffer = newBuffer;
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (_disposed)
+                return;
+            _disposed = true;
+
+            var toReturn = _buffer;
+            _buffer = Array.Empty<byte>();
+            if (toReturn.Length > 0)
+                _pool.Return(toReturn);
+
+            base.Dispose(disposing);
+        }
+
+        private void ThrowIfDisposed()
+        {
+            if (_disposed)
+                throw new ObjectDisposedException(nameof(PooledMemoryStream));
+        }
+    }
+}

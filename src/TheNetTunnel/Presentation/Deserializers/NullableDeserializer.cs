@@ -1,5 +1,4 @@
-﻿using System.IO;
-using System.Runtime.InteropServices;
+using System.IO;
 
 namespace TheNetTunnel.Presentation.Deserializers
 {
@@ -7,7 +6,7 @@ namespace TheNetTunnel.Presentation.Deserializers
     {
         public NullableDeserializer()
         {
-            Size = Marshal.SizeOf(typeof(T))+1;
+            Size = Tools.SizeOfPrimitive(typeof(T)) + 1;
         }
 
         public override T? DeserializeT(Stream stream, int size)
@@ -16,10 +15,7 @@ namespace TheNetTunnel.Presentation.Deserializers
             stream.Read(arr, 0, Size.Value);
             if (arr[0] == 0)
                 return null;
-            else
-            {
-               return Tools.ToStruct<T>(arr, 1, Size.Value-1);
-            }
+            return Tools.ToStruct<T>(arr, 1, Size.Value - 1);
         }
     }
 }

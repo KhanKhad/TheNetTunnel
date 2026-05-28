@@ -19,7 +19,7 @@ namespace TheNetTunnel.Presentation.Serializers
             Size      = primitive.Size;
         }
 
-        public override void SerializeT(T obj, System.IO.MemoryStream stream)
+        public override void SerializeT(T obj, System.IO.Stream stream)
         {
             primitive.Serialize(obj, stream);
         }

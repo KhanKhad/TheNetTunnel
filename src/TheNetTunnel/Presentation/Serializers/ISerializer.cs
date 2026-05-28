@@ -1,11 +1,11 @@
-﻿using System.IO;
+using System.IO;
 
 namespace TheNetTunnel.Presentation.Serializers
 {
     /// <summary>
     /// Interface for SomeType Serializer
     /// </summary>
-	public interface ISerializer 
+	public interface ISerializer
 	{
         /// <summary>
         /// Size for fixedSized types, or null for variableSized types
@@ -16,9 +16,9 @@ namespace TheNetTunnel.Presentation.Serializers
         /// </summary>
         /// <param name="obj"></param>
         /// <param name="stream"></param>
-		void Serialize(object obj, MemoryStream stream);
+		void Serialize(object obj, Stream stream);
 	}
-    
+
     /// <summary>
     /// Typed Serializer
     /// </summary>
@@ -30,7 +30,6 @@ namespace TheNetTunnel.Presentation.Serializers
         /// </summary>
         /// <param name="obj"></param>
         /// <param name="stream"></param>
-		void SerializeT(T obj, MemoryStream stream);
+		void SerializeT(T obj, Stream stream);
 	}
 }
-

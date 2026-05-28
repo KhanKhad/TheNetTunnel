@@ -1,5 +1,4 @@
-﻿using System.IO;
-using System.Runtime.InteropServices;
+using System.IO;
 
 namespace TheNetTunnel.Presentation.Serializers
 {
@@ -7,17 +6,20 @@ namespace TheNetTunnel.Presentation.Serializers
     {
         public NullableSerializer()
         {
-            Size = Marshal.SizeOf(typeof(T)) + 1;
+            Size = Tools.SizeOfPrimitive(typeof(T)) + 1;
         }
 
-        public override void SerializeT(T? obj, MemoryStream stream)
+        public override void SerializeT(T? obj, Stream stream)
         {
             if (obj == null)
-                stream.Write(new byte[Size.Value], 0, Size.Value);
+            {
+                for (var i = 0; i < Size.Value; i++)
+                    stream.WriteByte(0);
+            }
             else
             {
                 stream.WriteByte(1);
-                obj.Value.WriteToStream(stream, Size.Value -1);
+                obj.Value.WriteToStream(stream, Size.Value - 1);
             }
         }
     }

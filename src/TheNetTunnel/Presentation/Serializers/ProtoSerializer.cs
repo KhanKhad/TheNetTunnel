@@ -9,7 +9,7 @@ namespace TheNetTunnel.Presentation.Serializers
             Size = null;
         }
 
-        public override void SerializeT(T obj, System.IO.MemoryStream stream)
+        public override void SerializeT(T obj, System.IO.Stream stream)
         {
             //write length prefix
             var postion = stream.Position;
@@ -27,7 +27,7 @@ namespace TheNetTunnel.Presentation.Serializers
             stream.Position = resultPostion;
         }
 
-        public override void Serialize(object obj, System.IO.MemoryStream stream)
+        public override void Serialize(object obj, System.IO.Stream stream)
         {
             SerializeT((T) obj, stream);
         }

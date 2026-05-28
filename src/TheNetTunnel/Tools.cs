@@ -1,124 +1,192 @@
-﻿using System;
+using System;
 using System.Buffers;
+using System.Buffers.Binary;
 using System.IO;
-using System.Runtime.InteropServices;
 
 namespace TheNetTunnel
 {
     public static class Tools
     {
-        public readonly static byte[] ZeroBuffer4 = new byte[4];
+        public static readonly byte[] ZeroBuffer4 = new byte[4];
 
-        public static void SetToArray<T>(this T str, byte[] array, int offset, int size = -1)
+        private const int CopyChunkSize = 4096;
+
+        public static void WriteBool(this Stream stream, bool value)
         {
-            if (size == -1)
-                size = Marshal.SizeOf(str);
-            IntPtr ptr = Marshal.AllocHGlobal(size);
-            Marshal.StructureToPtr(str, ptr, true);
-            Marshal.Copy(ptr, array, offset, size);
-            Marshal.FreeHGlobal(ptr);
+            stream.WriteByte(value ? (byte)1 : (byte)0);
         }
 
-        public static T ToStruct<T>(this byte[] array, int offset, int size = -1)
+        public static void WriteShort(this Stream stream, short value)
         {
-            if (size == -1)
-                size = Marshal.SizeOf(typeof(T));
-            IntPtr p = Marshal.AllocHGlobal(size);
-            Marshal.Copy(array, offset, p, size);
-            T ans = (T)Marshal.PtrToStructure(p, typeof(T));
-            Marshal.FreeHGlobal(p);
-            return ans;
+            Span<byte> buf = stackalloc byte[sizeof(short)];
+            BinaryPrimitives.WriteInt16LittleEndian(buf, value);
+            stream.Write(buf);
         }
 
-        public static void WriteUint(this MemoryStream stream, uint value)
+        public static void WriteShort(short value, Stream to) => to.WriteShort(value);
+
+        public static void WriteUshort(this Stream stream, ushort value)
         {
-            var val = BitConverter.GetBytes(value);
-            stream.Write(val, 0, val.Length);
+            Span<byte> buf = stackalloc byte[sizeof(ushort)];
+            BinaryPrimitives.WriteUInt16LittleEndian(buf, value);
+            stream.Write(buf);
         }
 
-        public static void WriteInt(this MemoryStream stream, int value)
+        public static void WriteInt(this Stream stream, int value)
         {
-            var val = BitConverter.GetBytes(value);
-            stream.Write(val, 0, val.Length);
+            Span<byte> buf = stackalloc byte[sizeof(int)];
+            BinaryPrimitives.WriteInt32LittleEndian(buf, value);
+            stream.Write(buf);
         }
 
-        public static bool TryReadInt(this MemoryStream from, out int value)
+        public static void WriteUint(this Stream stream, uint value)
         {
-            value = 0;
-            var size = sizeof(int);
-            if (@from.Length - @from.Position < size)
-                return false;
-            var buff = new byte[size];
-
-            @from.Read(buff, 0, size);
-
-            value = BitConverter.ToInt32(buff);
-
-            return true;
+            Span<byte> buf = stackalloc byte[sizeof(uint)];
+            BinaryPrimitives.WriteUInt32LittleEndian(buf, value);
+            stream.Write(buf);
         }
 
-        public static void WriteShort(short outputMessageId, MemoryStream to)
+        public static void WriteLong(this Stream stream, long value)
         {
-            //Write first byte
-            to.WriteByte((byte)(outputMessageId & 0xFF));
-            //Write second byte
-            to.WriteByte((byte)(outputMessageId >> 8));
+            Span<byte> buf = stackalloc byte[sizeof(long)];
+            BinaryPrimitives.WriteInt64LittleEndian(buf, value);
+            stream.Write(buf);
         }
 
-        public static short? TryReadShort(this MemoryStream from)
+        public static void WriteUlong(this Stream stream, ulong value)
         {
-            if (@from.Length - @from.Position < sizeof(short))
-                return null;
-            return @from.ReadShort();
+            Span<byte> buf = stackalloc byte[sizeof(ulong)];
+            BinaryPrimitives.WriteUInt64LittleEndian(buf, value);
+            stream.Write(buf);
         }
 
-        public static bool TryReadShort(this MemoryStream from, out short value)
+        public static void WriteFloat(this Stream stream, float value)
         {
-            value = 0;
-            if (@from.Length - @from.Position < sizeof(short))
-                return false;
-            value = @from.ReadShort();
-            return true;
+            Span<byte> buf = stackalloc byte[sizeof(float)];
+            BinaryPrimitives.WriteSingleLittleEndian(buf, value);
+            stream.Write(buf);
         }
 
-        public static short ReadShort(this MemoryStream from)
+        public static void WriteDouble(this Stream stream, double value)
         {
-            if (@from.Length - @from.Position < 2)
-                throw new EndOfStreamException();
-
-            var b0 = @from.ReadByte();
-            var b1 = @from.ReadByte();
-
-            return (short)(b0 | b1 << 8);
+            Span<byte> buf = stackalloc byte[sizeof(double)];
+            BinaryPrimitives.WriteDoubleLittleEndian(buf, value);
+            stream.Write(buf);
         }
 
-        public static void CopyToAnotherStream(this Stream stream, Stream targetStream, int lenght)
+        public static bool TryReadInt(this Stream stream, out int value)
         {
-            int lasts = lenght;
-
-            byte[] arr = ArrayPool<byte>.Shared.Rent(4096);
-
-            while (lasts > 0)
+            Span<byte> buf = stackalloc byte[sizeof(int)];
+            if (!TryReadExact(stream, buf))
             {
-                var lenghtB = lasts > 4096 ? 4096 : lasts;
-                stream.Read(arr, 0, lenghtB);
-                targetStream.Write(arr, 0, lenghtB);
-                lasts -= lenghtB;
+                value = 0;
+                return false;
             }
-
-            ArrayPool<byte>.Shared.Return(arr);
+            value = BinaryPrimitives.ReadInt32LittleEndian(buf);
+            return true;
         }
 
-        public static void WriteToStream<T>(this T str, Stream stream, int size = -1)
+        public static bool TryReadShort(this Stream stream, out short value)
         {
-            if (size == -1)
-                size = Marshal.SizeOf(str);
-            var arr = new byte[size];
-            IntPtr ptr = Marshal.AllocHGlobal(size);
-            Marshal.StructureToPtr(str, ptr, true);
-            Marshal.Copy(ptr, arr, 0, size);
-            Marshal.FreeHGlobal(ptr);
-            stream.Write(arr, 0, size);
+            Span<byte> buf = stackalloc byte[sizeof(short)];
+            if (!TryReadExact(stream, buf))
+            {
+                value = 0;
+                return false;
+            }
+            value = BinaryPrimitives.ReadInt16LittleEndian(buf);
+            return true;
+        }
+
+        public static short ReadShort(this Stream stream)
+        {
+            if (!TryReadShort(stream, out var value))
+                throw new EndOfStreamException();
+            return value;
+        }
+
+        public static void CopyToAnotherStream(this Stream stream, Stream targetStream, int length)
+        {
+            var buffer = ArrayPool<byte>.Shared.Rent(CopyChunkSize);
+            try
+            {
+                while (length > 0)
+                {
+                    var toCopy = length > CopyChunkSize ? CopyChunkSize : length;
+                    var read = stream.Read(buffer, 0, toCopy);
+                    if (read == 0)
+                        throw new EndOfStreamException();
+                    targetStream.Write(buffer, 0, read);
+                    length -= read;
+                }
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(buffer);
+            }
+        }
+
+        public static void WriteToStream<T>(this T value, Stream stream, int size = -1) where T : struct
+        {
+            switch (value)
+            {
+                case bool v: stream.WriteBool(v); return;
+                case byte v: stream.WriteByte(v); return;
+                case sbyte v: stream.WriteByte((byte)v); return;
+                case short v: stream.WriteShort(v); return;
+                case ushort v: stream.WriteUshort(v); return;
+                case int v: stream.WriteInt(v); return;
+                case uint v: stream.WriteUint(v); return;
+                case long v: stream.WriteLong(v); return;
+                case ulong v: stream.WriteUlong(v); return;
+                case float v: stream.WriteFloat(v); return;
+                case double v: stream.WriteDouble(v); return;
+                case char v: stream.WriteUshort(v); return;
+                default: throw new NotSupportedException($"Binary serialization of {typeof(T)} is not supported");
+            }
+        }
+
+        public static int SizeOfPrimitive(Type type)
+        {
+            if (type == typeof(bool) || type == typeof(byte) || type == typeof(sbyte)) return 1;
+            if (type == typeof(short) || type == typeof(ushort) || type == typeof(char)) return 2;
+            if (type == typeof(int) || type == typeof(uint) || type == typeof(float)) return 4;
+            if (type == typeof(long) || type == typeof(ulong) || type == typeof(double)) return 8;
+            throw new NotSupportedException($"{type} is not a supported primitive type");
+        }
+
+        public static T ToStruct<T>(this byte[] array, int offset, int size = -1) where T : struct
+        {
+            var t = typeof(T);
+            var span = array.AsSpan(offset);
+
+            if (t == typeof(bool)) return (T)(object)(array[offset] != 0);
+            if (t == typeof(byte)) return (T)(object)array[offset];
+            if (t == typeof(sbyte)) return (T)(object)(sbyte)array[offset];
+            if (t == typeof(short)) return (T)(object)BinaryPrimitives.ReadInt16LittleEndian(span);
+            if (t == typeof(ushort)) return (T)(object)BinaryPrimitives.ReadUInt16LittleEndian(span);
+            if (t == typeof(int)) return (T)(object)BinaryPrimitives.ReadInt32LittleEndian(span);
+            if (t == typeof(uint)) return (T)(object)BinaryPrimitives.ReadUInt32LittleEndian(span);
+            if (t == typeof(long)) return (T)(object)BinaryPrimitives.ReadInt64LittleEndian(span);
+            if (t == typeof(ulong)) return (T)(object)BinaryPrimitives.ReadUInt64LittleEndian(span);
+            if (t == typeof(float)) return (T)(object)BinaryPrimitives.ReadSingleLittleEndian(span);
+            if (t == typeof(double)) return (T)(object)BinaryPrimitives.ReadDoubleLittleEndian(span);
+            if (t == typeof(char)) return (T)(object)(char)BinaryPrimitives.ReadUInt16LittleEndian(span);
+
+            throw new NotSupportedException($"Binary deserialization of {typeof(T)} is not supported");
+        }
+
+        private static bool TryReadExact(Stream stream, Span<byte> destination)
+        {
+            var total = 0;
+            while (total < destination.Length)
+            {
+                var read = stream.Read(destination.Slice(total));
+                if (read == 0)
+                    return false;
+                total += read;
+            }
+            return true;
         }
     }
 }

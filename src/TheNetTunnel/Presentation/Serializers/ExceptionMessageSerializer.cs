@@ -20,7 +20,7 @@ namespace TheNetTunnel.Presentation.Serializers
                         new UnicodeSerializer()
                    });
         }
-        public override void SerializeT(ErrorMessage obj, MemoryStream stream)
+        public override void SerializeT(ErrorMessage obj, Stream stream)
         {
              _serializer.SerializeT(
                     new object[]

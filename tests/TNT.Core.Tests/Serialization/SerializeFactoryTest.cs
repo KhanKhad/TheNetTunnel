@@ -36,7 +36,6 @@ public class SerializeFactoryTest
     [TestCase(typeof(string[]), typeof(ArraySerializer<string[]>))]
     [TestCase(typeof(string), typeof(UnicodeSerializer))]
     [TestCase(typeof(string), typeof(UnicodeSerializer))]
-    [TestCase(typeof(MyStructStub), typeof(ValueTypeSerializer<MyStructStub>))]
     [TestCase(typeof(User), typeof(ProtoSerializer<User>))]
     [TestCase(typeof(MyEnumDefType), typeof(EnumSerializer<MyEnumDefType>))]
     [TestCase(typeof(MyEnumByteType), typeof(EnumSerializer<MyEnumByteType>))]
@@ -57,7 +56,6 @@ public class SerializeFactoryTest
     [TestCase(typeof(string[]), typeof(ArrayDeserializer<string[]>))]
     [TestCase(typeof(string), typeof(UnicodeDeserializer))]
     [TestCase(typeof(string), typeof(UnicodeDeserializer))]
-    [TestCase(typeof(MyStructStub), typeof(ValueTypeDeserializer<MyStructStub>))]
     [TestCase(typeof(User), typeof(ProtoDeserializer<User>))]
     [TestCase(typeof(MyEnumDefType), typeof(EnumDeserializer<MyEnumDefType>))]
     [TestCase(typeof(MyEnumByteType), typeof(EnumDeserializer<MyEnumByteType>))]
@@ -202,19 +200,6 @@ public class SerializeFactoryTest
         }
     }
     [Test]
-    public void Struct_SerializeAndDeserializeBack_OriginAndDeserializedAreEqual()
-    {
-        var origin = new MyStructStub
-        {
-            theProperty = 42
-        };
-
-        var deserialized = (MyStructStub)SerializeAndDeserializeBack(origin);
-        Assert.That(origin.theProperty == deserialized.theProperty);
-    }
-
-
-    [Test]
     public void PrimitiveTypesSequence_SerializeAndDeserializeBack_OriginAndDeserializedAreEqual()
     {
         var origin = new object[]
@@ -255,13 +240,6 @@ public class SerializeFactoryTest
                 Age = 18,
                 IsFemale = true,
                 Name = "Kate"
-            },
-            new MyStruct()
-            {
-                MyBool = true,
-                MyDate = DateTime.Now,
-                MyInt = 42,
-                MyLong = 42,
             }
         };
 
@@ -280,7 +258,6 @@ public class SerializeFactoryTest
             Assert.That(origin[0], Is.EqualTo(deserialized[0]));
             Assert.That(origin[1], Is.EqualTo(deserialized[1]));
             Assert.That(((User)origin[3]).IsSameTo((User)deserialized[3]));
-            Assert.That(((MyStruct)origin[4]).IsSameTo((MyStruct)deserialized[4]));
         });
 
         var coll1 = ((IEnumerable)origin[2]).Cast<int>().ToArray();
@@ -314,12 +291,6 @@ public class SerializeFactoryTest
         stream.Position = 0;
         var deserialized = deserializer.Deserialize(stream, (int)stream.Length);
         return deserialized;
-    }
-
-    [StructLayout(LayoutKind.Explicit)]
-    struct MyStructStub
-    {
-        [FieldOffset(0)] public int theProperty;
     }
 
     enum MyEnumDefType

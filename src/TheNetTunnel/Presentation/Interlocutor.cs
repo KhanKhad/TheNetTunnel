@@ -156,7 +156,7 @@ namespace TheNetTunnel.Presentation
         }
 
 
-        private async Task NewMessageReceivedAsync(MemoryStream stream)
+        private async Task NewMessageReceivedAsync(Stream stream)
         {
             try
             {
@@ -286,14 +286,14 @@ namespace TheNetTunnel.Presentation
         {
             using var serialized = _messagesSerializer.SerializeTntMessage(message);
 
-            await Channel.WriteAsync(serialized.ToArray());
+            await Channel.WriteAsync(serialized.GetWrittenMemory());
         }
 
         public void SendMessage(TntMessage message)
         {
             using var serialized = _messagesSerializer.SerializeTntMessage(message);
 
-            Channel.WriteAsync(serialized.ToArray()).ConfigureAwait(false).GetAwaiter().GetResult();
+            Channel.WriteAsync(serialized.GetWrittenMemory()).ConfigureAwait(false).GetAwaiter().GetResult();
         }
 
         public void Say(int messageId, object[] values)

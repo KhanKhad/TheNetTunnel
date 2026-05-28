@@ -10,7 +10,7 @@ namespace TheNetTunnel.Presentation.Serializers
             Size = sizeof(long) + IntSerializer.Size;
         }
 
-        public override void SerializeT(DateTimeOffset timeOffset, System.IO.MemoryStream stream)
+        public override void SerializeT(DateTimeOffset timeOffset, System.IO.Stream stream)
         {
             if (timeOffset.Year < 1602)
             {
@@ -26,7 +26,7 @@ namespace TheNetTunnel.Presentation.Serializers
             }
         }
 
-        private static void WriteDefaultUnixTimeTo(System.IO.MemoryStream stream)
+        private static void WriteDefaultUnixTimeTo(System.IO.Stream stream)
         {
             // Допустимое значение для даты это 1601 год с.м описание ToFileTimeUtc()
             // Значит берем дату от балды, в системе не должно быть таких дат

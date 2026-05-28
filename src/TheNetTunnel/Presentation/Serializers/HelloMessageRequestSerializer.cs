@@ -13,7 +13,7 @@ namespace TheNetTunnel.Presentation.Serializers
         {
             Size = null;
         }
-        public override void SerializeT(HelloMessageRequest obj, MemoryStream stream)
+        public override void SerializeT(HelloMessageRequest obj, Stream stream)
         {
             obj.SerializeToStream(stream);
         }

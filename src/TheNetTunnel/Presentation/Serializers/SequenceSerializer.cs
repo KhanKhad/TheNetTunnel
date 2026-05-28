@@ -22,7 +22,7 @@ namespace TheNetTunnel.Presentation.Serializers
             }
         }
 
-        public void SerializeT(object[] obj, System.IO.MemoryStream stream)
+        public void SerializeT(object[] obj, System.IO.Stream stream)
         {
             for (int i = 0; i < obj.Length; i++) //Serializing one by one
             {
@@ -42,7 +42,7 @@ namespace TheNetTunnel.Presentation.Serializers
             }
         }
 
-        public void Serialize(object obj, System.IO.MemoryStream stream)
+        public void Serialize(object obj, System.IO.Stream stream)
         {
             SerializeT(obj as object[], stream);
         }

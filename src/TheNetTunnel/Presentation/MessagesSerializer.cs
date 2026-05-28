@@ -1,4 +1,4 @@
-﻿using ProtoBuf;
+using ProtoBuf;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -21,24 +21,24 @@ namespace TheNetTunnel.Presentation
             _methodsDescriptor = methodsDescriptor;
         }
 
-        public MemoryStream SerializeTntMessage(TntMessage tntMessage)
+        public PooledMemoryStream SerializeTntMessage(TntMessage tntMessage)
         {
-            var stream = new MemoryStream(1024);
-            stream.Write(_reservedEmptyBuffer, 0, ReservedHeadLength);
-
-            var messageId = tntMessage.MessageId;
-            var messageType = tntMessage.MessageType;
-
-            Tools.WriteShort(messageId, to: stream);
-            Tools.WriteShort((short)messageType, to: stream);
-            stream.WriteInt(tntMessage.AskId);
-
-            MethodDesctiption methodDescription = null;
-
-            if (messageType is not MessageType.RequestMessage and not MessageType.SuccessfulResponseMessage
-                || _methodsDescriptor.DescribedMethods.TryGetValue(messageId, out methodDescription))
+            var stream = new PooledMemoryStream(1024);
+            try
             {
-                try
+                stream.Write(_reservedEmptyBuffer, 0, ReservedHeadLength);
+
+                var messageId = tntMessage.MessageId;
+                var messageType = tntMessage.MessageType;
+
+                Tools.WriteShort(messageId, to: stream);
+                Tools.WriteShort((short)messageType, to: stream);
+                stream.WriteInt(tntMessage.AskId);
+
+                MethodDesctiption methodDescription = null;
+
+                if (messageType is not MessageType.RequestMessage and not MessageType.SuccessfulResponseMessage
+                    || _methodsDescriptor.DescribedMethods.TryGetValue(messageId, out methodDescription))
                 {
                     switch (messageType)
                     {
@@ -102,23 +102,24 @@ namespace TheNetTunnel.Presentation
                             throw new Exception("Unknown message type");
                     }
                 }
-                catch
+                else
                 {
-                    throw;
+                    var rError = new ErrorMessage(messageId, tntMessage.AskId, ErrorType.ContractSignatureError, $"Message with contract id {messageId} is not implemented");
+                    new ErrorMessageSerializer().SerializeT(rError, stream);
                 }
+
+                stream.Position = 0;
+                uint len = (uint)(stream.Length - ReservedHeadLength);
+                stream.WriteUint(len);
+                stream.Position = 0;
+
+                return stream;
             }
-            else
+            catch
             {
-                var rError = new ErrorMessage(messageId, tntMessage.AskId, ErrorType.ContractSignatureError, $"Message with contract id {messageId} is not implemented");
-                new ErrorMessageSerializer().SerializeT(rError, stream);
+                stream.Dispose();
+                throw;
             }
-
-            stream.Position = 0;
-            uint len = (uint)(stream.Length - ReservedHeadLength);
-            stream.WriteUint(len);
-            stream.Position = 0;
-
-            return stream;
         }
     }
 }

@@ -267,7 +267,7 @@ namespace TheNetTunnel.Api
 
         public void Dispose()
         {
-            _receiveDispatcher.Dispose();
+            _receiveDispatcher?.Dispose();
         }
     }
 }

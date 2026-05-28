@@ -28,7 +28,7 @@ namespace TheNetTunnel.Transport
         void Disconnect();
 
         void DisconnectBecauseOf(ErrorMessage error);
-        Task WriteAsync(byte[] data);
+        Task WriteAsync(ReadOnlyMemory<byte> data);
 
         int BytesReceived { get; }
         int BytesSent { get; }

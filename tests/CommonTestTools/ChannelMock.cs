@@ -50,7 +50,7 @@ namespace CommonTestTools
             return Task.CompletedTask;
         }
 
-        public Task WriteAsync(byte[] data)
+        public Task WriteAsync(ReadOnlyMemory<byte> data)
         {
             return Task.CompletedTask;
         }

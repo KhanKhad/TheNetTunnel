@@ -20,7 +20,7 @@ namespace TheNetTunnel.Presentation.Serializers
             }
         }
 
-        public override void SerializeT(TArray obj, System.IO.MemoryStream stream)
+        public override void SerializeT(TArray obj, System.IO.Stream stream)
         {
             if (isFix)
                 SerializeFix(obj, stream);
@@ -28,7 +28,7 @@ namespace TheNetTunnel.Presentation.Serializers
                 SerializeDyn(obj, stream);
         }
 
-        public void SerializeFix(TArray obj, System.IO.MemoryStream stream)
+        public void SerializeFix(TArray obj, System.IO.Stream stream)
         {
             var TArray = obj as Array;
 
@@ -36,7 +36,7 @@ namespace TheNetTunnel.Presentation.Serializers
                 memberSerializer.Serialize(TArray.GetValue(i), stream);
         }
 
-        public void SerializeDyn(TArray obj, System.IO.MemoryStream stream)
+        public void SerializeDyn(TArray obj, System.IO.Stream stream)
         {
             var TArray = obj as Array;
 

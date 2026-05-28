@@ -11,7 +11,7 @@ namespace TheNetTunnel.Presentation.Serializers
             Size = null;
         }
 
-        public override void SerializeT(string obj, System.IO.MemoryStream stream)
+        public override void SerializeT(string obj, System.IO.Stream stream)
         {
             //Null and empty string cases are different. 
             if(obj==null)

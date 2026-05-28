@@ -1,16 +1,15 @@
-﻿using System.IO;
-using System.Runtime.InteropServices;
+using System.IO;
 
 namespace TheNetTunnel.Presentation.Serializers
 {
-    public class ValueTypeSerializer<T> : SerializerBase<T> where T: struct 
+    public class ValueTypeSerializer<T> : SerializerBase<T> where T: struct
     {
         public ValueTypeSerializer()
         {
-            Size = Marshal.SizeOf(typeof(T));
+            Size = Tools.SizeOfPrimitive(typeof(T));
         }
 
-        public override void SerializeT(T obj, MemoryStream stream)
+        public override void SerializeT(T obj, Stream stream)
         {
             obj.WriteToStream(stream, Size.Value);
         }

@@ -10,7 +10,7 @@ namespace TheNetTunnel.Presentation.Serializers
             Size = null;
         }
 
-        public override void SerializeT(IEnumerable<byte> obj, MemoryStream stream)
+        public override void SerializeT(IEnumerable<byte> obj, Stream stream)
         {
             if (obj == null)
                 return;

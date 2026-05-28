@@ -1,99 +1,82 @@
-﻿using System.Collections.Generic;
+using System;
+using System.Buffers.Binary;
+using System.Collections.Generic;
 using System.IO;
-using System.Linq;
+using TheNetTunnel.Presentation;
 
 namespace TheNetTunnel.Transport
 {
     public class ReceivePduQueue
     {
-        private const int LengthHeadeLength = sizeof(int);
+        private const int LengthHeaderSize = sizeof(int);
 
-        private readonly Queue<MemoryStream> _queue = new Queue<MemoryStream>();
+        private readonly Queue<PooledMemoryStream> _completedPackets = new();
 
-        private MemoryStream _collectingPacket = null;
-        private int _awaitedLength = 0;
-        private readonly List<byte> _undoneheader = new List<byte>(LengthHeadeLength);
-        void Enqueue(byte[] data, int offset)
+        private PooledMemoryStream _currentPacket;
+        private int _remainingPayloadBytes;
+
+        private readonly byte[] _partialHeader = new byte[LengthHeaderSize];
+        private int _partialHeaderBytes;
+
+        public bool IsEmpty => _completedPackets.Count == 0;
+
+        public void Enqueue(byte[] data) => Enqueue(data.AsSpan());
+
+        public void Enqueue(ReadOnlySpan<byte> data)
         {
-            if(data.Length==offset)
-                return;
-
-            if (_collectingPacket != null)
+            while (!data.IsEmpty)
             {
-                ContinueHandlePacket(data, offset);
-                return;
-            }
+                if (_currentPacket == null && !TryStartNewPacket(ref data))
+                    return;
 
-            int left = data.Length - offset;
-
-            if (_undoneheader.Count == 0)
-            {
-                if (left >= LengthHeadeLength)
-                {
-                    _awaitedLength = data.ToStruct<int>(offset);
-                    StartHandlePacket(data, offset + LengthHeadeLength);
-                }
-                else
-                {
-                    _undoneheader.AddRange(data.Skip(offset));
-                }
-                return;
-            }
-
-            var awaitOfHead = LengthHeadeLength - _undoneheader.Count;
-            if (awaitOfHead <= left)
-            {
-                _undoneheader.AddRange(data.Skip(offset).Take(awaitOfHead));
-                _awaitedLength = _undoneheader.ToArray().ToStruct<int>(0);
-                _undoneheader.Clear();
-                StartHandlePacket(data, offset + awaitOfHead);
-            }
-            else
-            {
-                _undoneheader.AddRange(data.Skip(offset));
+                AppendToCurrentPacket(ref data);
             }
         }
 
-        private void StartHandlePacket(byte[] data, int offset)
-        {
-            _collectingPacket = new MemoryStream(_awaitedLength);
-            ContinueHandlePacket(data, offset);
-        }
+        public Stream DequeueOrNull() => _completedPackets.Count > 0 ? _completedPackets.Dequeue() : null;
 
-        private void ContinueHandlePacket(byte[] data, int dataOffset)
+        private bool TryStartNewPacket(ref ReadOnlySpan<byte> data)
         {
-            int dataLeft = data.Length - dataOffset;
-
-            if (dataLeft < _awaitedLength)
+            if (_partialHeaderBytes == 0 && data.Length >= LengthHeaderSize)
             {
-                _collectingPacket.Write(data, dataOffset, dataLeft);
-                _awaitedLength -= dataLeft;
+                StartPacket(BinaryPrimitives.ReadInt32LittleEndian(data));
+                data = data.Slice(LengthHeaderSize);
+                return true;
             }
-            else
+
+            var needed = LengthHeaderSize - _partialHeaderBytes;
+            var available = data.Length < needed ? data.Length : needed;
+            data.Slice(0, available).CopyTo(_partialHeader.AsSpan(_partialHeaderBytes));
+            _partialHeaderBytes += available;
+            data = data.Slice(available);
+
+            if (_partialHeaderBytes < LengthHeaderSize)
+                return false;
+
+            StartPacket(BinaryPrimitives.ReadInt32LittleEndian(_partialHeader));
+            _partialHeaderBytes = 0;
+            return true;
+        }
+
+        private void StartPacket(int payloadLength)
+        {
+            _remainingPayloadBytes = payloadLength;
+            _currentPacket = new PooledMemoryStream(payloadLength > 0 ? payloadLength : 1);
+        }
+
+        private void AppendToCurrentPacket(ref ReadOnlySpan<byte> data)
+        {
+            var toCopy = data.Length < _remainingPayloadBytes ? data.Length : _remainingPayloadBytes;
+            _currentPacket.Write(data.Slice(0, toCopy));
+            _remainingPayloadBytes -= toCopy;
+            data = data.Slice(toCopy);
+
+            if (_remainingPayloadBytes == 0)
             {
-                //packet finished.
-                _collectingPacket.Write(data, dataOffset, _awaitedLength);
-                _collectingPacket.Position = 0;
-                _queue.Enqueue(_collectingPacket);
-                _collectingPacket = null;
-                var nextPackOffset = dataOffset + _awaitedLength;
-                _awaitedLength = 0;
-                Enqueue(data, nextPackOffset);
+                _currentPacket.Position = 0;
+                _completedPackets.Enqueue(_currentPacket);
+                _currentPacket = null;
             }
-        }
-
-        public void Enqueue(byte[] data)
-        {
-            Enqueue(data, 0);
-        }
-        
-        public bool IsEmpty => _queue.Count == 0;
-
-        public MemoryStream DequeueOrNull()
-        {
-            if(_queue.Count>0)
-                return _queue.Dequeue();
-            return null;
         }
     }
 }

@@ -16,7 +16,7 @@ namespace TheNetTunnel.Presentation
             _methodsDescriptor = methodsDescriptor;
         }
 
-        public MessageDeserializeResult Deserialize(MemoryStream streamMessage)
+        public MessageDeserializeResult Deserialize(Stream streamMessage)
         {
             if (!streamMessage.TryReadShort(out var messageId))
             {
@@ -273,7 +273,7 @@ namespace TheNetTunnel.Presentation
             }
         }
 
-        public object[] Deserialize(IDeserializer deserializer, int argumentsCount, MemoryStream data)
+        public object[] Deserialize(IDeserializer deserializer, int argumentsCount, Stream data)
         {
             object[] arg = null;
             if (argumentsCount == 0)
