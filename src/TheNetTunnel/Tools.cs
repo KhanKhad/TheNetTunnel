@@ -142,6 +142,7 @@ namespace TheNetTunnel
                 case float v: stream.WriteFloat(v); return;
                 case double v: stream.WriteDouble(v); return;
                 case char v: stream.WriteUshort(v); return;
+                case TimeSpan v: stream.WriteLong(v.Ticks); return;
                 default: throw new NotSupportedException($"Binary serialization of {typeof(T)} is not supported");
             }
         }
@@ -152,6 +153,7 @@ namespace TheNetTunnel
             if (type == typeof(short) || type == typeof(ushort) || type == typeof(char)) return 2;
             if (type == typeof(int) || type == typeof(uint) || type == typeof(float)) return 4;
             if (type == typeof(long) || type == typeof(ulong) || type == typeof(double)) return 8;
+            if (type == typeof(TimeSpan)) return sizeof(long);
             throw new NotSupportedException($"{type} is not a supported primitive type");
         }
 
@@ -172,6 +174,7 @@ namespace TheNetTunnel
             if (t == typeof(float)) return (T)(object)BinaryPrimitives.ReadSingleLittleEndian(span);
             if (t == typeof(double)) return (T)(object)BinaryPrimitives.ReadDoubleLittleEndian(span);
             if (t == typeof(char)) return (T)(object)(char)BinaryPrimitives.ReadUInt16LittleEndian(span);
+            if (t == typeof(TimeSpan)) return (T)(object)TimeSpan.FromTicks(BinaryPrimitives.ReadInt64LittleEndian(span));
 
             throw new NotSupportedException($"Binary deserialization of {typeof(T)} is not supported");
         }
