@@ -18,7 +18,11 @@ class Program
 {
     private static readonly Output _output = new Output();
 
-    static async Task Main()
+    // The bandwidth tests push packets up to 1,000,000 items, which for the
+    // protobuf struct case exceeds the 64 MB default. Raise the cap for the test.
+    private const int SpeedTestMaxFrameLength = 256 * 1024 * 1024;
+
+    static async Task Main(string[] args)
     {
         _output.WriteLine("Current time: "+ DateTime.Now);
         _output.WriteLine("Machine:" + System.Environment.MachineName);
@@ -35,6 +39,19 @@ class Program
         await TestDirectTestConnection();
         _output.WriteLine();
         _output.WriteLine("Measurements are done");
+
+        // Non-interactive run (CI / piped stdin) or an explicit file argument:
+        // save results automatically and exit instead of prompting.
+        if (Console.IsInputRedirected || args.Length > 0)
+        {
+            var fileName = args.Length > 0 ? args[0] : "MeasureResults.txt";
+            if (_output.TrySaveTo(fileName))
+                Console.WriteLine($"Results saved to {System.IO.Path.GetFullPath(fileName)}");
+            else
+                Console.WriteLine("Saving failed");
+            return;
+        }
+
         while (true)
         {
             Console.WriteLine("Save results [y/n]?");
@@ -74,6 +91,7 @@ class Program
 
         var server = TntBuilder
             .UseContract<ISpeedTestContract, SpeedTestContract>()
+            .SetMaxFrameLength(SpeedTestMaxFrameLength)
             .CreateTcpServer(IPAddress.Loopback, 12345);
 
         try
@@ -82,6 +100,7 @@ class Program
 
             var clientSide = await TntBuilder
                .UseContract<ISpeedTestContract>()
+               .SetMaxFrameLength(SpeedTestMaxFrameLength)
                .CreateTcpClientConnectionAsync(IPAddress.Loopback, 12345);
 
             var serverSide = await server.WaitForAClient();
@@ -100,6 +119,7 @@ class Program
 
         var server = TntBuilder
             .UseContract<ISpeedTestContract, SpeedTestContract>()
+            .SetMaxFrameLength(SpeedTestMaxFrameLength)
             .CreateTcpServer(IPAddress.Loopback, 12345);
 
         try
@@ -108,6 +128,7 @@ class Program
 
             var clientSide = await TntBuilder
                .UseContract<ISpeedTestContract>()
+               .SetMaxFrameLength(SpeedTestMaxFrameLength)
                .CreateTcpClientConnectionAsync(IPAddress.Loopback, 12345);
 
             var serverSide = await server.WaitForAClient();

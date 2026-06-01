@@ -18,6 +18,7 @@ namespace TheNetTunnel.Api
     {
         private IDispatcher _receiveDispatcher;
         private int _maxAnsDelay = 30000;
+        private int _maxFrameLength = ReceivePduQueue.DefaultMaxFrameLength;
 
         public List<DeserializationRule> UserDeserializationRules { get; } = new List<DeserializationRule>();
 
@@ -45,6 +46,21 @@ namespace TheNetTunnel.Api
         public ContractBuilder<TContract> SetMaxAnsTimeout(int delay)
         {
             _maxAnsDelay = delay;
+            return this;
+        }
+
+        /// <summary>
+        /// Maximum allowed size, in bytes, of a single incoming frame payload.
+        /// Frames declaring a larger (or negative) length are rejected before any
+        /// allocation and the connection is dropped. Defaults to
+        /// <see cref="ReceivePduQueue.DefaultMaxFrameLength"/> (64 MB).
+        /// </summary>
+        public ContractBuilder<TContract> SetMaxFrameLength(int maxFrameLength)
+        {
+            if (maxFrameLength <= 0)
+                throw new ArgumentOutOfRangeException(nameof(maxFrameLength));
+
+            _maxFrameLength = maxFrameLength;
             return this;
         }
 
@@ -260,6 +276,7 @@ namespace TheNetTunnel.Api
                 Fullmode = fullmode,
                 DefaultMaxAnsDelay = _maxAnsDelay,
                 DefaultPingInterval = 5000,
+                MaxFrameLength = _maxFrameLength,
             };
 
             return interlocutorProperties;

@@ -2,6 +2,7 @@ using System;
 using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.IO;
+using TheNetTunnel.Exceptions.Local;
 using TheNetTunnel.Presentation;
 
 namespace TheNetTunnel.Transport
@@ -9,6 +10,14 @@ namespace TheNetTunnel.Transport
     public class ReceivePduQueue
     {
         private const int LengthHeaderSize = sizeof(int);
+
+        /// <summary>
+        /// Default upper bound for a single frame payload (64 MB). Frames declaring
+        /// a larger (or negative) length are rejected before any allocation happens.
+        /// </summary>
+        public const int DefaultMaxFrameLength = 64 * 1024 * 1024;
+
+        private readonly int _maxFrameLength;
 
         private readonly Queue<PooledMemoryStream> _completedPackets = new();
 
@@ -19,6 +28,14 @@ namespace TheNetTunnel.Transport
         private int _partialHeaderBytes;
 
         public bool IsEmpty => _completedPackets.Count == 0;
+
+        public ReceivePduQueue(int maxFrameLength = DefaultMaxFrameLength)
+        {
+            if (maxFrameLength <= 0)
+                throw new ArgumentOutOfRangeException(nameof(maxFrameLength));
+
+            _maxFrameLength = maxFrameLength;
+        }
 
         public void Enqueue(byte[] data) => Enqueue(data.AsSpan());
 
@@ -60,6 +77,9 @@ namespace TheNetTunnel.Transport
 
         private void StartPacket(int payloadLength)
         {
+            if (payloadLength < 0 || payloadLength > _maxFrameLength)
+                throw new InvalidFrameLengthException(payloadLength, _maxFrameLength);
+
             _remainingPayloadBytes = payloadLength;
             _currentPacket = new PooledMemoryStream(payloadLength > 0 ? payloadLength : 1);
         }

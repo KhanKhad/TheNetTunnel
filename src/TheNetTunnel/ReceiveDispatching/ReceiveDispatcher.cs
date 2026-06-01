@@ -5,6 +5,7 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using TheNetTunnel.Diagnostics;
 
 namespace TheNetTunnel.ReceiveDispatching
 {
@@ -58,15 +59,24 @@ namespace TheNetTunnel.ReceiveDispatching
                         await task.ConfigureAwait(false);
                 }
             }
-            catch
+            catch (OperationCanceledException)
             {
-
+                // Expected when the dispatcher is being stopped.
+            }
+            catch (Exception e)
+            {
+                TntLog.Error(nameof(ReceiveDispatcher), "Dispatcher read loop terminated unexpectedly", e);
             }
         }
 
         public async Task HandleDispatcherTask(DispatcherTask dTask)
         {
-            await Task.Yield();
+            // In multi-operation mode the read loop fires tasks without awaiting them,
+            // so we must yield to let several handlers run concurrently. In single-
+            // operation mode the loop awaits each task, so running the handler inline
+            // on the dispatcher thread is both correct and one thread-hop cheaper.
+            if (!_singleOperationMode)
+                await Task.Yield();
 
             try
             {
@@ -75,14 +85,14 @@ namespace TheNetTunnel.ReceiveDispatching
                 switch (dTask.DispatcherTaskType)
                 {
                     case DispatcherTaskTypes.SyncSayMessage:
-                        dTask.MethodInfo.Invoke(_contract, dTask.Args);
+                        DelegateCache.Invoke(dTask.MethodInfo, _contract, dTask.Args);
                         break;
                     case DispatcherTaskTypes.SyncAskMessage:
-                        result = dTask.MethodInfo.Invoke(_contract, dTask.Args);
+                        result = DelegateCache.Invoke(dTask.MethodInfo, _contract, dTask.Args);
                         break;
 
                     case DispatcherTaskTypes.AsyncSayMessage:
-                        var task = (Task)dTask.MethodInfo.Invoke(_contract, dTask.Args);
+                        var task = (Task)DelegateCache.Invoke(dTask.MethodInfo, _contract, dTask.Args);
 
                         //If user doesnt subscribe on Funk<Task> here will be null
                         if (task != null)
@@ -90,15 +100,14 @@ namespace TheNetTunnel.ReceiveDispatching
 
                         break;
                     case DispatcherTaskTypes.AsyncAskMessage:
-                        var taskWithResult = (Task)dTask.MethodInfo.Invoke(_contract, dTask.Args);
+                        var taskWithResult = (Task)DelegateCache.Invoke(dTask.MethodInfo, _contract, dTask.Args);
 
                         //If user doesnt subscribe on Funk<Task> here will be null
                         if (taskWithResult != null)
                         {
                             await taskWithResult.ConfigureAwait(false);
 
-                            var resultProperty = taskWithResult.GetType().GetProperty("Result");
-                            result = resultProperty.GetValue(taskWithResult);
+                            result = DelegateCache.ReadTaskResult(taskWithResult);
                         }
                         else //we'll create a default value or null
                         {

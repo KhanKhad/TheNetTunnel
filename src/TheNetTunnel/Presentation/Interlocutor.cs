@@ -1,9 +1,11 @@
 ﻿using System;
+using System.Buffers;
 using System.Collections.Concurrent;
 using System.IO;
 using System.Threading;
 using System.Runtime.ExceptionServices;
 using System.Threading.Tasks;
+using TheNetTunnel.Diagnostics;
 using TheNetTunnel.Exceptions.Local;
 using TheNetTunnel.Exceptions.Remote;
 using TheNetTunnel.ReceiveDispatching;
@@ -33,7 +35,7 @@ namespace TheNetTunnel.Presentation
 
             Channel = channel;
 
-            _receiveMessageAssembler = new ReceivePduQueue();
+            _receiveMessageAssembler = new ReceivePduQueue(properties.MaxFrameLength);
             _receiveDispatcher = receiveDispatcher;
 
             MessageAwaiters = new ConcurrentDictionary<int, TaskCompletionSource<object>>();
@@ -118,9 +120,13 @@ namespace TheNetTunnel.Presentation
                         ErrorType.ConnectionAlreadyLost,
                         $"Connection lost while sending ping heartbeat: {e.Message}"));
                 }
-                catch
+                catch (OperationCanceledException)
                 {
-
+                    // Expected when the ping loop is being stopped.
+                }
+                catch (Exception e)
+                {
+                    TntLog.Warning(nameof(Interlocutor), "Ping heartbeat iteration failed", e);
                 }
             }
         }
@@ -133,9 +139,18 @@ namespace TheNetTunnel.Presentation
             {
                 await foreach (var response in reader.ReadAllAsync(token).ConfigureAwait(false))
                 {
-                    var data = response.Bytes;
-
-                    _receiveMessageAssembler.Enqueue(data);
+                    try
+                    {
+                        // Enqueue copies the bytes into its own pooled storage, so the
+                        // received buffer can be released back to the pool right after.
+                        _receiveMessageAssembler.Enqueue(
+                            new ReadOnlySpan<byte>(response.Bytes, 0, response.Length));
+                    }
+                    finally
+                    {
+                        if (response.Pooled)
+                            ArrayPool<byte>.Shared.Return(response.Bytes);
+                    }
 
                     while (true)
                     {
@@ -152,6 +167,12 @@ namespace TheNetTunnel.Presentation
             catch (OperationCanceledException)
             {
                 // Expected when stopping the read loop
+            }
+            catch (InvalidFrameLengthException e)
+            {
+                Disconnect(new ErrorMessage(0, 0,
+                    ErrorType.SerializationError,
+                    $"Connection dropped: {e.Message}"));
             }
         }
 
@@ -276,9 +297,9 @@ namespace TheNetTunnel.Presentation
                     }
                 }
             }
-            catch (Exception)
+            catch (Exception e)
             {
-
+                TntLog.Error(nameof(Interlocutor), "Unhandled error while processing an incoming message", e);
             }
         }
 
@@ -488,6 +509,8 @@ namespace TheNetTunnel.Presentation
 
         public int DefaultMaxAnsDelay;
         public int DefaultPingInterval;
+
+        public int MaxFrameLength = ReceivePduQueue.DefaultMaxFrameLength;
 
         public InterlocutorProperties() { }
 

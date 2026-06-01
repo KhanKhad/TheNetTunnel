@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using TheNetTunnel.Api;
+using TheNetTunnel.Diagnostics;
 using TheNetTunnel.Presentation;
 
 namespace TheNetTunnel.Tcp
@@ -28,7 +29,7 @@ namespace TheNetTunnel.Tcp
 
         private readonly ContractBuilder<TContract> _connectionBuilder;
 
-        private TaskCompletionSource<IConnection<TContract>> _waitForAClientTaskSource;
+        private readonly Channel<IConnection<TContract>> _acceptedConnections;
 
         private CancellationTokenSource _internalWorkCts;
         private Task _internalWorkAsync;
@@ -45,7 +46,10 @@ namespace TheNetTunnel.Tcp
             _clients = new ConcurrentDictionary<int, IConnection<TContract>>();
             _restrictedClients = new ConcurrentDictionary<int, IConnection<TContract>>();
 
-            _waitForAClientTaskSource = new TaskCompletionSource<IConnection<TContract>>();
+            _acceptedConnections = Channel.CreateUnbounded<IConnection<TContract>>(new UnboundedChannelOptions()
+            {
+                SingleWriter = true,
+            });
             _maxConnections = maxConnections;
         }
 
@@ -65,7 +69,7 @@ namespace TheNetTunnel.Tcp
 
         public Task<IConnection<TContract>> WaitForAClient()
         {
-            return _waitForAClientTaskSource.Task;
+            return _acceptedConnections.Reader.ReadAsync().AsTask();
         }
 
         private async Task InternalStartAsync(CancellationToken token)
@@ -81,7 +85,14 @@ namespace TheNetTunnel.Tcp
 
                     await PrepareConnection(tcpClient).ConfigureAwait(false);
                 }
-                catch { }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
+                catch (Exception e)
+                {
+                    TntLog.Error(nameof(TntTcpServer<TContract>), "Failed to accept an incoming connection", e);
+                }
             }
         }
 
@@ -107,9 +118,8 @@ namespace TheNetTunnel.Tcp
             {
                 connection = await _connectionBuilder.UseChannel(tntTcpClient).BuildAsync().ConfigureAwait(false);
                 _clients.TryAdd(newId, connection);
-                _waitForAClientTaskSource.TrySetResult(connection);
-                _waitForAClientTaskSource = new TaskCompletionSource<IConnection<TContract>>();
-            }            
+                _acceptedConnections.Writer.TryWrite(connection);
+            }
         }
 
         private void TntTcpClient_OnDisconnect(object arg1, ErrorMessage arg2)
@@ -141,12 +151,12 @@ namespace TheNetTunnel.Tcp
             if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
                 return;
 
-            _internalWorkCts.Cancel();
-            _internalWorkAsync.Wait();
+            _internalWorkCts?.Cancel();
+            _internalWorkAsync?.Wait();
 
-            _internalWorkCts.Dispose();
+            _internalWorkCts?.Dispose();
 
-            _waitForAClientTaskSource.TrySetCanceled();
+            _acceptedConnections.Writer.TryComplete();
             _tcpListener.Stop();
 
             var clients = _clients.Values;
