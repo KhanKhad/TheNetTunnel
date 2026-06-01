@@ -41,19 +41,19 @@ namespace TheNetTunnel.Presentation
                     switch (messageHandler.MethodType)
                     {
                         case MethodTypes.SyncWithoutResult:
-                            await _receiveDispatcher.HandleSyncSayMessage(messageHandler.MethodHandler, arguments);
+                            await _receiveDispatcher.HandleSyncSayMessage(messageHandler.MethodHandler, arguments).ConfigureAwait(false);
                             result = CreateSuccessfulResponseMessage(null, id, askId);
                             break;
                         case MethodTypes.SyncWithResult:
-                            var sanswer = await _receiveDispatcher.HandleSyncAskMessage(messageHandler.MethodHandler, arguments);
+                            var sanswer = await _receiveDispatcher.HandleSyncAskMessage(messageHandler.MethodHandler, arguments).ConfigureAwait(false);
                             result = CreateSuccessfulResponseMessage(sanswer, id, askId);
                             break;
                         case MethodTypes.AsyncWithoutResult:
-                            await _receiveDispatcher.HandleAsyncSayMessage(messageHandler.MethodHandler, arguments);
+                            await _receiveDispatcher.HandleAsyncSayMessage(messageHandler.MethodHandler, arguments).ConfigureAwait(false);
                             result = CreateSuccessfulResponseMessage(null, id, askId);
                             break;
                         case MethodTypes.AsyncWithResult:
-                            var aanswer = await _receiveDispatcher.HandleAsyncAskMessage(messageHandler.MethodHandler, arguments);
+                            var aanswer = await _receiveDispatcher.HandleAsyncAskMessage(messageHandler.MethodHandler, arguments).ConfigureAwait(false);
                             result = CreateSuccessfulResponseMessage(aanswer, id, askId);
                             break;
                         default:

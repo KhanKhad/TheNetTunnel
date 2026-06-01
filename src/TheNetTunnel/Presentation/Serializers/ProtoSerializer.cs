@@ -13,7 +13,8 @@ namespace TheNetTunnel.Presentation.Serializers
         {
             //write length prefix
             var postion = stream.Position;
-            stream.Write(Tools.ZeroBuffer4, 0, 4);
+            Span<byte> buf = stackalloc byte[4];
+            stream.Write(buf);
 
             //protobuf-serializer writes length prefix too slowly
             ProtoBuf.Serializer.SerializeWithLengthPrefix<T>(stream, obj, ProtoBuf.PrefixStyle.None);

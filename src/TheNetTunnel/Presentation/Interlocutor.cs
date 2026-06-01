@@ -77,13 +77,13 @@ namespace TheNetTunnel.Presentation
                 Result = Properties.CreateHelloMessage(),
             };
 
-            await SendMessageAsync(message);
+            await SendMessageAsync(message).ConfigureAwait(false);
 
-            var result = await Task.WhenAny(awaiter, Task.Delay(Properties.DefaultMaxAnsDelay));
+            var result = await Task.WhenAny(awaiter, Task.Delay(Properties.DefaultMaxAnsDelay)).ConfigureAwait(false);
 
             if (result == awaiter)
             {
-                var response = (await awaiter) as HelloMessageResponse;
+                var response = (await awaiter.ConfigureAwait(false)) as HelloMessageResponse;
                 return (response?.AvailableForWork ?? false, response?.UnavailabilityReason ?? "Invalid response");
             }
             else
@@ -100,7 +100,7 @@ namespace TheNetTunnel.Presentation
                 try
                 {
                     if (Properties.ServerMode)
-                        await _firstRequestTks.Task;
+                        await _firstRequestTks.Task.ConfigureAwait(false);
 
                     var pingMessage = new TntMessage()
                     {
@@ -109,8 +109,8 @@ namespace TheNetTunnel.Presentation
                         MessageType = MessageType.PingMessage,
                         Result = (short)1,
                     };
-                    await SendMessageAsync(pingMessage);
-                    await Task.Delay(Properties.DefaultPingInterval, token);
+                    await SendMessageAsync(pingMessage).ConfigureAwait(false);
+                    await Task.Delay(Properties.DefaultPingInterval, token).ConfigureAwait(false);
                 }
                 catch(ConnectionIsLostException e)
                 {
@@ -131,7 +131,7 @@ namespace TheNetTunnel.Presentation
 
             try
             {
-                await foreach (var response in reader.ReadAllAsync(token))
+                await foreach (var response in reader.ReadAllAsync(token).ConfigureAwait(false))
                 {
                     var data = response.Bytes;
 
@@ -190,19 +190,19 @@ namespace TheNetTunnel.Presentation
 
                     if (msgType == MessageType.RequestMessage)
                     {
-                        var response = await _responser.CreateResponseAsync(deserialized.MessageOrNull);
-                        await SendMessageAsync(response);
+                        var response = await _responser.CreateResponseAsync(deserialized.MessageOrNull).ConfigureAwait(false);
+                        await SendMessageAsync(response).ConfigureAwait(false);
                     }
                     else if (msgType == MessageType.PingMessage)
                     {
                         var response = _responser.CreatePingResponse(deserialized.MessageOrNull);
-                        await SendMessageAsync(response);
+                        await SendMessageAsync(response).ConfigureAwait(false);
                     }
                     else if (msgType == MessageType.HelloMessageRequest)
                     {
                         var (needDisconnect, response) = _responser.CreateHelloMessageResponse(Properties, deserialized.MessageOrNull);
 
-                        await SendMessageAsync(response);
+                        await SendMessageAsync(response).ConfigureAwait(false);
 
                         if (needDisconnect)
                         {
@@ -286,7 +286,7 @@ namespace TheNetTunnel.Presentation
         {
             using var serialized = _messagesSerializer.SerializeTntMessage(message);
 
-            await Channel.WriteAsync(serialized.GetWrittenMemory());
+            await Channel.WriteAsync(serialized.GetWrittenMemory()).ConfigureAwait(false);
         }
 
         public void SendMessage(TntMessage message)
@@ -330,10 +330,10 @@ namespace TheNetTunnel.Presentation
 
             await SendMessageAsync(message).ConfigureAwait(false);
 
-            var result = await Task.WhenAny(awaiter, Task.Delay(Properties.DefaultMaxAnsDelay));
+            var result = await Task.WhenAny(awaiter, Task.Delay(Properties.DefaultMaxAnsDelay)).ConfigureAwait(false);
 
             if (result == awaiter)
-                await awaiter;
+                await awaiter.ConfigureAwait(false);
 
             else
             {
@@ -395,10 +395,10 @@ namespace TheNetTunnel.Presentation
 
             await SendMessageAsync(message).ConfigureAwait(false);
 
-            var result = await Task.WhenAny(awaiter, Task.Delay(Properties.DefaultMaxAnsDelay));
+            var result = await Task.WhenAny(awaiter, Task.Delay(Properties.DefaultMaxAnsDelay)).ConfigureAwait(false);
 
             if (result == awaiter)
-                return (T)await awaiter;
+                return (T)await awaiter.ConfigureAwait(false);
             else
             {
                 RemoveAsyncMessageAwaiter(newId);
@@ -442,8 +442,8 @@ namespace TheNetTunnel.Presentation
             Disconnect();
 
             _firstRequestTks.TrySetCanceled();
-            await _readChannelAsync;
-            await _pingTaskAsync;
+            await _readChannelAsync.ConfigureAwait(false);
+            await _pingTaskAsync.ConfigureAwait(false);
 
             _workCts.Dispose();
             _workCts = null;

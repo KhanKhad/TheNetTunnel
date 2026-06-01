@@ -7,8 +7,6 @@ namespace TheNetTunnel
 {
     public static class Tools
     {
-        public static readonly byte[] ZeroBuffer4 = new byte[4];
-
         private const int CopyChunkSize = 4096;
 
         public static void WriteBool(this Stream stream, bool value)

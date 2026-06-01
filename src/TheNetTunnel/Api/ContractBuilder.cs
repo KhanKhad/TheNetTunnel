@@ -111,7 +111,7 @@ namespace TheNetTunnel.Api
             if (_channel != null)
                 channel = _channel;
             else if (_channelFactoryAsync != null)
-                channel = await _channelFactoryAsync();
+                channel = await _channelFactoryAsync().ConfigureAwait(false);
             else if(_channelFactory != null)
                 channel = _channelFactory();
 
@@ -120,7 +120,7 @@ namespace TheNetTunnel.Api
 
             var dispatcher = _receiveDispatcher ?? new ReceiveDispatcher();
 
-            await channel.StartAsync();
+            await channel.StartAsync().ConfigureAwait(false);
 
             TContract contract;
             IInterlocutor interlocutor;
@@ -129,11 +129,11 @@ namespace TheNetTunnel.Api
             {
                 (contract, interlocutor) = CreateProxyContract(channel, dispatcher);
 
-                var (AvailableForWork, UnavailabilityReason) = interlocutor.SendHelloMessageAsync().ConfigureAwait(false).GetAwaiter().GetResult();
+                var (AvailableForWork, UnavailabilityReason) = await interlocutor.SendHelloMessageAsync().ConfigureAwait(false);
 
                 if (!AvailableForWork)
                 {
-                    await interlocutor.DisposeAsync();
+                    await interlocutor.DisposeAsync().ConfigureAwait(false);
                     throw new Exception($"Interlocutor is not available for work. Unavailability reason: {UnavailabilityReason}");
                 }
             }

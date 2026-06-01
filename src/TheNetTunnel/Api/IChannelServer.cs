@@ -7,8 +7,6 @@ namespace TheNetTunnel.Api
 {
    public interface  IChannelServer<TContract> : IDisposable 
     {
-        event Action<object, BeforeConnectEventArgs<TContract>>  BeforeConnect;
-        event Action<object, IConnection<TContract>> AfterConnect;
         event Action<object, ClientDisconnectEventArgs<TContract>> Disconnected;
         int ConnectionsCount { get; }
         void Start();

@@ -110,7 +110,7 @@ namespace TheNetTunnel.Tcp
                 {
                     var buffer = new byte[bufferSize];
 
-                    var bytesToRead = await socket.ReceiveAsync(buffer, SocketFlags.None, token);
+                    var bytesToRead = await socket.ReceiveAsync(buffer, SocketFlags.None, token).ConfigureAwait(false);
 
                     if (bytesToRead == 0 || token.IsCancellationRequested)
                         continue;
@@ -128,7 +128,7 @@ namespace TheNetTunnel.Tcp
                         Sender = this,
                     };
 
-                    await ResponsesChannel.Writer.WriteAsync(data, CancellationToken.None);
+                    await ResponsesChannel.Writer.WriteAsync(data, CancellationToken.None).ConfigureAwait(false);
                 }
                 catch (TaskCanceledException)
                 {

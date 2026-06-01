@@ -40,10 +40,12 @@ namespace TheNetTunnel.Presentation.Serializers
         {
             var TArray = obj as Array;
 
+            Span<byte> buf = stackalloc byte[4];
+
             for (int i = 0; i < TArray.Length; i++)
             {
                 var sPos = stream.Position;
-                stream.Write(Tools.ZeroBuffer4, 0, 4);
+                stream.Write(buf);
                 memberSerializer.Serialize(TArray.GetValue(i), stream);
 
                 var len = BitConverter.GetBytes((int) (stream.Position - sPos - 4));

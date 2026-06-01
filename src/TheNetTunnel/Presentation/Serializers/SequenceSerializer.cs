@@ -24,6 +24,8 @@ namespace TheNetTunnel.Presentation.Serializers
 
         public void SerializeT(object[] obj, System.IO.Stream stream)
         {
+            Span<byte> buf = stackalloc byte[4];
+
             for (int i = 0; i < obj.Length; i++) //Serializing one by one
             {
                 if (serializers[i].Size.HasValue || singleMember)
@@ -31,7 +33,7 @@ namespace TheNetTunnel.Presentation.Serializers
                 else
                 {
                     var sPos = stream.Position;
-                    stream.Write(Tools.ZeroBuffer4, 0, 4);
+                    stream.Write(buf);
                     serializers[i].Serialize(obj[i], stream);
 
                     var len = BitConverter.GetBytes((int) (stream.Position - sPos - 4));

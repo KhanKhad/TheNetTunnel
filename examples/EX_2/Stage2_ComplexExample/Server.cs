@@ -16,14 +16,7 @@ public class Server
         _tntServer = TntBuilder
             //Using contract factory. ServerSideContractImplementation exemplar needs reference to broadcast method:
             .UseContract<IStage2Contract>(() => new Stage2ContractImplementation(this))
-            .CreateTcpServer(IPAddress.Any, 12345);
-
-        //alow only 10 connections at the moment:
-        _tntServer.BeforeConnect += (_, arg) =>
-        {
-            if (_tntServer.ConnectionsCount >= 10)
-                arg.AllowConnection = false;
-        };
+            .CreateTcpServer(IPAddress.Any, 12345, 10);
 
         _tntServer.Start();
         Console.WriteLine("Server opened");

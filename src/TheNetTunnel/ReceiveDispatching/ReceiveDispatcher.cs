@@ -50,12 +50,12 @@ namespace TheNetTunnel.ReceiveDispatching
 
             try
             {
-                await foreach (var dTask in reader.ReadAllAsync(token))
+                await foreach (var dTask in reader.ReadAllAsync(token).ConfigureAwait(false))
                 {
                     var task = HandleDispatcherTask(dTask);
 
                     if (_singleOperationMode)
-                        await task;
+                        await task.ConfigureAwait(false);
                 }
             }
             catch
@@ -86,7 +86,7 @@ namespace TheNetTunnel.ReceiveDispatching
 
                         //If user doesnt subscribe on Funk<Task> here will be null
                         if (task != null)
-                            await task;
+                            await task.ConfigureAwait(false);
 
                         break;
                     case DispatcherTaskTypes.AsyncAskMessage:
@@ -136,9 +136,9 @@ namespace TheNetTunnel.ReceiveDispatching
 
             var awaiter = GetAsyncMessageAwaiter(newId);
 
-            await TasksChannel.Writer.WriteAsync(dTask);
+            await TasksChannel.Writer.WriteAsync(dTask).ConfigureAwait(false);
 
-            await awaiter;
+            await awaiter.ConfigureAwait(false);
         }
 
         public async Task<object> HandleSyncAskMessage(MethodInfo handler, object[] args)
@@ -155,9 +155,9 @@ namespace TheNetTunnel.ReceiveDispatching
 
             var awaiter = GetAsyncMessageAwaiter(newId);
 
-            await TasksChannel.Writer.WriteAsync(dTask);
+            await TasksChannel.Writer.WriteAsync(dTask).ConfigureAwait(false);
 
-            var result = await awaiter;
+            var result = await awaiter.ConfigureAwait(false);
 
             return result;
         }
@@ -176,9 +176,9 @@ namespace TheNetTunnel.ReceiveDispatching
 
             var awaiter = GetAsyncMessageAwaiter(newId);
 
-            await TasksChannel.Writer.WriteAsync(dTask);
+            await TasksChannel.Writer.WriteAsync(dTask).ConfigureAwait(false);
 
-            var result = await awaiter;
+            var result = await awaiter.ConfigureAwait(false);
         }
 
         public async Task<object> HandleAsyncAskMessage(MethodInfo handler, object[] args)
@@ -195,9 +195,9 @@ namespace TheNetTunnel.ReceiveDispatching
 
             var awaiter = GetAsyncMessageAwaiter(newId);
 
-            await TasksChannel.Writer.WriteAsync(dTask);
+            await TasksChannel.Writer.WriteAsync(dTask).ConfigureAwait(false);
 
-            var result = await awaiter;
+            var result = await awaiter.ConfigureAwait(false);
 
             return result;
         }
@@ -234,7 +234,7 @@ namespace TheNetTunnel.ReceiveDispatching
 
             _workCts.Cancel();
 
-            await _readChannelAsync;
+            await _readChannelAsync.ConfigureAwait(false);
 
             _workCts.Dispose();
             _workCts = null;

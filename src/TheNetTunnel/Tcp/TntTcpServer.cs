@@ -74,12 +74,12 @@ namespace TheNetTunnel.Tcp
             {
                 try
                 {
-                    var tcpClient = await _tcpListener.AcceptTcpClientAsync(token);
+                    var tcpClient = await _tcpListener.AcceptTcpClientAsync(token).ConfigureAwait(false);
 
                     if (token.IsCancellationRequested)
                         break;
 
-                    await PrepareConnection(tcpClient);
+                    await PrepareConnection(tcpClient).ConfigureAwait(false);
                 }
                 catch { }
             }
@@ -100,12 +100,12 @@ namespace TheNetTunnel.Tcp
 
             if (_maxConnections > 0 && _clients.Count >= _maxConnections)
             {
-                connection = await _connectionBuilder.UseChannel(tntTcpClient).BuildAsync(true);
+                connection = await _connectionBuilder.UseChannel(tntTcpClient).BuildAsync(true).ConfigureAwait(false);
                 _restrictedClients.TryAdd(newId, connection);
             }
             else
             {
-                connection = await _connectionBuilder.UseChannel(tntTcpClient).BuildAsync();
+                connection = await _connectionBuilder.UseChannel(tntTcpClient).BuildAsync().ConfigureAwait(false);
                 _clients.TryAdd(newId, connection);
                 _waitForAClientTaskSource.TrySetResult(connection);
                 _waitForAClientTaskSource = new TaskCompletionSource<IConnection<TContract>>();
@@ -132,8 +132,6 @@ namespace TheNetTunnel.Tcp
         }
 
 
-        public event Action<object, BeforeConnectEventArgs<TContract>> BeforeConnect;
-        public event Action<object, IConnection<TContract>> AfterConnect;
         public event Action<object, ClientDisconnectEventArgs<TContract>> Disconnected;
 
         private int _disposed;

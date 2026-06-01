@@ -32,7 +32,7 @@ namespace CommonTestTools
 
         public void DisconnectBecauseOf(ErrorMessage error)
         {
-
+            OnDisconnect?.Invoke(this, error);
         }
 
         public void Dispose()
