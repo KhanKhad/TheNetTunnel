@@ -16,7 +16,7 @@ namespace TheNetTunnel.Presentation
     public class Interlocutor : IInterlocutor
     {
         public IChannel Channel;
-        public Responser _responser;
+        private Responser _responser;
 
         private MessagesSerializer _messagesSerializer;
         private MessagesDeserializer _messagesDeserializer;
@@ -39,7 +39,7 @@ namespace TheNetTunnel.Presentation
             _receiveDispatcher = receiveDispatcher;
 
             MessageAwaiters = new ConcurrentDictionary<int, TaskCompletionSource<object>>();
-            _firstRequestTks = new TaskCompletionSource();
+            _firstRequestTks = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         }
 
         public void Initialize(MethodsDescriptor methodsDescriptor)
@@ -53,6 +53,7 @@ namespace TheNetTunnel.Presentation
         private Task _readChannelAsync;
         private Task _pingTaskAsync;
         private CancellationTokenSource _workCts;
+        private int _disposed;
 
         public void Start()
         {
@@ -181,9 +182,6 @@ namespace TheNetTunnel.Presentation
         {
             try
             {
-                //No need to wait for this message, we can start handling next immediately.
-                await Task.Yield();
-
                 var deserialized = _messagesDeserializer.Deserialize(stream);
 
                 stream.Dispose();
@@ -429,12 +427,12 @@ namespace TheNetTunnel.Presentation
 
         public Task<object> GetAsyncMessageAwaiter(int askId)
         {
-            var tks = new TaskCompletionSource<object>();
+            var tks = new TaskCompletionSource<object>(TaskCreationOptions.RunContinuationsAsynchronously);
 
             if (MessageAwaiters.TryAdd(askId, tks))
                 return tks.Task;
 
-            else throw new Exception("Same askId was already added");
+            else throw new InvalidOperationException("Same askId was already added");
         }
 
         public void RemoveAsyncMessageAwaiter(int askId)
@@ -457,6 +455,9 @@ namespace TheNetTunnel.Presentation
 
         public async ValueTask DisposeAsync()
         {
+            if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
+                return;
+
             if (_workCts == null)
                 return;
 
@@ -472,6 +473,9 @@ namespace TheNetTunnel.Presentation
 
         public void Dispose()
         {
+            if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
+                return;
+
             if (_workCts == null)
                 return;
 

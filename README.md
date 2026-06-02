@@ -127,7 +127,7 @@ TntBuilder.UseContract<IExampleContract, ExampleContract>()
     .CreateTcpServer(IPAddress.Any, 12345);
 ```
 
-- **Dispatcher mode** — single-operation processes incoming calls sequentially (ordered, simplest to reason about); multi-operation runs them concurrently.
+- **Dispatcher mode** — controls how the receiving side (typically the server) handles *incoming* calls. Single-operation runs the contract handlers one at a time, in the order the requests arrived on the connection — simplest to reason about. Multi-operation runs handlers concurrently, so ordering between calls is not guaranteed. Either way, outgoing calls you make are unaffected.
 - **Custom serialization** — register `SerializationRule` / `DeserializationRule` to handle your own types alongside the built-in primitives and protobuf.
 - **Connection limit** — `CreateTcpServer(ip, port, maxConnections)` rejects clients past the limit during the handshake.
 

@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Concurrent;
-using System.Data;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Channels;
@@ -187,7 +186,7 @@ namespace TheNetTunnel.ReceiveDispatching
 
             await TasksChannel.Writer.WriteAsync(dTask).ConfigureAwait(false);
 
-            var result = await awaiter.ConfigureAwait(false);
+            await awaiter.ConfigureAwait(false);
         }
 
         public async Task<object> HandleAsyncAskMessage(MethodInfo handler, object[] args)
@@ -213,12 +212,12 @@ namespace TheNetTunnel.ReceiveDispatching
 
         public Task<object> GetAsyncMessageAwaiter(int askId)
         {
-            var tks = new TaskCompletionSource<object>();
+            var tks = new TaskCompletionSource<object>(TaskCreationOptions.RunContinuationsAsynchronously);
 
             if (MessageAwaiters.TryAdd(askId, tks))
                 return tks.Task;
 
-            else throw new Exception("Same askId was already added");
+            else throw new InvalidOperationException("Same askId was already added");
         }
 
         public void Dispose()

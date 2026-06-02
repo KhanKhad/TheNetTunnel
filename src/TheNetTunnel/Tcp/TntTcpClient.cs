@@ -2,10 +2,8 @@
 using System.Buffers;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Net;
 using System.Net.Sockets;
-using System.Text;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
@@ -39,8 +37,10 @@ namespace TheNetTunnel.Tcp
 
         public int ConnectionId;
 
-        private Task _internalWriteAsync;
-        private CancellationTokenSource _internalWriteCts;
+        private readonly SemaphoreSlim _sendLock = new SemaphoreSlim(1, 1);
+
+        private Task _internalReadAsync;
+        private CancellationTokenSource _internalReadCts;
         public TntTcpClient(IPEndPoint endPoint) : this()
         {
             Client = new TcpClient();
@@ -54,11 +54,6 @@ namespace TheNetTunnel.Tcp
 
         private TntTcpClient()
         {
-            // AllowSynchronousContinuations is intentionally left off: with it on,
-            // the reader's continuation (Interlocutor.ReadChannelAsync) could run
-            // inline on this socket-read task. If that continuation then triggered
-            // a disconnect, DisconnectBecauseOf would call _internalWriteAsync.Wait()
-            // on the very task executing it — a self-deadlock.
             ResponsesChannel = Channel.CreateUnbounded<TcpData>(new UnboundedChannelOptions()
             {
                 SingleReader = true,
@@ -99,29 +94,26 @@ namespace TheNetTunnel.Tcp
             Client.NoDelay = true;
             Client.Client.Blocking = false;
 
-            _internalWriteCts = new CancellationTokenSource();
-            _internalWriteAsync = Task.Run(async () => await InternalWriteAsync(_internalWriteCts.Token));
+            _internalReadCts = new CancellationTokenSource();
+            _internalReadAsync = Task.Run(async () => await InternalReadAsync(_internalReadCts.Token));
         }
 
         private const int ReceiveBufferSize = 64 * 1024;
 
-        private async Task InternalWriteAsync(CancellationToken token)
+        private async Task InternalReadAsync(CancellationToken token)
         {
             var socket = Client.Client;
 
             while (!token.IsCancellationRequested && Client.Connected)
             {
-                // Rent a fresh buffer per read: it is handed over to the channel
-                // consumer (Interlocutor), which returns it once the payload has
-                // been copied out. This avoids a per-read managed allocation.
                 var buffer = ArrayPool<byte>.Shared.Rent(ReceiveBufferSize);
                 var handedOff = false;
                 try
                 {
                     var bytesToRead = await socket.ReceiveAsync(buffer, SocketFlags.None, token).ConfigureAwait(false);
 
-                    if (bytesToRead == 0 || token.IsCancellationRequested)
-                        continue;
+                    if (token.IsCancellationRequested || bytesToRead == 0)
+                        break;
 
                     Interlocked.Add(ref _bytesReceived, bytesToRead);
 
@@ -162,15 +154,24 @@ namespace TheNetTunnel.Tcp
                 throw new ConnectionIsLostException("tcp channel is not connected");
             }
 
+            await _sendLock.WaitAsync().ConfigureAwait(false);
+
             try
             {
-                await Client.Client.SendAsync(data, SocketFlags.None).ConfigureAwait(false);
+                var sent = 0;
+                while (sent < data.Length)
+                    sent += await Client.Client.SendAsync(data.Slice(sent), SocketFlags.None).ConfigureAwait(false);
+
                 Interlocked.Add(ref _bytesSent, data.Length);
             }
             catch (Exception ex)
             {
                 Disconnect();
                 throw new ConnectionIsLostException("Failed to send data: tcp channel is lost", innerException: ex);
+            }
+            finally
+            {
+                _sendLock.Release();
             }
         }
 
@@ -184,22 +185,14 @@ namespace TheNetTunnel.Tcp
 
         private static string EndPointToText(EndPoint endPoint)
         {
-            var endPointText = endPoint.ToString();
-            var resultChars = new char[endPointText.Length];
-            var forbiddenSymbols = new[] { 'f', '[', ']', ':' };
-
-            for (var i = 0; i < endPointText.Length; i++)
+            if (endPoint is IPEndPoint ip)
             {
-                if (endPointText[i] == ']')
-                {
-                    resultChars[i] = ':';
-                }
-                else if (!forbiddenSymbols.Contains(endPointText[i]))
-                {
-                    resultChars[i] = endPointText[i];
-                }
+                return ip.AddressFamily == AddressFamily.InterNetworkV6
+                    ? $"[{ip.Address}]:{ip.Port}"
+                    : $"{ip.Address}:{ip.Port}";
             }
-            return new string(resultChars);
+
+            return endPoint?.ToString() ?? string.Empty;
         }
 
         private int _disconnected;
@@ -209,14 +202,12 @@ namespace TheNetTunnel.Tcp
             if (Interlocked.CompareExchange(ref _disconnected, 1, 0) != 0)
                 return;
 
-            _internalWriteCts.Cancel();
+            _internalReadCts.Cancel();
 
-            // The read loop winds down on cancellation; faults/cancellation observed
-            // here are expected during shutdown and must not escape Disconnect.
-            try { _internalWriteAsync.Wait(); }
+            try { _internalReadAsync.Wait(); }
             catch { }
 
-            _internalWriteCts.Dispose();
+            _internalReadCts.Dispose();
 
             ResponsesChannel.Writer.Complete();
             Client.Dispose();

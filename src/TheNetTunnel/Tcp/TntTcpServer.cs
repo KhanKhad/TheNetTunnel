@@ -18,7 +18,7 @@ namespace TheNetTunnel.Tcp
         private IPEndPoint IPEndPoint;
         private TcpListener _tcpListener;
 
-        private volatile int _maxId;
+        private int _maxId;
 
         private ConcurrentDictionary<int, IConnection<TContract>> _clients;
         private ConcurrentDictionary<int, IConnection<TContract>> _restrictedClients;
@@ -98,7 +98,7 @@ namespace TheNetTunnel.Tcp
 
         private async Task PrepareConnection(TcpClient tcpClient)
         {
-            var newId = _maxId++;
+            var newId = Interlocked.Increment(ref _maxId);
 
             var tntTcpClient = new TntTcpClient(tcpClient)
             {
