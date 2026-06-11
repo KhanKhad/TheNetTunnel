@@ -34,8 +34,11 @@ namespace TheNetTunnel.ReceiveDispatching
 
         public void Start()
         {
-            _workCts = new CancellationTokenSource();
-            _readChannelAsync = Task.Run(async () => await ReadChannelAsync(_workCts.Token));
+            if(_workCts == null)
+            {
+                _workCts = new CancellationTokenSource();
+                _readChannelAsync = Task.Run(async () => await ReadChannelAsync(_workCts.Token));
+            }
         }
 
         private object _contract;

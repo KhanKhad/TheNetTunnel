@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;
 using System.IO;
@@ -19,7 +20,29 @@ namespace TheNetTunnel.Contract.Proxy
     {
         private static int _exemmplarCounter;
 
+        // The generated proxy type depends only on the contract interface and the
+        // concrete interlocutor type (its Say/Ask methods are emitted as direct
+        // callvirt targets), not on the connection. Dynamic assemblies created with
+        // AssemblyBuilderAccess.Run are never unloaded, so without this cache every
+        // built connection would permanently leak an assembly.
+        private static readonly ConcurrentDictionary<(Type InterfaceType, Type InterlocutorType),
+            Lazy<(Type FinalType, Dictionary<int, string> ActionHandlers)>> _proxyTypesCache = new();
+
         public static T CreateProxyContract<T>(IInterlocutor interlocutor, out Type finalType, out Dictionary<int, string> actionHandlers)
+        {
+            var key = (typeof(T), interlocutor.GetType());
+
+            (finalType, actionHandlers) = _proxyTypesCache.GetOrAdd(key,
+                _ => new Lazy<(Type, Dictionary<int, string>)>(() =>
+                {
+                    var generatedType = BuildProxyType<T>(interlocutor, out var handlers);
+                    return (generatedType, handlers);
+                })).Value;
+
+            return (T)Activator.CreateInstance(finalType, interlocutor);
+        }
+
+        private static Type BuildProxyType<T>(IInterlocutor interlocutor, out Dictionary<int, string> actionHandlers)
         {
             var interfaceType = typeof(T);
             TypeBuilder typeBuilder =  CreateProxyTypeBuilder<T>();
@@ -111,11 +134,7 @@ namespace TheNetTunnel.Contract.Proxy
                 new [] {outputApiFieldInfo},
                 constructorCodeGeneration);
 
-            finalType = typeBuilder.CreateTypeInfo().AsType();
-
-            var instance = (T)Activator.CreateInstance(finalType, interlocutor);
-
-            return instance;
+            return typeBuilder.CreateTypeInfo().AsType();
         }
 
         public static ContractInfo ParseContractInterface(Type contractInterfaceType)

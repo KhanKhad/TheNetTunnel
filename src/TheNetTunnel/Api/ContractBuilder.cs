@@ -19,6 +19,9 @@ namespace TheNetTunnel.Api
         private IDispatcher _receiveDispatcher;
         private int _maxAnsDelay = 30000;
         private int _maxFrameLength = ReceivePduQueue.DefaultMaxFrameLength;
+        // Null means "not set by the user": the default is then chosen per side —
+        // true for client connections, false for server ones.
+        private bool? _disposeDispatcher;
 
         public List<DeserializationRule> UserDeserializationRules { get; } = new List<DeserializationRule>();
 
@@ -68,6 +71,18 @@ namespace TheNetTunnel.Api
         public ContractBuilder<TContract> UseReceiveDispatcher(IDispatcher dispatcher)
         {
             _receiveDispatcher = dispatcher;
+            return this;
+        }
+
+        /// <summary>
+        /// Controls whether the connection disposes its receive dispatcher when the
+        /// connection itself is disposed. Defaults to true for client connections
+        /// (the dispatcher is owned by the connection) and false for server
+        /// connections (the dispatcher is shared between connections).
+        /// </summary>
+        public ContractBuilder<TContract> SetDisposeDispatcher(bool disposeDispatcher)
+        {
+            _disposeDispatcher = disposeDispatcher;
             return this;
         }
         public ContractBuilder<TContract> UseSingleOperationDispatcher()
@@ -134,9 +149,6 @@ namespace TheNetTunnel.Api
             if(channel == null)
                 throw new ArgumentNullException(nameof(_channel));
 
-            // A dispatcher created here belongs to this connection and must be
-            // disposed with it; a user-supplied one is shared and outlives us.
-            var ownsDispatcher = _receiveDispatcher == null;
             var dispatcher = _receiveDispatcher ?? new ReceiveDispatcher();
 
             await channel.StartAsync().ConfigureAwait(false);
@@ -152,10 +164,8 @@ namespace TheNetTunnel.Api
 
                 if (!AvailableForWork)
                 {
+                    // The client-side interlocutor disposes the dispatcher itself.
                     await interlocutor.DisposeAsync().ConfigureAwait(false);
-
-                    if (ownsDispatcher)
-                        await dispatcher.DisposeAsync().ConfigureAwait(false);
 
                     throw new Exception($"Interlocutor is not available for work. Unavailability reason: {UnavailabilityReason}");
                 }
@@ -179,7 +189,6 @@ namespace TheNetTunnel.Api
             if (channel == null)
                 throw new ArgumentNullException(nameof(_channel));
 
-            var ownsDispatcher = _receiveDispatcher == null;
             var dispatcher = _receiveDispatcher ?? new ReceiveDispatcher();
 
             channel.Start();
@@ -195,10 +204,8 @@ namespace TheNetTunnel.Api
 
                 if (!AvailableForWork)
                 {
+                    // The client-side interlocutor disposes the dispatcher itself.
                     interlocutor.Dispose();
-
-                    if (ownsDispatcher)
-                        dispatcher.Dispose();
 
                     throw new Exception($"Interlocutor is not available for work. Unavailability reason: {UnavailabilityReason}");
                 }
@@ -221,7 +228,7 @@ namespace TheNetTunnel.Api
 
             if (_methodsDescriptor == null)
             {
-                _methodsDescriptor = new MethodsDescriptor();
+                _methodsDescriptor = new MethodsDescriptor(UserSerializationRules.ToArray(), UserDeserializationRules.ToArray());
                 _methodsDescriptor.CreateDescription(ProxyContractFactory.ParseContractInterface(typeof(TContract)));
 
                 foreach (var method in contractMemebers.GetMethods())
@@ -234,6 +241,7 @@ namespace TheNetTunnel.Api
 
             var interlocutorProperties = CreateProperties(fullmode);
             interlocutorProperties.ServerMode = true;
+            interlocutorProperties.DisposeDispatcher = _disposeDispatcher ?? false;
 
             var interlocutor = new Interlocutor(dispatcher, channel, interlocutorProperties);
             interlocutor.Initialize(_methodsDescriptor);
@@ -251,13 +259,14 @@ namespace TheNetTunnel.Api
         private (TContract contract, IInterlocutor interlocutor) CreateProxyContract(IChannel channel, IDispatcher dispatcher)
         {
             var interlocutorProperties = CreateProperties(false);
+            interlocutorProperties.DisposeDispatcher = _disposeDispatcher ?? true;
 
             var interlocutor = new Interlocutor(dispatcher, channel, interlocutorProperties);
             var contract = ProxyContractFactory.CreateProxyContract<TContract>(interlocutor, out var finalType, out var actionHandlers);
 
             if(_methodsDescriptor == null)
             {
-                _methodsDescriptor = new MethodsDescriptor();
+                _methodsDescriptor = new MethodsDescriptor(UserSerializationRules.ToArray(), UserDeserializationRules.ToArray());
                 _methodsDescriptor.CreateDescription(ProxyContractFactory.ParseContractInterface(typeof(TContract)));
 
                 foreach (var actionHandler in actionHandlers)

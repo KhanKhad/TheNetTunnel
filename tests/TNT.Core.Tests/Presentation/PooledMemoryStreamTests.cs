@@ -162,7 +162,7 @@ namespace TheNetTunnel.Tests.Presentation
         }
 
         [Test]
-        public void Dispose_CompletesTks()
+        public void Dispose_CancelsUncompletedTks()
         {
             var stream = new PooledMemoryStream
             {
@@ -171,7 +171,23 @@ namespace TheNetTunnel.Tests.Presentation
 
             stream.Dispose();
 
-            Assert.That(stream.Tks.Task.IsCompletedSuccessfully, Is.True);
+            Assert.That(stream.Tks.Task.IsCanceled, Is.True,
+                "A message disposed without being sent must not look successfully sent");
+        }
+
+        [Test]
+        public void Dispose_DoesNotOverrideSuccessfulTks()
+        {
+            var stream = new PooledMemoryStream
+            {
+                Tks = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously)
+            };
+            stream.Tks.TrySetResult();
+
+            stream.Dispose();
+
+            Assert.That(stream.Tks.Task.IsCompletedSuccessfully, Is.True,
+                "A success result must survive Dispose");
         }
 
         [Test]

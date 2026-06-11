@@ -25,7 +25,11 @@ namespace TheNetTunnel.Presentation
         {
             var stream = new PooledMemoryStream(1024)
             {
-                AskId = tntMessage.AskId
+                AskId = tntMessage.AskId,
+                IsRequest = tntMessage.MessageType
+                    is MessageType.RequestMessage
+                    or MessageType.PingMessage
+                    or MessageType.HelloMessageRequest,
             };
 
             try

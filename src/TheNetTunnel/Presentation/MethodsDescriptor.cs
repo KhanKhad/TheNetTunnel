@@ -18,12 +18,17 @@ namespace TheNetTunnel.Presentation
         public DeserializerFactory DeserializerFactory;
 
 
-        public MethodsDescriptor()
+        public MethodsDescriptor(SerializationRule[] additionalSRules, DeserializationRule[] additionalDRules)
         {
             DescribedMethods = new Dictionary<int, MethodDesctiption>();
 
-            SerializerFactory = SerializerFactory.CreateDefault(Array.Empty<SerializationRule>());
-            DeserializerFactory = DeserializerFactory.CreateDefault(Array.Empty<DeserializationRule>());
+            SerializerFactory = SerializerFactory.CreateDefault(additionalSRules);
+            DeserializerFactory = DeserializerFactory.CreateDefault(additionalDRules);
+        }
+
+        public MethodsDescriptor() : this(Array.Empty<SerializationRule>(), Array.Empty<DeserializationRule>())
+        {
+
         }
 
         private object _contract;

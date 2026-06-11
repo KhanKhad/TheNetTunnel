@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -40,12 +41,24 @@ namespace TheNetTunnel.Contract.Origin
          */
         private static int _exemmplarCounter;
 
+        // The generated handler type depends only on the contract members (interface +
+        // concrete contract type), not on the connection. Dynamic assemblies created with
+        // AssemblyBuilderAccess.Run are never unloaded, so without this cache every
+        // accepted connection would permanently leak an assembly.
+        private static readonly ConcurrentDictionary<(Type InterfaceType, Type ContractType),
+            Lazy<(Type HandlerType, Dictionary<PropertyInfo, string> DelegateToMethodsMap)>> _handlerTypesCache = new();
+
         public static void CreateFor(ContractInfo contractMembers, object contractObject,
             IInterlocutor interlocutor)
         {
-            Dictionary<PropertyInfo, string> delegateToMethodsMap;
-            Type type;
-            CreateHandlerType(contractMembers, out delegateToMethodsMap, out type);
+            var key = (contractMembers.ContractInterfaceType, contractObject.GetType());
+
+            var (type, delegateToMethodsMap) = _handlerTypesCache.GetOrAdd(key,
+                _ => new Lazy<(Type, Dictionary<PropertyInfo, string>)>(() =>
+                {
+                    CreateHandlerType(contractMembers, out var map, out var generatedType);
+                    return (generatedType, map);
+                })).Value;
 
             var delegateHandler = Activator.CreateInstance(type, interlocutor);
 

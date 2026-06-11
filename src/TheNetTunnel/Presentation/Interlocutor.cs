@@ -90,7 +90,7 @@ namespace TheNetTunnel.Presentation
                 Result = Properties.CreateHelloMessage(),
             };
 
-            SendMessage(message);
+            SendMessage(message, newId);
 
             try
             {
@@ -114,7 +114,25 @@ namespace TheNetTunnel.Presentation
                 try
                 {
                     if (Properties.ServerMode)
-                        await _firstRequestTks.Task.ConfigureAwait(false);
+                    {
+                        // Pings start only after the first incoming message, so a client
+                        // that connects and never sends anything would otherwise hold the
+                        // connection (and a maxConnections slot) forever. Give it the
+                        // usual answer delay to start talking, then drop it.
+                        try
+                        {
+                            await _firstRequestTks.Task
+                                .WaitAsync(TimeSpan.FromMilliseconds(Properties.DefaultMaxAnsDelay), token)
+                                .ConfigureAwait(false);
+                        }
+                        catch (TimeoutException)
+                        {
+                            Disconnect(new ErrorMessage(0, 0,
+                                ErrorType.ConnectionAlreadyLost,
+                                "No data was received from the remote endpoint within the handshake timeout"));
+                            return;
+                        }
+                    }
 
                     var newId = Interlocked.Increment(ref _maxAskId);
 
@@ -127,7 +145,7 @@ namespace TheNetTunnel.Presentation
                         MessageType = MessageType.PingMessage,
                         Result = (short)1,
                     };
-                    SendMessage(pingMessage);
+                    SendMessage(pingMessage, newId);
 
                     // A connection that accepts writes but never answers is dead:
                     // drop it if the pong does not arrive in time.
@@ -361,13 +379,17 @@ namespace TheNetTunnel.Presentation
             await serialized.Tks.Task.ConfigureAwait(false);
         }
 
-        public void SendMessage(TntMessage message)
+        public void SendMessage(TntMessage message, int askId = -1)
         {
             var serialized = _messagesSerializer.SerializeTntMessage(message);
 
             if (!_sendChannel.Writer.TryWrite(serialized))
             {
                 serialized.Dispose();
+
+                if(askId != -1)
+                    RemoveAsyncMessageAwaiter(askId);
+
                 throw new ConnectionIsLostException("Send channel is closed");
             }
         }
@@ -393,7 +415,10 @@ namespace TheNetTunnel.Presentation
                         }
                         catch (Exception e)
                         {
-                            if (MessageAwaiters.TryRemove(message.AskId, out var awaiter))
+                            // Only locally generated ask ids may have awaiters: responses
+                            // carry the remote side's ask id, which can collide with an
+                            // unrelated local one.
+                            if (message.IsRequest && MessageAwaiters.TryRemove(message.AskId, out var awaiter))
                                 awaiter.SetException(e);
 
                             message.Tks?.TrySetException(e);
@@ -449,7 +474,7 @@ namespace TheNetTunnel.Presentation
                 Result = values,
             };
 
-            SendMessage(message);
+            SendMessage(message, newId);
 
             try
             {
@@ -477,7 +502,7 @@ namespace TheNetTunnel.Presentation
                 Result = values,
             };
 
-            SendMessage(message);
+            SendMessage(message, newId);
 
             try
             {
@@ -513,7 +538,7 @@ namespace TheNetTunnel.Presentation
                 Result = values,
             };
 
-            SendMessage(message);
+            SendMessage(message, newId);
 
             try
             {
@@ -574,6 +599,9 @@ namespace TheNetTunnel.Presentation
             await _pingTaskAsync.ConfigureAwait(false);
             await _sendTaskAsync.ConfigureAwait(false);
 
+            if (Properties.DisposeDispatcher)
+                await _receiveDispatcher.DisposeAsync().ConfigureAwait(false);
+
             // _workCts is intentionally neither disposed nor nulled out: it can be
             // read concurrently (ThrowIfDisconnected, Disconnect), and a cancelled
             // CancellationTokenSource without timers holds no resources.
@@ -594,6 +622,9 @@ namespace TheNetTunnel.Presentation
             _pingTaskAsync.ConfigureAwait(false).GetAwaiter().GetResult();
             _sendTaskAsync.ConfigureAwait(false).GetAwaiter().GetResult();
 
+            if (Properties.DisposeDispatcher)
+                _receiveDispatcher.Dispose();
+
             // See DisposeAsync: _workCts stays alive on purpose.
         }
 
@@ -613,6 +644,14 @@ namespace TheNetTunnel.Presentation
     {
         public bool Fullmode;
         public bool ServerMode;
+
+        /// <summary>
+        /// When true, the interlocutor disposes its receive dispatcher together
+        /// with itself. Default is true for client connections (the dispatcher is
+        /// owned by the connection) and false for server connections (the
+        /// dispatcher is shared between connections).
+        /// </summary>
+        public bool DisposeDispatcher = true;
 
         public Version MinimalServerVersion;
         public Version MinimalClientVersion;
