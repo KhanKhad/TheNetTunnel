@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
@@ -9,11 +10,18 @@ namespace CommonTestTools.Contracts
     {
         [TntMessageAttribute(1)] void Say(int value);
         [TntMessageAttribute(2)] Task SayAsync(int value);
+
+        [TntMessageAttribute(3)] Action<int> Event { get; set; }
+        [TntMessageAttribute(4)] Func<int, Task> EventAsync { get; set; }
+
     }
 
     public class OrderedReceiveContract : IOrderedReceiveContract
     {
         public readonly ConcurrentQueue<int> ReceivedValues = new ConcurrentQueue<int>();
+
+        public Action<int> Event { get; set; }
+        public Func<int, Task> EventAsync { get; set; }
 
         public void Say(int value)
         {
