@@ -41,7 +41,7 @@ namespace TheNetTunnel.Tests.Serialization
         [TestCase(0, short.MinValue)]
         public void ComparePingMessages(int askId, short messageId)
         {
-            var origin = new Presentation.TntMessage()
+            var origin = new TntMessage()
             {
                 AskId = askId,
                 MessageId = 0,
@@ -70,7 +70,7 @@ namespace TheNetTunnel.Tests.Serialization
         [TestCase(0, short.MinValue)]
         public void ComparePingResponseMessages(int askId, short messageId)
         {
-            var origin = new Presentation.TntMessage()
+            var origin = new TntMessage()
             {
                 AskId = askId,
                 MessageId = 0,
@@ -100,7 +100,7 @@ namespace TheNetTunnel.Tests.Serialization
 
         public void CompareRequestMessages(int askId, short messageId, object[] args)
         {
-            var origin = new Presentation.TntMessage()
+            var origin = new TntMessage()
             {
                 AskId = askId,
                 MessageId = messageId,
@@ -128,7 +128,7 @@ namespace TheNetTunnel.Tests.Serialization
 
         public void CompareSuccessfulResponseMessage(int askId, short messageId, object res)
         {
-            var origin = new Presentation.TntMessage()
+            var origin = new TntMessage()
             {
                 AskId = askId,
                 MessageId = messageId,
@@ -159,7 +159,7 @@ namespace TheNetTunnel.Tests.Serialization
         {
             var error = new ErrorMessage(messageId, askId, errorType, string.Empty);
 
-            var origin = new Presentation.TntMessage()
+            var origin = new TntMessage()
             {
                 AskId = askId,
                 MessageId = messageId,
@@ -189,7 +189,7 @@ namespace TheNetTunnel.Tests.Serialization
         {
             var error = new ErrorMessage(messageId, askId, errorType, string.Empty);
 
-            var origin = new Presentation.TntMessage()
+            var origin = new TntMessage()
             {
                 AskId = askId,
                 MessageId = messageId,
@@ -211,7 +211,7 @@ namespace TheNetTunnel.Tests.Serialization
             CompareTntMessages(origin, deserialized.MessageOrNull);
         }
 
-        public void CompareTntMessages(Presentation.TntMessage first, Presentation.TntMessage second)
+        public void CompareTntMessages(TntMessage first, TntMessage second)
         {
             Assert.That(first.MessageId == second.MessageId);
             Assert.That(first.MessageType == second.MessageType);

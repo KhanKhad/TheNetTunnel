@@ -134,6 +134,9 @@ namespace TheNetTunnel.Api
             if(channel == null)
                 throw new ArgumentNullException(nameof(_channel));
 
+            // A dispatcher created here belongs to this connection and must be
+            // disposed with it; a user-supplied one is shared and outlives us.
+            var ownsDispatcher = _receiveDispatcher == null;
             var dispatcher = _receiveDispatcher ?? new ReceiveDispatcher();
 
             await channel.StartAsync().ConfigureAwait(false);
@@ -150,6 +153,10 @@ namespace TheNetTunnel.Api
                 if (!AvailableForWork)
                 {
                     await interlocutor.DisposeAsync().ConfigureAwait(false);
+
+                    if (ownsDispatcher)
+                        await dispatcher.DisposeAsync().ConfigureAwait(false);
+
                     throw new Exception($"Interlocutor is not available for work. Unavailability reason: {UnavailabilityReason}");
                 }
             }
@@ -172,6 +179,7 @@ namespace TheNetTunnel.Api
             if (channel == null)
                 throw new ArgumentNullException(nameof(_channel));
 
+            var ownsDispatcher = _receiveDispatcher == null;
             var dispatcher = _receiveDispatcher ?? new ReceiveDispatcher();
 
             channel.Start();
@@ -188,6 +196,10 @@ namespace TheNetTunnel.Api
                 if (!AvailableForWork)
                 {
                     interlocutor.Dispose();
+
+                    if (ownsDispatcher)
+                        dispatcher.Dispose();
+
                     throw new Exception($"Interlocutor is not available for work. Unavailability reason: {UnavailabilityReason}");
                 }
             }

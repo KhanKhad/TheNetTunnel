@@ -50,12 +50,25 @@ namespace TheNetTunnel.ReceiveDispatching
 
             try
             {
-                await foreach (var dTask in reader.ReadAllAsync(token).ConfigureAwait(false))
+                // The channel is read without the token: on shutdown the queue is
+                // drained so that every queued task releases its awaiter instead of
+                // being silently abandoned. The loop ends when the writer completes.
+                await foreach (var dTask in reader.ReadAllAsync(CancellationToken.None).ConfigureAwait(false))
                 {
-                    var task = HandleDispatcherTask(dTask);
+                    if (token.IsCancellationRequested)
+                    {
+                        // The dispatcher is stopping: don't run the handler, but
+                        // release the caller awaiting this task.
+                        if (MessageAwaiters.TryRemove(dTask.Id, out var awaiter))
+                            awaiter.TrySetCanceled();
+                    }
+                    else
+                    {
+                        var task = HandleDispatcherTask(dTask);
 
-                    if (_singleOperationMode)
-                        await task.ConfigureAwait(false);
+                        if (_singleOperationMode)
+                            await task.ConfigureAwait(false);
+                    }
                 }
             }
             catch (OperationCanceledException)
@@ -220,34 +233,53 @@ namespace TheNetTunnel.ReceiveDispatching
             else throw new InvalidOperationException("Same askId was already added");
         }
 
+        private int _disposed;
+
         public void Dispose()
         {
+            if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
+                return;
+
             if (_workCts == null)
                 return;
 
             _workCts.Cancel();
+            TasksChannel.Writer.TryComplete();
 
             _readChannelAsync.ConfigureAwait(false).GetAwaiter().GetResult();
 
             _workCts.Dispose();
             _workCts = null;
 
-            TasksChannel.Writer.Complete();
+            CancelAllAwaiters();
         }
 
         public async ValueTask DisposeAsync()
         {
+            if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
+                return;
+
             if (_workCts == null)
                 return;
 
             _workCts.Cancel();
+            TasksChannel.Writer.TryComplete();
 
             await _readChannelAsync.ConfigureAwait(false);
 
             _workCts.Dispose();
             _workCts = null;
 
-            TasksChannel.Writer.Complete();
+            CancelAllAwaiters();
+        }
+
+        private void CancelAllAwaiters()
+        {
+            foreach (var kvp in MessageAwaiters)
+            {
+                if (MessageAwaiters.TryRemove(kvp.Key, out var tcs))
+                    tcs.TrySetCanceled();
+            }
         }
     }
 

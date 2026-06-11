@@ -112,6 +112,12 @@ public class ServerEventsTest
 
             serverAndClient.ServerSideConnection.Dispose();
 
+            // The server side may also detect the disconnect from its own receive
+            // loop, slightly after the explicit Dispose call — wait for the event.
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            while (!serverDisconnectEventRaised && sw.ElapsedMilliseconds < 3000)
+                await Task.Delay(20);
+
             Assert.That(serverDisconnectEventRaised, "Disconnect not raised");
         }
         finally

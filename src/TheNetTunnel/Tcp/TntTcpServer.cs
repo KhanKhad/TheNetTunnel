@@ -132,7 +132,7 @@ namespace TheNetTunnel.Tcp
             else if (_restrictedClients.TryRemove(client.ConnectionId, out connection))
                 Disconnected?.Invoke(this, new ClientDisconnectEventArgs<TContract>(connection, arg2));
 
-            connection?.Dispose();
+            Task.Run(() => connection?.Dispose());
         }
 
         public void ClientDisconnected(int id)

@@ -23,7 +23,11 @@ namespace TheNetTunnel.Presentation
 
         public PooledMemoryStream SerializeTntMessage(TntMessage tntMessage)
         {
-            var stream = new PooledMemoryStream(1024);
+            var stream = new PooledMemoryStream(1024)
+            {
+                AskId = tntMessage.AskId
+            };
+
             try
             {
                 stream.Write(_reservedEmptyBuffer, 0, ReservedHeadLength);

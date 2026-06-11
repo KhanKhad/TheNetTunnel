@@ -2,8 +2,9 @@
 using System.Buffers;
 using System.Collections.Concurrent;
 using System.IO;
-using System.Threading;
 using System.Runtime.ExceptionServices;
+using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 using TheNetTunnel.Diagnostics;
 using TheNetTunnel.Exceptions.Local;
@@ -27,6 +28,8 @@ namespace TheNetTunnel.Presentation
 
         private ConcurrentDictionary<int, TaskCompletionSource<object>> MessageAwaiters;
 
+        private readonly Channel<PooledMemoryStream> _sendChannel;
+
         public InterlocutorProperties Properties { get; private set; }
         private TaskCompletionSource _firstRequestTks;
         public Interlocutor(IDispatcher receiveDispatcher, IChannel channel, InterlocutorProperties properties)
@@ -40,6 +43,11 @@ namespace TheNetTunnel.Presentation
 
             MessageAwaiters = new ConcurrentDictionary<int, TaskCompletionSource<object>>();
             _firstRequestTks = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            _sendChannel = System.Threading.Channels.Channel.CreateUnbounded<PooledMemoryStream>(new UnboundedChannelOptions()
+            {
+                SingleReader = true,
+            });
         }
 
         public void Initialize(MethodsDescriptor methodsDescriptor)
@@ -52,6 +60,7 @@ namespace TheNetTunnel.Presentation
 
         private Task _readChannelAsync;
         private Task _pingTaskAsync;
+        private Task _sendTaskAsync;
         private CancellationTokenSource _workCts;
         private int _disposed;
 
@@ -64,6 +73,7 @@ namespace TheNetTunnel.Presentation
             _workCts = new CancellationTokenSource();
             _readChannelAsync = Task.Run(async () => await ReadChannelAsync(_workCts.Token));
             _pingTaskAsync = Task.Run(async () => await PingTaskAsync(_workCts.Token));
+            _sendTaskAsync = Task.Run(async () => await SendTaskAsync(_workCts.Token));
         }
 
         public async Task<(bool AvailableForWork, string UnavailabilityReason)> SendHelloMessageAsync()
@@ -80,16 +90,16 @@ namespace TheNetTunnel.Presentation
                 Result = Properties.CreateHelloMessage(),
             };
 
-            await SendMessageAsync(message).ConfigureAwait(false);
+            SendMessage(message);
 
-            var result = await Task.WhenAny(awaiter, Task.Delay(Properties.DefaultMaxAnsDelay)).ConfigureAwait(false);
-
-            if (result == awaiter)
+            try
             {
-                var response = (await awaiter.ConfigureAwait(false)) as HelloMessageResponse;
+                var result = await awaiter.WaitAsync(TimeSpan.FromMilliseconds(Properties.DefaultMaxAnsDelay)).ConfigureAwait(false);
+
+                var response = result as HelloMessageResponse;
                 return (response?.AvailableForWork ?? false, response?.UnavailabilityReason ?? "Invalid response");
             }
-            else
+            catch (TimeoutException)
             {
                 RemoveAsyncMessageAwaiter(newId);
                 return (false, "No response to HelloMessage");
@@ -98,21 +108,42 @@ namespace TheNetTunnel.Presentation
 
         public async Task PingTaskAsync(CancellationToken token)
         {
-            while (!token.IsCancellationRequested && _workCts != null && !_workCts.IsCancellationRequested)
+            // token is _workCts.Token, no need to consult the field again.
+            while (!token.IsCancellationRequested)
             {
                 try
                 {
                     if (Properties.ServerMode)
                         await _firstRequestTks.Task.ConfigureAwait(false);
 
+                    var newId = Interlocked.Increment(ref _maxAskId);
+
+                    var pongAwaiter = GetAsyncMessageAwaiter(newId);
+
                     var pingMessage = new TntMessage()
                     {
-                        AskId = Interlocked.Increment(ref _maxAskId),
+                        AskId = newId,
                         MessageId = 0,
                         MessageType = MessageType.PingMessage,
                         Result = (short)1,
                     };
-                    await SendMessageAsync(pingMessage).ConfigureAwait(false);
+                    SendMessage(pingMessage);
+
+                    // A connection that accepts writes but never answers is dead:
+                    // drop it if the pong does not arrive in time.
+                    try
+                    {
+                        await pongAwaiter.WaitAsync(TimeSpan.FromMilliseconds(Properties.DefaultMaxAnsDelay), token).ConfigureAwait(false);
+                    }
+                    catch (TimeoutException)
+                    {
+                        RemoveAsyncMessageAwaiter(newId);
+                        Disconnect(new ErrorMessage(0, newId,
+                            ErrorType.ConnectionAlreadyLost,
+                            "Ping response was not received in time"));
+                        return;
+                    }
+
                     await Task.Delay(Properties.DefaultPingInterval, token).ConfigureAwait(false);
                 }
                 catch(ConnectionIsLostException e)
@@ -164,6 +195,14 @@ namespace TheNetTunnel.Presentation
                         _ = NewMessageReceivedAsync(message);
                     }
                 }
+
+                // The responses channel completes only when the transport is
+                // disconnected. React immediately: cancel pending awaiters instead
+                // of letting the callers wait for their timeouts.
+                if (!token.IsCancellationRequested)
+                    Disconnect(new ErrorMessage(0, 0,
+                        ErrorType.ConnectionAlreadyLost,
+                        "Transport channel was closed"));
             }
             catch (OperationCanceledException)
             {
@@ -196,10 +235,15 @@ namespace TheNetTunnel.Presentation
                         result = _responser.CreateFatalFailedResponseMessage(error, error.MessageId, error.AskId);
                     else result = _responser.CreateFailedResponseMessage(error, error.MessageId, error.AskId);
 
-                    await SendMessageAsync(result).ConfigureAwait(false);
-
-                    if (deserialized.NeedToDisconnect)
-                        Disconnect(error);
+                    try
+                    {
+                        await SendAwaitableMessageAsync(result).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        if (deserialized.NeedToDisconnect)
+                            Disconnect(error);
+                    }
                 }
                 else
                 {
@@ -210,25 +254,30 @@ namespace TheNetTunnel.Presentation
                     if (msgType == MessageType.RequestMessage)
                     {
                         var response = await _responser.CreateResponseAsync(deserialized.MessageOrNull).ConfigureAwait(false);
-                        await SendMessageAsync(response).ConfigureAwait(false);
+                        SendMessage(response);
                     }
                     else if (msgType == MessageType.PingMessage)
                     {
                         var response = _responser.CreatePingResponse(deserialized.MessageOrNull);
-                        await SendMessageAsync(response).ConfigureAwait(false);
+                        SendMessage(response);
                     }
                     else if (msgType == MessageType.HelloMessageRequest)
                     {
                         var (needDisconnect, response) = _responser.CreateHelloMessageResponse(Properties, deserialized.MessageOrNull);
 
-                        await SendMessageAsync(response).ConfigureAwait(false);
-
-                        if (needDisconnect)
+                        try
                         {
-                            var helloResponse = (HelloMessageResponse)response.Result;
-                            Disconnect(new ErrorMessage(0, askId,
-                                ErrorType.HandshakeRejected,
-                                $"Handshake rejected — client does not meet requirements: {helloResponse.UnavailabilityReason}"));
+                            await SendAwaitableMessageAsync(response).ConfigureAwait(false);
+                        }
+                        finally
+                        {
+                            if (needDisconnect)
+                            {
+                                var helloResponse = (HelloMessageResponse)response.Result;
+                                Disconnect(new ErrorMessage(0, askId,
+                                    ErrorType.HandshakeRejected,
+                                    $"Handshake rejected — client does not meet requirements: {helloResponse.UnavailabilityReason}"));
+                            }
                         }
                     }
                     else //no need to response
@@ -301,18 +350,71 @@ namespace TheNetTunnel.Presentation
             }
         }
 
-        public async Task SendMessageAsync(TntMessage message)
+        public async Task SendAwaitableMessageAsync(TntMessage message)
         {
-            using var serialized = _messagesSerializer.SerializeTntMessage(message);
+            var serialized = _messagesSerializer.SerializeTntMessage(message);
 
-            await Channel.WriteAsync(serialized.GetWrittenMemory()).ConfigureAwait(false);
+            serialized.Tks = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            await _sendChannel.Writer.WriteAsync(serialized).ConfigureAwait(false);
+
+            await serialized.Tks.Task.ConfigureAwait(false);
         }
 
         public void SendMessage(TntMessage message)
         {
-            using var serialized = _messagesSerializer.SerializeTntMessage(message);
+            var serialized = _messagesSerializer.SerializeTntMessage(message);
 
-            Channel.WriteAsync(serialized.GetWrittenMemory()).ConfigureAwait(false).GetAwaiter().GetResult();
+            if (!_sendChannel.Writer.TryWrite(serialized))
+            {
+                serialized.Dispose();
+                throw new ConnectionIsLostException("Send channel is closed");
+            }
+        }
+
+        private async Task SendTaskAsync(CancellationToken token)
+        {
+            var reader = _sendChannel.Reader;
+
+            try
+            {
+                await foreach (var message in reader.ReadAllAsync(CancellationToken.None).ConfigureAwait(false))
+                {
+                    if (token.IsCancellationRequested)
+                        message.Dispose();
+                    
+                    else
+                    {
+                        try
+                        {
+                            await Channel.WriteAsync(message.GetWrittenMemory()).ConfigureAwait(false);
+
+                            message.Tks?.TrySetResult();
+                        }
+                        catch (Exception e)
+                        {
+                            if (MessageAwaiters.TryRemove(message.AskId, out var awaiter))
+                                awaiter.SetException(e);
+
+                            message.Tks?.TrySetException(e);
+                        }
+                        finally
+                        {
+                            message.Dispose();
+                        }
+                    }
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // Expected when stopping the read loop
+            }
+            catch (Exception e)
+            {
+                Disconnect(new ErrorMessage(0, 0,
+                    ErrorType.ConnectionAlreadyLost,
+                    $"SendTaskAsync Connection dropped: {e.Message}"));
+            }
         }
 
         public void Say(int messageId, object[] values)
@@ -347,14 +449,13 @@ namespace TheNetTunnel.Presentation
                 Result = values,
             };
 
-            await SendMessageAsync(message).ConfigureAwait(false);
+            SendMessage(message);
 
-            var result = await Task.WhenAny(awaiter, Task.Delay(Properties.DefaultMaxAnsDelay)).ConfigureAwait(false);
-
-            if (result == awaiter)
-                await awaiter.ConfigureAwait(false);
-
-            else
+            try
+            {
+                await awaiter.WaitAsync(TimeSpan.FromMilliseconds(Properties.DefaultMaxAnsDelay)).ConfigureAwait(false);
+            }
+            catch (TimeoutException)
             {
                 RemoveAsyncMessageAwaiter(newId);
                 throw new CallTimeoutException((short)messageId, newId);
@@ -412,13 +513,13 @@ namespace TheNetTunnel.Presentation
                 Result = values,
             };
 
-            await SendMessageAsync(message).ConfigureAwait(false);
+            SendMessage(message);
 
-            var result = await Task.WhenAny(awaiter, Task.Delay(Properties.DefaultMaxAnsDelay)).ConfigureAwait(false);
-
-            if (result == awaiter)
-                return (T)await awaiter.ConfigureAwait(false);
-            else
+            try
+            {
+                return (T)await awaiter.WaitAsync(TimeSpan.FromMilliseconds(Properties.DefaultMaxAnsDelay)).ConfigureAwait(false);
+            }
+            catch (TimeoutException)
             {
                 RemoveAsyncMessageAwaiter(newId);
                 throw new CallTimeoutException((short)messageId, newId);
@@ -442,13 +543,18 @@ namespace TheNetTunnel.Presentation
 
         private void ThrowIfDisconnected()
         {
-            if (_workCts == null || _workCts.IsCancellationRequested)
+            // Local copy: the field is checked from user threads while
+            // Disconnect/Dispose may run concurrently.
+            var workCts = _workCts;
+
+            if (workCts == null || workCts.IsCancellationRequested)
                 throw new ConnectionIsLostException("Interlocutor is disconnected");
         }
 
         public void Disconnect(ErrorMessage error = null)
         {
             _workCts?.Cancel();
+            _sendChannel.Writer.TryComplete();
             CancelAllAwaiters();
             Channel.DisconnectBecauseOf(error);
         }
@@ -466,9 +572,11 @@ namespace TheNetTunnel.Presentation
             _firstRequestTks.TrySetCanceled();
             await _readChannelAsync.ConfigureAwait(false);
             await _pingTaskAsync.ConfigureAwait(false);
+            await _sendTaskAsync.ConfigureAwait(false);
 
-            _workCts.Dispose();
-            _workCts = null;
+            // _workCts is intentionally neither disposed nor nulled out: it can be
+            // read concurrently (ThrowIfDisconnected, Disconnect), and a cancelled
+            // CancellationTokenSource without timers holds no resources.
         }
 
         public void Dispose()
@@ -484,9 +592,9 @@ namespace TheNetTunnel.Presentation
             _firstRequestTks.TrySetCanceled();
             _readChannelAsync.ConfigureAwait(false).GetAwaiter().GetResult();
             _pingTaskAsync.ConfigureAwait(false).GetAwaiter().GetResult();
+            _sendTaskAsync.ConfigureAwait(false).GetAwaiter().GetResult();
 
-            _workCts.Dispose();
-            _workCts = null;
+            // See DisposeAsync: _workCts stays alive on purpose.
         }
 
         private void CancelAllAwaiters()

@@ -1,6 +1,7 @@
 using System;
 using System.Buffers;
 using System.IO;
+using System.Threading.Tasks;
 
 namespace TheNetTunnel.Presentation
 {
@@ -32,6 +33,8 @@ namespace TheNetTunnel.Presentation
             _length = 0;
         }
 
+        public int AskId;
+        public TaskCompletionSource Tks;
         public override bool CanRead => !_disposed;
         public override bool CanSeek => !_disposed;
         public override bool CanWrite => !_disposed;
@@ -194,6 +197,8 @@ namespace TheNetTunnel.Presentation
             _buffer = Array.Empty<byte>();
             if (toReturn.Length > 0)
                 _pool.Return(toReturn);
+
+            Tks?.TrySetResult();
 
             base.Dispose(disposing);
         }

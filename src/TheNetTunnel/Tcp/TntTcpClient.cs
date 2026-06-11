@@ -9,6 +9,7 @@ using System.Threading.Channels;
 using System.Threading.Tasks;
 using TheNetTunnel.Diagnostics;
 using TheNetTunnel.Exceptions.Local;
+using TheNetTunnel.Exceptions.Remote;
 using TheNetTunnel.Presentation;
 using TheNetTunnel.Transport;
 
@@ -36,8 +37,6 @@ namespace TheNetTunnel.Tcp
         public int BytesSent => Volatile.Read(ref _bytesSent);
 
         public int ConnectionId;
-
-        private readonly SemaphoreSlim _sendLock = new SemaphoreSlim(1, 1);
 
         private Task _internalReadAsync;
         private CancellationTokenSource _internalReadCts;
@@ -103,6 +102,7 @@ namespace TheNetTunnel.Tcp
         private async Task InternalReadAsync(CancellationToken token)
         {
             var socket = Client.Client;
+            ErrorMessage disconnectReason = null;
 
             while (!token.IsCancellationRequested && Client.Connected)
             {
@@ -112,8 +112,16 @@ namespace TheNetTunnel.Tcp
                 {
                     var bytesToRead = await socket.ReceiveAsync(buffer, SocketFlags.None, token).ConfigureAwait(false);
 
-                    if (token.IsCancellationRequested || bytesToRead == 0)
+                    if (token.IsCancellationRequested)
                         break;
+
+                    if (bytesToRead == 0)
+                    {
+                        disconnectReason = new ErrorMessage(0, 0,
+                            ErrorType.ConnectionAlreadyLost,
+                            "Remote endpoint closed the connection");
+                        break;
+                    }
 
                     Interlocked.Add(ref _bytesReceived, bytesToRead);
 
@@ -131,10 +139,18 @@ namespace TheNetTunnel.Tcp
                 catch (OperationCanceledException)
                 {
                     // Expected when the read loop is being stopped.
+                    break;
                 }
                 catch (Exception e)
                 {
+                    // A receive error means the connection is unusable: leave the
+                    // loop instead of retrying, otherwise a dead socket would make
+                    // ReceiveAsync fail in a tight spin.
                     TntLog.Warning(nameof(TntTcpClient), "Error while receiving data from socket", e);
+                    disconnectReason = new ErrorMessage(0, 0,
+                        ErrorType.ConnectionAlreadyLost,
+                        $"Connection lost while receiving data: {e.Message}");
+                    break;
                 }
                 finally
                 {
@@ -142,6 +158,14 @@ namespace TheNetTunnel.Tcp
                         ArrayPool<byte>.Shared.Return(buffer);
                 }
             }
+
+            // If the loop ended because the remote side dropped (not because we are
+            // disconnecting deliberately), complete the responses channel and notify
+            // OnDisconnect subscribers. waitForReadLoop is false: we are the read loop.
+            if (!token.IsCancellationRequested)
+                DisconnectCore(disconnectReason ?? new ErrorMessage(0, 0,
+                    ErrorType.ConnectionAlreadyLost,
+                    "Tcp connection is lost"), waitForReadLoop: false);
         }
 
         public async Task WriteAsync(ReadOnlyMemory<byte> data)
@@ -154,8 +178,8 @@ namespace TheNetTunnel.Tcp
                 throw new ConnectionIsLostException("tcp channel is not connected");
             }
 
-            await _sendLock.WaitAsync().ConfigureAwait(false);
-
+            // Writes are not synchronized here: the Interlocutor send loop is the
+            // only writer, so frames never interleave on the wire.
             try
             {
                 var sent = 0;
@@ -168,10 +192,6 @@ namespace TheNetTunnel.Tcp
             {
                 Disconnect();
                 throw new ConnectionIsLostException("Failed to send data: tcp channel is lost", innerException: ex);
-            }
-            finally
-            {
-                _sendLock.Release();
             }
         }
 
@@ -199,15 +219,25 @@ namespace TheNetTunnel.Tcp
 
         public void DisconnectBecauseOf(ErrorMessage exceptionMessage)
         {
+            DisconnectCore(exceptionMessage, waitForReadLoop: true);
+        }
+
+        private void DisconnectCore(ErrorMessage exceptionMessage, bool waitForReadLoop)
+        {
             if (Interlocked.CompareExchange(ref _disconnected, 1, 0) != 0)
                 return;
 
-            _internalReadCts.Cancel();
+            _internalReadCts?.Cancel();
 
-            try { _internalReadAsync.Wait(); }
-            catch { }
+            // waitForReadLoop is false when the read loop itself initiates the
+            // disconnect — waiting for it from inside would deadlock.
+            if (waitForReadLoop && _internalReadAsync != null)
+            {
+                try { _internalReadAsync.Wait(); }
+                catch { }
+            }
 
-            _internalReadCts.Dispose();
+            _internalReadCts?.Dispose();
 
             ResponsesChannel.Writer.Complete();
             Client.Dispose();
