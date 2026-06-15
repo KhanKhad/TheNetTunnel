@@ -40,6 +40,8 @@ namespace TheNetTunnel.Exceptions.Remote
                     return new RemoteConnectionLostException(messageId, askId, additionalInfo);
                 case ErrorType.HandshakeRejected:
                     return new RemoteHandshakeRejectedException(messageId, askId, additionalInfo);
+                case ErrorType.ContractIdIsNotSupported:
+                    return new RemoteContractIdIsNotSupported(messageId, askId, additionalInfo);
                 default:
                     throw new InvalidOperationException(
                         $"Exception type {type} is unknown. Exception message: {additionalInfo}");

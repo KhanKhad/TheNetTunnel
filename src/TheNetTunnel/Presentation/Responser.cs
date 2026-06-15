@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics.Contracts;
 using System.Threading.Tasks;
 using TheNetTunnel.Exceptions.Remote;
 using TheNetTunnel.ReceiveDispatching;
@@ -20,6 +21,7 @@ namespace TheNetTunnel.Presentation
         {
             TntMessage result;
 
+            var contractId = deserialized.ContractId;
             var id = deserialized.MessageId;
             var askId = deserialized.AskId;
 
@@ -33,26 +35,26 @@ namespace TheNetTunnel.Presentation
                     {
                         case MethodTypes.SyncWithoutResult:
                             await _receiveDispatcher.HandleSyncSayMessage(messageHandler.MethodHandler, arguments).ConfigureAwait(false);
-                            result = CreateSuccessfulResponseMessage(null, id, askId);
+                            result = CreateSuccessfulResponseMessage(null, id, askId, contractId);
                             break;
                         case MethodTypes.SyncWithResult:
                             var sanswer = await _receiveDispatcher.HandleSyncAskMessage(messageHandler.MethodHandler, arguments).ConfigureAwait(false);
-                            result = CreateSuccessfulResponseMessage(sanswer, id, askId);
+                            result = CreateSuccessfulResponseMessage(sanswer, id, askId, contractId);
                             break;
                         case MethodTypes.AsyncWithoutResult:
                             await _receiveDispatcher.HandleAsyncSayMessage(messageHandler.MethodHandler, arguments).ConfigureAwait(false);
-                            result = CreateSuccessfulResponseMessage(null, id, askId);
+                            result = CreateSuccessfulResponseMessage(null, id, askId, contractId);
                             break;
                         case MethodTypes.AsyncWithResult:
                             var aanswer = await _receiveDispatcher.HandleAsyncAskMessage(messageHandler.MethodHandler, arguments).ConfigureAwait(false);
-                            result = CreateSuccessfulResponseMessage(aanswer, id, askId);
+                            result = CreateSuccessfulResponseMessage(aanswer, id, askId, contractId);
                             break;
                         default:
 
                             var error = new ErrorMessage(id, askId, ErrorType.ContractSignatureError,
                                 $"UT|there isn't any handlers for this message: {id}|{askId}");
 
-                            result = CreateFatalFailedResponseMessage(error, id, askId);
+                            result = CreateFatalFailedResponseMessage(error, id, askId, contractId);
 
                             break;
 
@@ -63,7 +65,7 @@ namespace TheNetTunnel.Presentation
                     var error = new ErrorMessage(id, askId, ErrorType.ContractSignatureError,
                         $"there isn't any handlers for this message: {id}|{askId}");
 
-                    result = CreateFatalFailedResponseMessage(error, id, askId);
+                    result = CreateFatalFailedResponseMessage(error, id, askId, contractId);
                 }
             }
             catch (Exception ex)
@@ -71,13 +73,13 @@ namespace TheNetTunnel.Presentation
                 var error = new ErrorMessage(id, askId, ErrorType.UnhandledUserExceptionError,
                         $"Unexpected exception {id}|{askId}: {ex.Message}");
 
-                result = CreateFailedResponseMessage(error, id, askId);
+                result = CreateFailedResponseMessage(error, id, askId, contractId);
             }
 
             return result;
         }
 
-        public (bool needDisconnect, TntMessage message)  CreateHelloMessageResponse(InterlocutorProperties properties, TntMessage msgRequest)
+        public static (bool needDisconnect, TntMessage message)  CreateHelloMessageResponse(InterlocutorProperties properties, TntMessage msgRequest)
         {
             var request = msgRequest.Result as HelloMessageRequest;
 
@@ -96,51 +98,70 @@ namespace TheNetTunnel.Presentation
             var msg = new TntMessage()
             {
                 AskId = msgRequest.AskId,
+                MessageId = msgRequest.MessageId,
                 MessageType = MessageType.HelloMessageResponse,
+                ContractId = msgRequest.ContractId,
                 Result = response
             };
 
             return (!response.AvailableForWork, msg);
         }
 
+        public static TntMessage CreateContractIdIsNotSuppertedHelloMessageResponse(TntMessage msgRequest)
+        {
+            var msg = new TntMessage()
+            {
+                AskId = msgRequest.AskId,
+                MessageId = msgRequest.MessageId,
+                MessageType = MessageType.HelloMessageResponse,
+                ContractId = msgRequest.ContractId,
+                Result = HelloMessageResponse.ContractIdIsNotSupported(),
+            };
 
-        public TntMessage CreatePingResponse(TntMessage msg)
+            return msg;
+        }
+
+        public static TntMessage CreatePingResponse(TntMessage msg, byte contractId)
         {
             return new TntMessage()
             {
                 AskId = msg.AskId,
                 MessageType = MessageType.PingResponseMessage,
+                ContractId = contractId,
                 Result = (short)1
             };
         }
 
-        public TntMessage CreateSuccessfulResponseMessage(object result, short messageId, int askId)
+        public static TntMessage CreateSuccessfulResponseMessage(object result, short messageId, int askId, byte contractId)
         {
             return new TntMessage()
             {
                 AskId = askId,
                 MessageId = messageId,
                 MessageType = MessageType.SuccessfulResponseMessage,
+                ContractId = contractId,
                 Result = result,
             };
         }
-        public TntMessage CreateFailedResponseMessage(ErrorMessage errorMessage, short messageId, int askId)
+        public static TntMessage CreateFailedResponseMessage(ErrorMessage errorMessage, short messageId, int askId, byte contractId)
         {
             return new TntMessage()
             {
                 AskId = askId,
                 MessageId = messageId,
                 MessageType = MessageType.FailedResponseMessage,
+                ContractId = contractId,
                 Result = errorMessage,
             };
         }
-        public TntMessage CreateFatalFailedResponseMessage(ErrorMessage errorMessage, short messageId, int askId)
+        public static TntMessage CreateFatalFailedResponseMessage(ErrorMessage errorMessage, short messageId, int askId, byte contractId)
         {
             return new TntMessage()
             {
                 AskId = askId,
                 MessageId = messageId,
                 MessageType = MessageType.FatalFailedResponseMessage,
+                ContractId = contractId,
                 Result = errorMessage,
             };
         }

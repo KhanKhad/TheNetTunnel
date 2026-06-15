@@ -18,6 +18,20 @@ namespace TheNetTunnel.Presentation
 
         public MessageDeserializeResult Deserialize(Stream streamMessage)
         {
+            if (!streamMessage.TryReadByte(out var contractId))
+            {
+                var error = new ErrorMessage(
+                            0, 0,
+                            ErrorType.SerializationError,
+                            "Contract id is missed");
+
+                return new MessageDeserializeResult()
+                {
+                    ErrorMessageOrNull = error,
+                    NeedToDisconnect = true,
+                };
+            }
+
             if (!streamMessage.TryReadShort(out var messageId))
             {
                 var error = new ErrorMessage(0, 0, ErrorType.SerializationError, "Message contract id is missed");
@@ -104,6 +118,7 @@ namespace TheNetTunnel.Presentation
                                 MessageId = messageId,
                                 MessageType = (MessageType)messageType,
                                 AskId = askId,
+                                ContractId = contractId,
                                 Result = pingStatus,
                             },
                         };
@@ -132,6 +147,7 @@ namespace TheNetTunnel.Presentation
                             MessageId = messageId,
                             MessageType = (MessageType)messageType,
                             AskId = askId,
+                            ContractId = contractId,
                             Result = args,
                         };
 
@@ -177,6 +193,7 @@ namespace TheNetTunnel.Presentation
                             MessageId = messageId,
                             MessageType = (MessageType)messageType,
                             AskId = askId,
+                            ContractId = contractId,
                             Result = rObject,
                         };
 
@@ -217,6 +234,7 @@ namespace TheNetTunnel.Presentation
                             MessageId = messageId,
                             MessageType = (MessageType)messageType,
                             AskId = askId,
+                            ContractId = contractId,
                             Result = deserializedHelloMsgRequest,
                         },
                     };
@@ -235,6 +253,7 @@ namespace TheNetTunnel.Presentation
                             MessageId = messageId,
                             MessageType = (MessageType)messageType,
                             AskId = askId,
+                            ContractId = contractId,
                             Result = deserializedHelloMsgResponse,
                         },
                     };
@@ -254,6 +273,7 @@ namespace TheNetTunnel.Presentation
                             MessageId = messageId,
                             MessageType = (MessageType)messageType,
                             AskId = askId,
+                            ContractId = contractId,
                             Result = deserializedError,
                         },
                     };

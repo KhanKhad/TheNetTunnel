@@ -90,7 +90,14 @@ namespace TheNetTunnel.Presentation
                 UnavailabilityReason = "Connections limit reached"
             };
         }
-
+        public static HelloMessageResponse ContractIdIsNotSupported()
+        {
+            return new HelloMessageResponse
+            {
+                AvailableForWork = false,
+                UnavailabilityReason = "Contract ID is not supported"
+            };
+        }
         public static HelloMessageResponse UnknownReason()
         {
             return new HelloMessageResponse

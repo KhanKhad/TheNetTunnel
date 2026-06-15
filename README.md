@@ -113,6 +113,28 @@ A handshake runs on connect. Decorate the contract to advertise and enforce comp
 public interface IExampleContract { /* ... */ }
 ```
 
+## Contract id
+
+Every contract carries a one-byte **contract id**, advertised during the
+handshake. It is the building block for exposing several different contracts on
+a single port in future versions of the library. Tag a contract with
+`[TntContractId(...)]`:
+
+```csharp
+[TntContractId(1)]
+public interface IExampleContract { /* ... */ }
+```
+
+When the attribute is omitted the id defaults to **255** (the legacy
+single-contract value), so existing contracts keep working unchanged.
+
+The id is negotiated during the handshake: a client whose contract id does not
+match the server's is rejected immediately with *"Contract ID is not supported"*.
+After the handshake the id is also carried in every message frame (one byte) and
+re-checked on the data plane, so a peer that suddenly starts talking a different
+contract is dropped. Older peers that don't send the id in their hello are read
+back as 255, keeping the handshake backward compatible.
+
 ## Customizing the connection
 
 `ContractBuilder` is fluent:
@@ -173,7 +195,7 @@ Echo transaction (send data and receive its copy):
 Overhead (localhost):
   output delay:                  ~8–12 µs
   echo transaction round-trip:   ~86 µs
-  per-message overhead:          12 bytes (output), 12/13 bytes (echo)
+  per-message overhead:          13 bytes (output), 13/14 bytes (echo)
 ```
 
 > These are localhost numbers and will vary with hardware, packet size and the

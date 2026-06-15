@@ -84,6 +84,18 @@ namespace TheNetTunnel
             return true;
         }
 
+        public static bool TryReadByte(this Stream stream, out byte value)
+        {
+            var read = stream.ReadByte();
+            if (read < 0)
+            {
+                value = 0;
+                return false;
+            }
+            value = (byte)read;
+            return true;
+        }
+
         public static bool TryReadShort(this Stream stream, out short value)
         {
             Span<byte> buf = stackalloc byte[sizeof(short)];

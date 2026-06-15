@@ -38,7 +38,8 @@ namespace TheNetTunnel.Presentation
 
                 var messageId = tntMessage.MessageId;
                 var messageType = tntMessage.MessageType;
-
+                
+                stream.WriteByte(tntMessage.ContractId);
                 Tools.WriteShort(messageId, to: stream);
                 Tools.WriteShort((short)messageType, to: stream);
                 stream.WriteInt(tntMessage.AskId);

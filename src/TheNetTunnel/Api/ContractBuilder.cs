@@ -173,6 +173,8 @@ namespace TheNetTunnel.Api
             else
                 (contract, interlocutor) = CreateOriginContract(channel, dispatcher, fullmode);
 
+            interlocutor.StartPinging();
+
             return new Connection<TContract>(contract, channel, interlocutor);
         }
         public IConnection<TContract> Build(bool fullmode = false)
@@ -212,6 +214,8 @@ namespace TheNetTunnel.Api
             }
             else
                 (contract, interlocutor) = CreateOriginContract(channel, dispatcher, fullmode);
+
+            interlocutor.StartPinging();
 
             return new Connection<TContract>(contract, channel, interlocutor);
         }
@@ -294,6 +298,7 @@ namespace TheNetTunnel.Api
                 ServerVersion = type.GetCustomAttribute<TntServerVersion>()?.Version ?? new Version(1, 0, 0),
                 MinimalClientVersion = type.GetCustomAttribute<TntMinimalClientVersion>()?.Version ?? new Version(1, 0, 0),
                 MinimalServerVersion = type.GetCustomAttribute<TntMinimalServerVersion>()?.Version ?? new Version(1, 0, 0),
+                ContractId = type.GetCustomAttribute<TntContractId>()?.ContractId ?? InterlocutorProperties.DefaultContractId,
                 Fullmode = fullmode,
                 DefaultMaxAnsDelay = _maxAnsDelay,
                 DefaultPingInterval = 5000,

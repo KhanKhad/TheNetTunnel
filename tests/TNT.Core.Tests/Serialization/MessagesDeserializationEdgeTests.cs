@@ -124,6 +124,7 @@ namespace TheNetTunnel.Tests.Serialization
         public void RequestWithUnknownContractId_ReturnsContractError_WithoutDisconnect()
         {
             using var wire = new MemoryStream();
+            wire.WriteByte(InterlocutorProperties.DefaultContractId); // contractId
             wire.WriteShort(999);                              // unknown contract id
             wire.WriteShort((short)MessageType.RequestMessage);
             wire.WriteInt(7);                                  // askId
@@ -158,6 +159,8 @@ namespace TheNetTunnel.Tests.Serialization
         public void UnknownMessageType_RequestsDisconnect()
         {
             using var wire = new MemoryStream();
+
+            wire.WriteByte(InterlocutorProperties.DefaultContractId); // contractId
             wire.WriteShort(1);
             wire.WriteShort(12345);                            // unknown message type
             wire.WriteInt(7);
@@ -198,6 +201,8 @@ namespace TheNetTunnel.Tests.Serialization
         public void CorruptedRequestPayload_RequestsDisconnect()
         {
             using var wire = new MemoryStream();
+
+            wire.WriteByte(InterlocutorProperties.DefaultContractId); // contractId
             wire.WriteShort(3);                                // Say(string, int, long)
             wire.WriteShort((short)MessageType.RequestMessage);
             wire.WriteInt(7);

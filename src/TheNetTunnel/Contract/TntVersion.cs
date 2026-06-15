@@ -6,6 +6,22 @@ using System.Threading.Tasks;
 
 namespace TheNetTunnel.Contract
 {
+    /// <summary>
+    /// Marks a contract interface with the id used to distinguish it from other
+    /// contracts sharing the same port. When the attribute is omitted the default
+    /// value <see cref="TheNetTunnel.Presentation.InterlocutorProperties.DefaultContractId"/> (255) is used.
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Interface, AllowMultiple = false, Inherited = true)]
+    public class TntContractId : Attribute
+    {
+        public TntContractId(byte contractId)
+        {
+            ContractId = contractId;
+        }
+
+        public byte ContractId { get; }
+    }
+
     [AttributeUsage(AttributeTargets.Interface, AllowMultiple = false, Inherited = true)]
     public class TntClientVersion : Attribute
     {

@@ -46,6 +46,7 @@ namespace TheNetTunnel.Tests.Serialization
                 AskId = askId,
                 MessageId = 0,
                 MessageType = MessageType.PingMessage,
+                ContractId = InterlocutorProperties.DefaultContractId,
                 Result = messageId,
             };
 
@@ -75,6 +76,7 @@ namespace TheNetTunnel.Tests.Serialization
                 AskId = askId,
                 MessageId = 0,
                 MessageType = MessageType.PingResponseMessage,
+                ContractId = InterlocutorProperties.DefaultContractId,
                 Result = messageId,
             };
 
@@ -104,6 +106,7 @@ namespace TheNetTunnel.Tests.Serialization
             {
                 AskId = askId,
                 MessageId = messageId,
+                ContractId = InterlocutorProperties.DefaultContractId,
                 MessageType = MessageType.RequestMessage,
                 Result = args,
             };
@@ -133,6 +136,7 @@ namespace TheNetTunnel.Tests.Serialization
                 AskId = askId,
                 MessageId = messageId,
                 MessageType = MessageType.SuccessfulResponseMessage,
+                ContractId = InterlocutorProperties.DefaultContractId,
                 Result = res,
             };
 
@@ -163,6 +167,7 @@ namespace TheNetTunnel.Tests.Serialization
             {
                 AskId = askId,
                 MessageId = messageId,
+                ContractId = InterlocutorProperties.DefaultContractId,
                 MessageType = MessageType.FatalFailedResponseMessage,
                 Result = error,
             };
@@ -193,6 +198,7 @@ namespace TheNetTunnel.Tests.Serialization
             {
                 AskId = askId,
                 MessageId = messageId,
+                ContractId = InterlocutorProperties.DefaultContractId,
                 MessageType = MessageType.FailedResponseMessage,
                 Result = error,
             };

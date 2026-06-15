@@ -15,6 +15,13 @@ namespace TheNetTunnel.Presentation
         public MessageType MessageType;
         public int AskId;
         public object Result;
+
+        /// <summary>
+        /// Identifies which contract the message belongs to. Lets a single port
+        /// expose several different contracts in future versions of the library.
+        /// 255 is the default ("unspecified"/legacy single-contract) value.
+        /// </summary>
+        public byte ContractId;
     }
 
     public enum MessageType : short

@@ -16,6 +16,7 @@ namespace TheNetTunnel.Presentation
     public interface IInterlocutor: IAsyncDisposable, IDisposable
     {
         public void Start();
+        public void StartPinging();
         public Task<(bool AvailableForWork, string UnavailabilityReason)> SendHelloMessageAsync();
         /// <summary>
         /// Sends "Say" message with "values" arguments

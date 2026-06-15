@@ -29,9 +29,8 @@ namespace TheNetTunnel.Presentation
         private ConcurrentDictionary<int, TaskCompletionSource<object>> MessageAwaiters;
 
         private readonly Channel<PooledMemoryStream> _sendChannel;
-
+        private TaskCompletionSource _firstPingTks;
         public InterlocutorProperties Properties { get; private set; }
-        private TaskCompletionSource _firstRequestTks;
         public Interlocutor(IDispatcher receiveDispatcher, IChannel channel, InterlocutorProperties properties)
         {
             Properties = properties;
@@ -42,7 +41,8 @@ namespace TheNetTunnel.Presentation
             _receiveDispatcher = receiveDispatcher;
 
             MessageAwaiters = new ConcurrentDictionary<int, TaskCompletionSource<object>>();
-            _firstRequestTks = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            _firstPingTks = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
             _sendChannel = System.Threading.Channels.Channel.CreateUnbounded<PooledMemoryStream>(new UnboundedChannelOptions()
             {
@@ -72,8 +72,12 @@ namespace TheNetTunnel.Presentation
             //we need to clear the SynchronisationContext
             _workCts = new CancellationTokenSource();
             _readChannelAsync = Task.Run(async () => await ReadChannelAsync(_workCts.Token));
-            _pingTaskAsync = Task.Run(async () => await PingTaskAsync(_workCts.Token));
             _sendTaskAsync = Task.Run(async () => await SendTaskAsync(_workCts.Token));
+        }
+
+        public void StartPinging()
+        {
+            _pingTaskAsync = Task.Run(async () => await PingTaskAsync(_workCts.Token));
         }
 
         public async Task<(bool AvailableForWork, string UnavailabilityReason)> SendHelloMessageAsync()
@@ -86,6 +90,7 @@ namespace TheNetTunnel.Presentation
             {
                 AskId = newId,
                 MessageId = 0,
+                ContractId = Properties.ContractId,
                 MessageType = MessageType.HelloMessageRequest,
                 Result = Properties.CreateHelloMessage(),
             };
@@ -104,6 +109,10 @@ namespace TheNetTunnel.Presentation
                 RemoveAsyncMessageAwaiter(newId);
                 return (false, "No response to HelloMessage");
             }
+            catch (Exception ex)
+            {
+                return (false, $"Unknown error:{ex.Message}");
+            }
         }
 
         public async Task PingTaskAsync(CancellationToken token)
@@ -121,7 +130,7 @@ namespace TheNetTunnel.Presentation
                         // usual answer delay to start talking, then drop it.
                         try
                         {
-                            await _firstRequestTks.Task
+                            await _firstPingTks.Task
                                 .WaitAsync(TimeSpan.FromMilliseconds(Properties.DefaultMaxAnsDelay), token)
                                 .ConfigureAwait(false);
                         }
@@ -143,6 +152,7 @@ namespace TheNetTunnel.Presentation
                         AskId = newId,
                         MessageId = 0,
                         MessageType = MessageType.PingMessage,
+                        ContractId = Properties.ContractId,
                         Result = (short)1,
                     };
                     SendMessage(pingMessage, newId);
@@ -164,7 +174,7 @@ namespace TheNetTunnel.Presentation
 
                     await Task.Delay(Properties.DefaultPingInterval, token).ConfigureAwait(false);
                 }
-                catch(ConnectionIsLostException e)
+                catch (ConnectionIsLostException e)
                 {
                     Disconnect(new ErrorMessage(0, 0,
                         ErrorType.ConnectionAlreadyLost,
@@ -209,7 +219,6 @@ namespace TheNetTunnel.Presentation
                         if (message == null)
                             break;
 
-                        _firstRequestTks.TrySetResult();
                         _ = NewMessageReceivedAsync(message);
                     }
                 }
@@ -250,8 +259,8 @@ namespace TheNetTunnel.Presentation
                     TntMessage result;
 
                     if (deserialized.NeedToDisconnect)
-                        result = _responser.CreateFatalFailedResponseMessage(error, error.MessageId, error.AskId);
-                    else result = _responser.CreateFailedResponseMessage(error, error.MessageId, error.AskId);
+                        result = Responser.CreateFatalFailedResponseMessage(error, error.MessageId, error.AskId, Properties.ContractId);
+                    else result = Responser.CreateFailedResponseMessage(error, error.MessageId, error.AskId, Properties.ContractId);
 
                     try
                     {
@@ -266,22 +275,53 @@ namespace TheNetTunnel.Presentation
                 else
                 {
                     var message = deserialized.MessageOrNull;
-                    var msgType = deserialized.MessageOrNull.MessageType;
-                    var askId = deserialized.MessageOrNull.AskId;
+                    var msgType = message.MessageType;
+                    var askId = message.AskId;
 
-                    if (msgType == MessageType.RequestMessage)
+                    if (message.ContractId != Properties.ContractId)
+                    {
+                        ErrorMessage error;
+                        TntMessage response;
+
+                        if (msgType == MessageType.HelloMessageRequest)
+                        {
+                            response = Responser.CreateContractIdIsNotSuppertedHelloMessageResponse(deserialized.MessageOrNull);
+
+                            error = new ErrorMessage(0, askId,
+                                    ErrorType.HandshakeRejected,
+                                    $"Handshake rejected — client does not meet requirements: {(response.Result as HelloMessageResponse).UnavailabilityReason}");
+                        }
+                        else
+                        {
+                            error = new ErrorMessage(0, askId,
+                                    ErrorType.ContractIdIsNotSupported,
+                                    $"Contract id {message.ContractId} is not supported");
+
+                            response = Responser.CreateFailedResponseMessage(error, message.MessageId, askId, Properties.ContractId);
+                        }
+
+                        try
+                        {
+                            await SendAwaitableMessageAsync(response).ConfigureAwait(false);
+                        }
+                        finally
+                        {
+                            Disconnect(error);
+                        }
+                    }
+                    else if (msgType == MessageType.RequestMessage)
                     {
                         var response = await _responser.CreateResponseAsync(deserialized.MessageOrNull).ConfigureAwait(false);
                         SendMessage(response);
                     }
                     else if (msgType == MessageType.PingMessage)
                     {
-                        var response = _responser.CreatePingResponse(deserialized.MessageOrNull);
+                        var response = Responser.CreatePingResponse(deserialized.MessageOrNull, Properties.ContractId);
                         SendMessage(response);
                     }
                     else if (msgType == MessageType.HelloMessageRequest)
                     {
-                        var (needDisconnect, response) = _responser.CreateHelloMessageResponse(Properties, deserialized.MessageOrNull);
+                        var (needDisconnect, response) = Responser.CreateHelloMessageResponse(Properties, deserialized.MessageOrNull);
 
                         try
                         {
@@ -295,6 +335,10 @@ namespace TheNetTunnel.Presentation
                                 Disconnect(new ErrorMessage(0, askId,
                                     ErrorType.HandshakeRejected,
                                     $"Handshake rejected — client does not meet requirements: {helloResponse.UnavailabilityReason}"));
+                            }
+                            else
+                            {
+                                _firstPingTks.TrySetResult();
                             }
                         }
                     }
@@ -324,31 +368,31 @@ namespace TheNetTunnel.Presentation
                                 break;
 
                             case MessageType.HelloMessageResponse:
-                            {
-                                var helloResponse = (HelloMessageResponse)message.Result;
+                                {
+                                    var helloResponse = (HelloMessageResponse)message.Result;
 
-                                if (MessageAwaiters.TryRemove(askId, out var hrmessageAwaiter))
-                                    hrmessageAwaiter.SetResult(helloResponse);
+                                    if (MessageAwaiters.TryRemove(askId, out var hrmessageAwaiter))
+                                        hrmessageAwaiter.SetResult(helloResponse);
 
-                                if (!helloResponse.AvailableForWork)
-                                    Disconnect(new ErrorMessage(0, askId,
-                                        ErrorType.HandshakeRejected,
-                                        $"Server rejected connection: {helloResponse.UnavailabilityReason}"));
+                                    if (!helloResponse.AvailableForWork)
+                                        Disconnect(new ErrorMessage(0, askId,
+                                            ErrorType.HandshakeRejected,
+                                            $"Server rejected connection: {helloResponse.UnavailabilityReason}"));
 
-                                break;
-                            }
+                                    break;
+                                }
 
                             case MessageType.FatalFailedResponseMessage:
-                            {
-                                var fatalError = (ErrorMessage)message.Result;
+                                {
+                                    var fatalError = (ErrorMessage)message.Result;
 
-                                if (MessageAwaiters.TryRemove(askId, out var ffmessageAwaiter))
-                                    ffmessageAwaiter.SetException(fatalError.Exception);
+                                    if (MessageAwaiters.TryRemove(askId, out var ffmessageAwaiter))
+                                        ffmessageAwaiter.SetException(fatalError.Exception);
 
-                                Disconnect(fatalError);
+                                    Disconnect(fatalError);
 
-                                break;
-                            }
+                                    break;
+                                }
 
                             case MessageType.DisconnectMessage:
                                 Disconnect(new ErrorMessage(0, askId,
@@ -387,7 +431,7 @@ namespace TheNetTunnel.Presentation
             {
                 serialized.Dispose();
 
-                if(askId != -1)
+                if (askId != -1)
                     RemoveAsyncMessageAwaiter(askId);
 
                 throw new ConnectionIsLostException("Send channel is closed");
@@ -404,7 +448,7 @@ namespace TheNetTunnel.Presentation
                 {
                     if (token.IsCancellationRequested)
                         message.Dispose();
-                    
+
                     else
                     {
                         try
@@ -453,6 +497,7 @@ namespace TheNetTunnel.Presentation
                 AskId = newId,
                 MessageId = (short)messageId,
                 MessageType = MessageType.RequestMessage,
+                ContractId = Properties.ContractId,
                 Result = values,
             };
 
@@ -470,6 +515,7 @@ namespace TheNetTunnel.Presentation
             {
                 AskId = newId,
                 MessageId = (short)messageId,
+                ContractId = Properties.ContractId,
                 MessageType = MessageType.RequestMessage,
                 Result = values,
             };
@@ -498,6 +544,7 @@ namespace TheNetTunnel.Presentation
             {
                 AskId = newId,
                 MessageId = (short)messageId,
+                ContractId = Properties.ContractId,
                 MessageType = MessageType.RequestMessage,
                 Result = values,
             };
@@ -509,7 +556,7 @@ namespace TheNetTunnel.Presentation
                 if (awaiter.Wait(Properties.DefaultMaxAnsDelay))
                     return (T)awaiter.Result;
             }
-            catch(AggregateException ae)
+            catch (AggregateException ae)
             {
                 RemoveAsyncMessageAwaiter(newId);
 
@@ -534,6 +581,7 @@ namespace TheNetTunnel.Presentation
             {
                 AskId = newId,
                 MessageId = (short)messageId,
+                ContractId = Properties.ContractId,
                 MessageType = MessageType.RequestMessage,
                 Result = values,
             };
@@ -594,9 +642,12 @@ namespace TheNetTunnel.Presentation
 
             Disconnect();
 
-            _firstRequestTks.TrySetCanceled();
+            _firstPingTks.TrySetCanceled();
             await _readChannelAsync.ConfigureAwait(false);
-            await _pingTaskAsync.ConfigureAwait(false);
+
+            if (_pingTaskAsync != null)
+                await _pingTaskAsync.ConfigureAwait(false);
+
             await _sendTaskAsync.ConfigureAwait(false);
 
             if (Properties.DisposeDispatcher)
@@ -617,9 +668,9 @@ namespace TheNetTunnel.Presentation
 
             Disconnect();
 
-            _firstRequestTks.TrySetCanceled();
+            _firstPingTks.TrySetCanceled();
             _readChannelAsync.ConfigureAwait(false).GetAwaiter().GetResult();
-            _pingTaskAsync.ConfigureAwait(false).GetAwaiter().GetResult();
+            _pingTaskAsync?.ConfigureAwait(false).GetAwaiter().GetResult();
             _sendTaskAsync.ConfigureAwait(false).GetAwaiter().GetResult();
 
             if (Properties.DisposeDispatcher)
@@ -658,10 +709,13 @@ namespace TheNetTunnel.Presentation
         public Version ClientVersion;
         public Version ServerVersion;
 
+        public byte ContractId = DefaultContractId;
+
         public int DefaultMaxAnsDelay;
         public int DefaultPingInterval;
 
         public int MaxFrameLength = ReceivePduQueue.DefaultMaxFrameLength;
+        public const byte DefaultContractId = 255;
 
         public InterlocutorProperties() { }
 
