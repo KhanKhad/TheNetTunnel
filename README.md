@@ -217,16 +217,18 @@ loopback TCP:
 
 | Benchmark | Payload | Mean      | Error    | Allocated |
 |-----------|---------|-----------|----------|-----------|
-| SyncPing  | –       |  84.90 µs | 0.56 µs  |  2.06 KB  |
-| SyncEcho  | 0       |  83.38 µs | 0.62 µs  |  2.02 KB  |
-| AsyncEcho | 0       |  85.35 µs | 0.72 µs  |  2.62 KB  |
-| SyncEcho  | 1 KB    |  85.85 µs | 0.71 µs  |  4.07 KB  |
-| AsyncEcho | 1 KB    |  87.98 µs | 1.29 µs  |  4.66 KB  |
-| SyncEcho  | 64 KB   | 128.07 µs | 0.94 µs  | 130.15 KB |
-| AsyncEcho | 64 KB   | 133.85 µs | 1.15 µs  | 130.74 KB |
+| SyncPing  | –       |  64.08 µs | 1.27 µs  |  1.89 KB  |
+| SyncEcho  | 0       |  64.51 µs | 0.28 µs  |  1.85 KB  |
+| AsyncEcho | 0       |  73.04 µs | 0.33 µs  |  2.35 KB  |
+| SyncEcho  | 1 KB    |  65.07 µs | 0.31 µs  |  3.90 KB  |
+| AsyncEcho | 1 KB    |  73.72 µs | 0.32 µs  |  4.40 KB  |
+| SyncEcho  | 64 KB   |  96.71 µs | 1.25 µs  | 129.98 KB |
+| AsyncEcho | 64 KB   | 126.30 µs | 1.14 µs  | 130.48 KB |
 
-A small request/response round-trip is ~85 µs and essentially payload-independent
-up to ~1 KB — i.e. it is latency-bound (thread hops + scheduling), not data-bound.
-Above that, serialization/copy of the payload starts to dominate. Fixed per-call
-allocation is ~2 KB; the echo cases add ~2× the payload (serialize out +
-deserialize back).
+A small synchronous request/response round-trip is ~64 µs and essentially
+payload-independent up to ~1 KB — i.e. it is latency-bound (thread hops +
+scheduling), not data-bound. Above that, serialization/copy of the payload starts
+to dominate (~97 µs at 64 KB). The async path costs a steady ~8 µs more than sync
+on small payloads (the `Task`/state-machine overhead) and grows to ~30 µs at
+64 KB. Fixed per-call allocation is ~1.9 KB; the echo cases add ~2× the payload
+(serialize out + deserialize back).
