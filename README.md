@@ -83,3 +83,31 @@ Echo transaction localhost (IO) Delay: 34,87 microseconds
 Echo transaction (I/O) overhead : 8/12 byte per message
 ```
 
+# Benchmarks (BenchmarkDotNet)
+
+For rigorous, warmed-up per-call numbers there is a BenchmarkDotNet project at
+[tests/TNT.Benchmarks](tests/TNT.Benchmarks). It measures real loopback RPC
+round-trips across payload sizes. Master supports synchronous and
+fire-and-forget calls (any non-void return is a synchronous `Ask<T>`), so the
+benchmarks cover `SyncPing` and `SyncEcho`.
+
+```
+dotnet run -c Release --project tests/TNT.Benchmarks -- --filter *              # full run
+dotnet run -c Release --project tests/TNT.Benchmarks -- --job short --filter *  # quick
+```
+
+Full run on AMD Ryzen 7 5700G, Windows 10, .NET 6 (BenchmarkDotNet v0.13.12),
+loopback TCP:
+
+| Method   | Payload | Mean      | Error    | Allocated |
+|----------|---------|-----------|----------|-----------|
+| SyncPing | –       |  80.69 µs | 0.403 µs |   3.27 KB |
+| SyncEcho | 0       |  67.06 µs | 0.657 µs |   3.15 KB |
+| SyncEcho | 1 KB    |  70.33 µs | 0.348 µs |  13.24 KB |
+| SyncEcho | 64 KB   | 137.47 µs | 2.468 µs | 515.32 KB |
+
+A small request/response round-trip is ~67–81 µs and largely payload-independent
+up to ~1 KB — it is latency-bound (thread hops + scheduling), not data-bound.
+Above that, serialization/copy of the payload dominates. Note the echo path
+allocates ~8× the payload at 64 KB (multiple buffer copies).
+
