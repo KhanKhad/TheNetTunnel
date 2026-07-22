@@ -53,10 +53,14 @@ namespace TheNetTunnel.Tcp
 
         private TntTcpClient()
         {
-            ResponsesChannel = Channel.CreateUnbounded<TcpData>(new UnboundedChannelOptions()
+            // Bounded: when the consumer falls behind, the read loop awaits instead
+            // of queueing rented buffers without limit; TCP flow control then
+            // pushes the backpressure to the remote sender.
+            ResponsesChannel = Channel.CreateBounded<TcpData>(new BoundedChannelOptions(ReceiveQueueCapacity)
             {
                 SingleReader = true,
                 SingleWriter = true,
+                FullMode = BoundedChannelFullMode.Wait,
             });
         }
 
@@ -97,7 +101,9 @@ namespace TheNetTunnel.Tcp
             _internalReadAsync = Task.Run(async () => await InternalReadAsync(_internalReadCts.Token));
         }
 
-        private const int ReceiveBufferSize = 64 * 1024;
+        private const int ReceiveQueueCapacity = 32;
+        private const int MinReceiveChunkSize = 4 * 1024;
+        private const int MaxReceiveChunkSize = 64 * 1024;
 
         private async Task InternalReadAsync(CancellationToken token)
         {
@@ -106,10 +112,20 @@ namespace TheNetTunnel.Tcp
 
             while (!token.IsCancellationRequested && Client.Connected)
             {
-                var buffer = ArrayPool<byte>.Shared.Rent(ReceiveBufferSize);
+                byte[] buffer = null;
                 var handedOff = false;
                 try
                 {
+                    // Rent by the actual backlog size: idle connections mostly receive
+                    // small frames, and renting a fixed 64K for each of them keeps
+                    // large buckets of ArrayPool populated forever.
+                    var available = socket.Available;
+                    var chunkSize = available < MinReceiveChunkSize ? MinReceiveChunkSize
+                        : available > MaxReceiveChunkSize ? MaxReceiveChunkSize
+                        : available;
+
+                    buffer = ArrayPool<byte>.Shared.Rent(chunkSize);
+
                     var bytesToRead = await socket.ReceiveAsync(buffer, SocketFlags.None, token).ConfigureAwait(false);
 
                     if (token.IsCancellationRequested)
@@ -154,7 +170,7 @@ namespace TheNetTunnel.Tcp
                 }
                 finally
                 {
-                    if (!handedOff)
+                    if (buffer != null && !handedOff)
                         ArrayPool<byte>.Shared.Return(buffer);
                 }
             }

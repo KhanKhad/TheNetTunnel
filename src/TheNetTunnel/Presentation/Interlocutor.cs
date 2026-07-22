@@ -24,6 +24,8 @@ namespace TheNetTunnel.Presentation
         private IDispatcher _receiveDispatcher;
         private readonly ReceivePduQueue _receiveMessageAssembler;
 
+        private const int SendQueueCapacity = 256;
+
         private int _maxAskId;
 
         private ConcurrentDictionary<int, TaskCompletionSource<object>> MessageAwaiters;
@@ -44,9 +46,12 @@ namespace TheNetTunnel.Presentation
 
             _firstPingTks = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
-            _sendChannel = System.Threading.Channels.Channel.CreateUnbounded<PooledMemoryStream>(new UnboundedChannelOptions()
+            // Bounded: a slow or stuck remote endpoint must not let the outgoing
+            // queue (and the pooled buffers it holds) grow without limit.
+            _sendChannel = System.Threading.Channels.Channel.CreateBounded<PooledMemoryStream>(new BoundedChannelOptions(SendQueueCapacity)
             {
                 SingleReader = true,
+                FullMode = BoundedChannelFullMode.Wait,
             });
         }
 
@@ -95,7 +100,7 @@ namespace TheNetTunnel.Presentation
                 Result = Properties.CreateHelloMessage(),
             };
 
-            SendMessage(message, newId);
+            await SendMessageAsync(message, newId).ConfigureAwait(false);
 
             try
             {
@@ -155,7 +160,7 @@ namespace TheNetTunnel.Presentation
                         ContractId = Properties.ContractId,
                         Result = (short)1,
                     };
-                    SendMessage(pingMessage, newId);
+                    await SendMessageAsync(pingMessage, newId).ConfigureAwait(false);
 
                     // A connection that accepts writes but never answers is dead:
                     // drop it if the pong does not arrive in time.
@@ -312,12 +317,12 @@ namespace TheNetTunnel.Presentation
                     else if (msgType == MessageType.RequestMessage)
                     {
                         var response = await _responser.CreateResponseAsync(deserialized.MessageOrNull).ConfigureAwait(false);
-                        SendMessage(response);
+                        await SendMessageAsync(response).ConfigureAwait(false);
                     }
                     else if (msgType == MessageType.PingMessage)
                     {
                         var response = Responser.CreatePingResponse(deserialized.MessageOrNull, Properties.ContractId);
-                        SendMessage(response);
+                        await SendMessageAsync(response).ConfigureAwait(false);
                     }
                     else if (msgType == MessageType.HelloMessageRequest)
                     {
@@ -427,7 +432,41 @@ namespace TheNetTunnel.Presentation
         {
             var serialized = _messagesSerializer.SerializeTntMessage(message);
 
-            if (!_sendChannel.Writer.TryWrite(serialized))
+            if (_sendChannel.Writer.TryWrite(serialized))
+                return;
+
+            // TryWrite fails when the channel is either full or closed. When full,
+            // wait for the send loop to drain it (backpressure); when closed,
+            // WriteAsync throws ChannelClosedException.
+            try
+            {
+                _sendChannel.Writer.WriteAsync(serialized).AsTask().GetAwaiter().GetResult();
+            }
+            catch (ChannelClosedException)
+            {
+                serialized.Dispose();
+
+                if (askId != -1)
+                    RemoveAsyncMessageAwaiter(askId);
+
+                throw new ConnectionIsLostException("Send channel is closed");
+            }
+        }
+
+        public async Task SendMessageAsync(TntMessage message, int askId = -1)
+        {
+            var serialized = _messagesSerializer.SerializeTntMessage(message);
+
+            if (_sendChannel.Writer.TryWrite(serialized))
+                return;
+
+            // Same semantics as SendMessage, but the backpressure wait is awaited
+            // instead of blocking the calling thread.
+            try
+            {
+                await _sendChannel.Writer.WriteAsync(serialized).ConfigureAwait(false);
+            }
+            catch (ChannelClosedException)
             {
                 serialized.Dispose();
 
@@ -520,7 +559,7 @@ namespace TheNetTunnel.Presentation
                 Result = values,
             };
 
-            SendMessage(message, newId);
+            await SendMessageAsync(message, newId).ConfigureAwait(false);
 
             try
             {
@@ -586,7 +625,7 @@ namespace TheNetTunnel.Presentation
                 Result = values,
             };
 
-            SendMessage(message, newId);
+            await SendMessageAsync(message, newId).ConfigureAwait(false);
 
             try
             {
