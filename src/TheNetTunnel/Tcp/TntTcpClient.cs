@@ -53,14 +53,10 @@ namespace TheNetTunnel.Tcp
 
         private TntTcpClient()
         {
-            // Bounded: when the consumer falls behind, the read loop awaits instead
-            // of queueing rented buffers without limit; TCP flow control then
-            // pushes the backpressure to the remote sender.
-            ResponsesChannel = Channel.CreateBounded<TcpData>(new BoundedChannelOptions(ReceiveQueueCapacity)
+            ResponsesChannel = Channel.CreateUnbounded<TcpData>(new UnboundedChannelOptions()
             {
                 SingleReader = true,
                 SingleWriter = true,
-                FullMode = BoundedChannelFullMode.Wait,
             });
         }
 
@@ -101,7 +97,6 @@ namespace TheNetTunnel.Tcp
             _internalReadAsync = Task.Run(async () => await InternalReadAsync(_internalReadCts.Token));
         }
 
-        private const int ReceiveQueueCapacity = 32;
         private const int MinReceiveChunkSize = 4 * 1024;
         private const int MaxReceiveChunkSize = 64 * 1024;
 
