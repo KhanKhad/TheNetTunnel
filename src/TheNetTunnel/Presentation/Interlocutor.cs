@@ -117,17 +117,12 @@ namespace TheNetTunnel.Presentation
 
         public async Task PingTaskAsync(CancellationToken token)
         {
-            // token is _workCts.Token, no need to consult the field again.
             while (!token.IsCancellationRequested)
             {
                 try
                 {
                     if (Properties.ServerMode)
                     {
-                        // Pings start only after the first incoming message, so a client
-                        // that connects and never sends anything would otherwise hold the
-                        // connection (and a maxConnections slot) forever. Give it the
-                        // usual answer delay to start talking, then drop it.
                         try
                         {
                             await _firstPingTks.Task
@@ -157,8 +152,6 @@ namespace TheNetTunnel.Presentation
                     };
                     SendMessage(pingMessage, newId);
 
-                    // A connection that accepts writes but never answers is dead:
-                    // drop it if the pong does not arrive in time.
                     try
                     {
                         await pongAwaiter.WaitAsync(TimeSpan.FromMilliseconds(Properties.DefaultMaxAnsDelay), token).ConfigureAwait(false);
@@ -201,15 +194,12 @@ namespace TheNetTunnel.Presentation
                 {
                     try
                     {
-                        // Enqueue copies the bytes into its own pooled storage, so the
-                        // received buffer can be released back to the pool right after.
                         _receiveMessageAssembler.Enqueue(
                             new ReadOnlySpan<byte>(response.Bytes, 0, response.Length));
                     }
                     finally
                     {
-                        if (response.Pooled)
-                            ArrayPool<byte>.Shared.Return(response.Bytes);
+                        ArrayPool<byte>.Shared.Return(response.Bytes);
                     }
 
                     while (true)
@@ -223,9 +213,6 @@ namespace TheNetTunnel.Presentation
                     }
                 }
 
-                // The responses channel completes only when the transport is
-                // disconnected. React immediately: cancel pending awaiters instead
-                // of letting the callers wait for their timeouts.
                 if (!token.IsCancellationRequested)
                     Disconnect(new ErrorMessage(0, 0,
                         ErrorType.ConnectionAlreadyLost,
@@ -240,6 +227,12 @@ namespace TheNetTunnel.Presentation
                 Disconnect(new ErrorMessage(0, 0,
                     ErrorType.SerializationError,
                     $"Connection dropped: {e.Message}"));
+            }
+            catch(Exception e)
+            {
+                Disconnect(new ErrorMessage(0, 0,
+                    ErrorType.ConnectionAlreadyLost,
+                    $"ConnectionAlreadyLost: {e.Message}"));
             }
         }
 
@@ -459,9 +452,6 @@ namespace TheNetTunnel.Presentation
                         }
                         catch (Exception e)
                         {
-                            // Only locally generated ask ids may have awaiters: responses
-                            // carry the remote side's ask id, which can collide with an
-                            // unrelated local one.
                             if (message.IsRequest && MessageAwaiters.TryRemove(message.AskId, out var awaiter))
                                 awaiter.SetException(e);
 
@@ -616,8 +606,6 @@ namespace TheNetTunnel.Presentation
 
         private void ThrowIfDisconnected()
         {
-            // Local copy: the field is checked from user threads while
-            // Disconnect/Dispose may run concurrently.
             var workCts = _workCts;
 
             if (workCts == null || workCts.IsCancellationRequested)
@@ -652,10 +640,6 @@ namespace TheNetTunnel.Presentation
 
             if (Properties.DisposeDispatcher)
                 await _receiveDispatcher.DisposeAsync().ConfigureAwait(false);
-
-            // _workCts is intentionally neither disposed nor nulled out: it can be
-            // read concurrently (ThrowIfDisconnected, Disconnect), and a cancelled
-            // CancellationTokenSource without timers holds no resources.
         }
 
         public void Dispose()
