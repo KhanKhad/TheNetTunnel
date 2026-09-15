@@ -10,6 +10,8 @@ using System.Threading.Tasks;
 using TheNetTunnel.Api;
 using TheNetTunnel.Diagnostics;
 using TheNetTunnel.Presentation;
+using TheNetTunnel.Tls;
+using TheNetTunnel.Transport;
 
 namespace TheNetTunnel.Tcp
 {
@@ -53,6 +55,8 @@ namespace TheNetTunnel.Tcp
             _maxConnections = maxConnections;
         }
 
+        private static readonly TimeSpan PrepareConnectionTimeout = TimeSpan.FromSeconds(10);
+
         private volatile bool _alreadyStarted;
         public void Start()
         {
@@ -83,7 +87,17 @@ namespace TheNetTunnel.Tcp
                     if (token.IsCancellationRequested)
                         break;
 
-                    await PrepareConnection(tcpClient).ConfigureAwait(false);
+                    try
+                    {
+                        // With TLS the channel start includes a handshake round-trip;
+                        // a client that connects but never speaks is dropped by timeout.
+                        await PrepareConnectionAsync(tcpClient).WaitAsync(PrepareConnectionTimeout, token).ConfigureAwait(false);
+                    }
+                    catch (TimeoutException)
+                    {
+                        TntLog.Warning(nameof(TntTcpServer<TContract>), "Incoming connection was not prepared in time");
+                        tcpClient.Dispose();
+                    }
                 }
                 catch (OperationCanceledException)
                 {
@@ -96,41 +110,46 @@ namespace TheNetTunnel.Tcp
             }
         }
 
-        private async Task PrepareConnection(TcpClient tcpClient)
+        private async Task PrepareConnectionAsync(TcpClient tcpClient)
         {
             var newId = Interlocked.Increment(ref _maxId);
 
-            var tntTcpClient = new TntTcpClient(tcpClient)
+            IChannel channel = _connectionBuilder.ServerTlsOptions != null
+                ? new TntTlsChannel(tcpClient, _connectionBuilder.ServerTlsOptions)
+                : new TntTcpClient(tcpClient);
+
+            channel.OnDisconnect += (_, error) => OnClientDisconnect(newId, error);
+
+            try
             {
-                ConnectionId = newId
-            };
+                IConnection<TContract> connection;
 
-            tntTcpClient.OnDisconnect += TntTcpClient_OnDisconnect;
-
-            IConnection<TContract> connection;
-
-            if (_maxConnections > 0 && _clients.Count >= _maxConnections)
-            {
-                connection = await _connectionBuilder.UseChannel(tntTcpClient).BuildAsync(true).ConfigureAwait(false);
-                _restrictedClients.TryAdd(newId, connection);
+                if (_maxConnections > 0 && _clients.Count >= _maxConnections)
+                {
+                    connection = await _connectionBuilder.UseChannel(channel).BuildAsync(true).ConfigureAwait(false);
+                    _restrictedClients.TryAdd(newId, connection);
+                }
+                else
+                {
+                    connection = await _connectionBuilder.UseChannel(channel).BuildAsync().ConfigureAwait(false);
+                    _clients.TryAdd(newId, connection);
+                    _acceptedConnections.Writer.TryWrite(connection);
+                }
             }
-            else
+            catch (Exception e)
             {
-                connection = await _connectionBuilder.UseChannel(tntTcpClient).BuildAsync().ConfigureAwait(false);
-                _clients.TryAdd(newId, connection);
-                _acceptedConnections.Writer.TryWrite(connection);
+                TntLog.Warning(nameof(TntTcpServer<TContract>), "Failed to prepare an incoming connection", e);
+                channel.Dispose();
             }
         }
 
-        private void TntTcpClient_OnDisconnect(object arg1, ErrorMessage arg2)
+        private void OnClientDisconnect(int connectionId, ErrorMessage error)
         {
-            var client = (TntTcpClient)arg1;
+            if (_clients.TryRemove(connectionId, out var connection))
+                Disconnected?.Invoke(this, new ClientDisconnectEventArgs<TContract>(connection, error));
 
-            if (_clients.TryRemove(client.ConnectionId, out var connection))
-                Disconnected?.Invoke(this, new ClientDisconnectEventArgs<TContract>(connection, arg2));
-
-            else if (_restrictedClients.TryRemove(client.ConnectionId, out connection))
-                Disconnected?.Invoke(this, new ClientDisconnectEventArgs<TContract>(connection, arg2));
+            else if (_restrictedClients.TryRemove(connectionId, out connection))
+                Disconnected?.Invoke(this, new ClientDisconnectEventArgs<TContract>(connection, error));
 
             Task.Run(() => connection?.Dispose());
         }

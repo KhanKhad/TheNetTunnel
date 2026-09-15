@@ -153,6 +153,36 @@ TntBuilder.UseContract<IExampleContract, ExampleContract>()
 - **Custom serialization** — register `SerializationRule` / `DeserializationRule` to handle your own types alongside the built-in primitives and protobuf.
 - **Connection limit** — `CreateTcpServer(ip, port, maxConnections)` rejects clients past the limit during the handshake.
 
+## TLS
+
+Encryption is off by default. Turn it on per side with `UseTls`; the TLS handshake
+runs before the TNT hello, so every protocol byte travels encrypted.
+
+```csharp
+using TheNetTunnel.Tls;
+
+// Server: present a certificate (must contain a private key)
+var server = TntBuilder.UseContract<IExampleContract, ExampleContract>()
+    .UseTls(new TntServerTlsOptions(serverCertificate))
+    .CreateTcpServer(IPAddress.Any, 12345);
+
+// Client: pin the server certificate by thumbprint
+var connection = TntBuilder.UseContract<IExampleContract>()
+    .UseTls(new TntClientTlsOptions { ExpectedServerThumbprint = "AB12…" })
+    .CreateTcpClientConnection(IPAddress.Loopback, 12345);
+```
+
+- **`ExpectedServerThumbprint`** — when set, the client accepts the server only if its certificate's SHA-1 thumbprint matches (case-insensitive, `:` and spaces ignored), regardless of chain trust. This is the way to use self-signed certificates.
+- When the thumbprint is not set, the certificate goes through the standard OS chain validation; `TargetHost` (defaults to the endpoint IP) is the name matched against it.
+- After connecting, the peer's certificate is available on the channel:
+
+```csharp
+var tls = (TntTlsChannel)connection.Channel;
+Console.WriteLine(tls.RemoteCertificate.Thumbprint);
+```
+
+A client whose handshake fails gets an `AuthenticationException` from `CreateTcpClientConnection`; on the server the failed connection is logged through `TntLog` and never surfaces as a connection.
+
 ## Diagnostics
 
 Background loops (socket read, ping heartbeat, dispatcher) never throw into your code. To observe internal errors that would otherwise be silent, assign a logger:

@@ -4,6 +4,8 @@ using System.Reflection;
 using System.Threading.Tasks;
 using TheNetTunnel.Api;
 using TheNetTunnel.Contract;
+using TheNetTunnel.Tls;
+using TheNetTunnel.Transport;
 
 namespace TheNetTunnel.Tcp
 {
@@ -41,12 +43,7 @@ namespace TheNetTunnel.Tcp
             where TContract : class
 
         {
-            return builder.UseChannelFactory(() => {
-
-                var channel = new TntTcpClient(endPoint);
-                return channel;
-
-            }).Build();
+            return builder.UseChannelFactory(() => CreateClientChannel(builder, endPoint)).Build();
         }
 
         public static Task<IConnection<TContract>> CreateTcpClientConnectionAsync<TContract>(
@@ -54,12 +51,16 @@ namespace TheNetTunnel.Tcp
              where TContract : class
 
         {
-            return builder.UseChannelFactory(() => {
+            return builder.UseChannelFactory(() => CreateClientChannel(builder, endPoint)).BuildAsync();
+        }
 
-                var channel = new TntTcpClient(endPoint);
-                return channel;
+        private static IChannel CreateClientChannel<TContract>(ContractBuilder<TContract> builder, IPEndPoint endPoint)
+            where TContract : class
+        {
+            if (builder.ClientTlsOptions != null)
+                return new TntTlsChannel(endPoint, builder.ClientTlsOptions);
 
-            }).BuildAsync();
+            return new TntTcpClient(endPoint);
         }
     }
 }

@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 using TheNetTunnel.Api;
 using TheNetTunnel.Tcp;
+using TheNetTunnel.Tls;
 
 namespace CommonTestTools
 {
@@ -21,19 +22,28 @@ namespace CommonTestTools
         public IConnection<TOriginContractInterface> ServerSideConnection { get; set; }
         public IConnection<TProxyContractInterface> ClientSideConnection { get; set; }
 
-        public static async Task<ServerAndClient<TProxyContractInterface, TOriginContractInterface, TOriginContractImplementation>> CreateAsync(int port = 12345)            
+        public static async Task<ServerAndClient<TProxyContractInterface, TOriginContractInterface, TOriginContractImplementation>> CreateAsync(
+            int port = 12345, TntServerTlsOptions serverTls = null, TntClientTlsOptions clientTls = null)
         {
-            var server = TntBuilder
-            .UseContract<TOriginContractInterface, TOriginContractImplementation>()
-            .CreateTcpServer(IPAddress.Loopback, port);
+            var serverBuilder = TntBuilder
+                .UseContract<TOriginContractInterface, TOriginContractImplementation>();
+
+            if (serverTls != null)
+                serverBuilder.UseTls(serverTls);
+
+            var server = serverBuilder.CreateTcpServer(IPAddress.Loopback, port);
 
             server.Start();
 
             var waitForAClientTask = server.WaitForAClient();
 
-            var clientSide = await TntBuilder
-               .UseContract<TProxyContractInterface>()
-               .CreateTcpClientConnectionAsync(IPAddress.Loopback, port);
+            var clientBuilder = TntBuilder
+                .UseContract<TProxyContractInterface>();
+
+            if (clientTls != null)
+                clientBuilder.UseTls(clientTls);
+
+            var clientSide = await clientBuilder.CreateTcpClientConnectionAsync(IPAddress.Loopback, port);
 
             var serverSide = await waitForAClientTask;
 

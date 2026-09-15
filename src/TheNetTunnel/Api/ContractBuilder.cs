@@ -11,6 +11,7 @@ using TheNetTunnel.Transport;
 using System.Linq;
 using TheNetTunnel.Contract;
 using TheNetTunnel.ReceiveDispatching;
+using TheNetTunnel.Tls;
 
 namespace TheNetTunnel.Api
 {
@@ -22,6 +23,9 @@ namespace TheNetTunnel.Api
         // Null means "not set by the user": the default is then chosen per side —
         // true for client connections, false for server ones.
         private bool? _disposeDispatcher;
+
+        private TntServerTlsOptions _serverTlsOptions;
+        private TntClientTlsOptions _clientTlsOptions;
 
         public List<DeserializationRule> UserDeserializationRules { get; } = new List<DeserializationRule>();
 
@@ -114,6 +118,40 @@ namespace TheNetTunnel.Api
             UserDeserializationRules.Add(rule);
             return this;
         }
+        #endregion
+
+        #region Tls
+        /// <summary>
+        /// Encrypt server-side connections with TLS. Applies to channels created by
+        /// <see cref="Tcp.TcpHelper.CreateTcpServer{TContract}"/>.
+        /// </summary>
+        public ContractBuilder<TContract> UseTls(TntServerTlsOptions options)
+        {
+            if (OriginContractFactory == null)
+                throw new InvalidOperationException(
+                    $"{nameof(TntServerTlsOptions)} cannot be used on a client (proxy) contract builder; use {nameof(TntClientTlsOptions)} instead");
+
+            _serverTlsOptions = options ?? throw new ArgumentNullException(nameof(options));
+            return this;
+        }
+
+        /// <summary>
+        /// Encrypt the client connection with TLS. Applies to channels created by
+        /// <see cref="Tcp.TcpHelper.CreateTcpClientConnection{TContract}(ContractBuilder{TContract}, System.Net.IPEndPoint)"/>
+        /// and its overloads.
+        /// </summary>
+        public ContractBuilder<TContract> UseTls(TntClientTlsOptions options)
+        {
+            if (OriginContractFactory != null)
+                throw new InvalidOperationException(
+                    $"{nameof(TntClientTlsOptions)} cannot be used on a server (origin) contract builder; use {nameof(TntServerTlsOptions)} instead");
+
+            _clientTlsOptions = options ?? throw new ArgumentNullException(nameof(options));
+            return this;
+        }
+
+        internal TntServerTlsOptions ServerTlsOptions => _serverTlsOptions;
+        internal TntClientTlsOptions ClientTlsOptions => _clientTlsOptions;
         #endregion
 
         #region Channel
