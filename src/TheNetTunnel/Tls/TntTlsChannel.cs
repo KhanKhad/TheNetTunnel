@@ -34,6 +34,10 @@ namespace TheNetTunnel.Tls
 
         private SslStream _sslStream;
 
+        // Thumbprint of the certificate the server presented, captured in the
+        // validation callback so it survives a failed handshake.
+        private string _presentedServerThumbprint;
+
         private int _bytesReceived;
         private int _bytesSent;
 
@@ -135,21 +139,30 @@ namespace TheNetTunnel.Tls
         {
             using var handshakeCts = new CancellationTokenSource(HandshakeTimeout);
 
-            if (_serverCertificate != null)
+            try
             {
-                _sslStream = new SslStream(Client.GetStream(), false);
-                await _sslStream.AuthenticateAsServerAsync(new SslServerAuthenticationOptions()
+                if (_serverCertificate != null)
                 {
-                    ServerCertificate = _serverCertificate,
-                }, handshakeCts.Token).ConfigureAwait(false);
+                    _sslStream = new SslStream(Client.GetStream(), false);
+                    await _sslStream.AuthenticateAsServerAsync(new SslServerAuthenticationOptions()
+                    {
+                        ServerCertificate = _serverCertificate,
+                    }, handshakeCts.Token).ConfigureAwait(false);
+                }
+                else
+                {
+                    _sslStream = new SslStream(Client.GetStream(), false, ValidateServerCertificate);
+                    await _sslStream.AuthenticateAsClientAsync(new SslClientAuthenticationOptions()
+                    {
+                        TargetHost = _targetHost,
+                    }, handshakeCts.Token).ConfigureAwait(false);
+                }
             }
-            else
+            catch (Exception e)
             {
-                _sslStream = new SslStream(Client.GetStream(), false, ValidateServerCertificate);
-                await _sslStream.AuthenticateAsClientAsync(new SslClientAuthenticationOptions()
-                {
-                    TargetHost = _targetHost,
-                }, handshakeCts.Token).ConfigureAwait(false);
+                throw new SslAuthenticateException(
+                    $"TLS handshake with {RemoteEndpointName} failed: {e.Message}",
+                    _presentedServerThumbprint, e);
             }
 
             if (_sslStream.RemoteCertificate != null)
@@ -158,13 +171,17 @@ namespace TheNetTunnel.Tls
 
         private bool ValidateServerCertificate(object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors)
         {
+            // Computed eagerly: the certificate object belongs to SslStream and is
+            // not guaranteed to be usable once the handshake has failed.
+            _presentedServerThumbprint = certificate == null ? null : TntThumbprint.Of(certificate);
+
             if (_expectedServerThumbprints == null)
                 return sslPolicyErrors == SslPolicyErrors.None;
 
-            if (certificate == null)
+            if (_presentedServerThumbprint == null)
                 return false;
 
-            return _expectedServerThumbprints.Contains(TntThumbprint.Of(certificate));
+            return _expectedServerThumbprints.Contains(_presentedServerThumbprint);
         }
 
         // Null when nothing is pinned, so that standard chain validation applies.
