@@ -171,20 +171,17 @@ namespace TheNetTunnel.Tls
 
         private bool ValidateServerCertificate(object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors)
         {
-            // Computed eagerly: the certificate object belongs to SslStream and is
-            // not guaranteed to be usable once the handshake has failed.
             _presentedServerThumbprint = certificate == null ? null : TntThumbprint.Of(certificate);
 
-            if (_expectedServerThumbprints == null)
+            if (_expectedServerThumbprints == null || _expectedServerThumbprints.Count == 0)
                 return sslPolicyErrors == SslPolicyErrors.None;
 
-            if (_presentedServerThumbprint == null)
+            if (_presentedServerThumbprint == null || _expectedServerThumbprints.Count == 0)
                 return false;
 
             return _expectedServerThumbprints.Contains(_presentedServerThumbprint);
         }
 
-        // Null when nothing is pinned, so that standard chain validation applies.
         private static HashSet<string> NormalizeThumbprints(string[] thumbprints)
         {
             if (thumbprints == null)
@@ -198,7 +195,7 @@ namespace TheNetTunnel.Tls
                     set.Add(normalized);
             }
 
-            return set.Count == 0 ? null : set;
+            return set;
         }
 
         // SslStream decrypts into its own buffer, so socket.Available says nothing
