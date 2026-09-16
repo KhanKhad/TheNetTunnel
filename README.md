@@ -166,19 +166,19 @@ var server = TntBuilder.UseContract<IExampleContract, ExampleContract>()
     .UseTls(new TntServerTlsOptions(serverCertificate))
     .CreateTcpServer(IPAddress.Any, 12345);
 
-// Client: pin the server certificate by thumbprint
+// Client: pin the server certificate(s) by SHA-256 thumbprint
 var connection = TntBuilder.UseContract<IExampleContract>()
-    .UseTls(new TntClientTlsOptions { ExpectedServerThumbprint = "AB12…" })
+    .UseTls(new TntClientTlsOptions { ExpectedServerThumbprints = new[] { "AB12…" } })
     .CreateTcpClientConnection(IPAddress.Loopback, 12345);
 ```
 
-- **`ExpectedServerThumbprint`** — when set, the client accepts the server only if its certificate's SHA-1 thumbprint matches (case-insensitive, `:` and spaces ignored), regardless of chain trust. This is the way to use self-signed certificates.
-- When the thumbprint is not set, the certificate goes through the standard OS chain validation; `TargetHost` (defaults to the endpoint IP) is the name matched against it.
-- After connecting, the peer's certificate is available on the channel:
+- **`ExpectedServerThumbprints`** — when set and not empty, the client accepts the server only if the SHA-256 thumbprint of its certificate matches one of the listed ones (case-insensitive, `:` and spaces ignored), regardless of chain trust. This is the way to use self-signed certificates; listing several pins lets a client survive a certificate rotation. Compute a pin with `TntThumbprint.Of(certificate)` — note that `X509Certificate2.Thumbprint` is SHA-1 and is **not** accepted.
+- When no thumbprint is set, the certificate goes through the standard OS chain validation; `TargetHost` (defaults to the endpoint IP) is the name matched against it.
+- After connecting, the peer's certificate and its SHA-256 thumbprint are available on the channel:
 
 ```csharp
 var tls = (TntTlsChannel)connection.Channel;
-Console.WriteLine(tls.RemoteCertificate.Thumbprint);
+Console.WriteLine(tls.RemoteThumbprint);
 ```
 
 A client whose handshake fails gets an `AuthenticationException` from `CreateTcpClientConnection`; on the server the failed connection is logged through `TntLog` and never surfaces as a connection.

@@ -38,7 +38,7 @@ namespace TheNetTunnel.Tests.Tls
 
         private static TntClientTlsOptions PinnedClientTls() => new TntClientTlsOptions
         {
-            ExpectedServerThumbprint = _certificate.Thumbprint,
+            ExpectedServerThumbprints = new[] { TntThumbprint.Of(_certificate) },
         };
 
         [Test]
@@ -55,6 +55,7 @@ namespace TheNetTunnel.Tests.Tls
             Assert.That(clientChannel.IsConnected, Is.True);
             Assert.That(clientChannel.RemoteCertificate, Is.Not.Null);
             Assert.That(clientChannel.RemoteCertificate.Thumbprint, Is.EqualTo(_certificate.Thumbprint));
+            Assert.That(clientChannel.RemoteThumbprint, Is.EqualTo(TntThumbprint.Of(_certificate)));
 
             var serverChannel = serverAndClient.ServerSideConnection.Channel as TntTlsChannel;
             Assert.That(serverChannel, Is.Not.Null, "Server channel must be a TLS channel");
@@ -87,7 +88,7 @@ namespace TheNetTunnel.Tests.Tls
 
             var wrongPin = new TntClientTlsOptions
             {
-                ExpectedServerThumbprint = new string('0', 40),
+                ExpectedServerThumbprints = new[] { new string('0', 64) },
             };
 
             Assert.ThrowsAsync<AuthenticationException>(() => TntBuilder
@@ -105,6 +106,76 @@ namespace TheNetTunnel.Tests.Tls
             var accepted = await Task.WhenAny(waitForAClient, Task.Delay(ConnectTimeoutMs));
             Assert.That(accepted, Is.EqualTo(waitForAClient), "Server must keep accepting after a failed handshake");
             Assert.That(server.ConnectionsCount, Is.EqualTo(1));
+        }
+
+        [Test]
+        public async Task OneOfSeveralPins_IsEnough()
+        {
+            var pins = new TntClientTlsOptions
+            {
+                ExpectedServerThumbprints = new[]
+                {
+                    new string('0', 64),
+                    TntThumbprint.Of(_certificate).ToLowerInvariant(),
+                    "ff:ff",
+                },
+            };
+
+            using var serverAndClient = await ServerAndClient<ITestContract, ITestContract, TestContractMock>
+                .CreateAsync(12507, ServerTls(), pins);
+
+            var answer = await serverAndClient.ClientSideConnection.Contract.AskAsync("pinned");
+            Assert.That(answer, Is.EqualTo("pinned"));
+        }
+
+        [Test]
+        public void Sha1Thumbprint_IsNotAccepted()
+        {
+            const int port = 12508;
+
+            using var server = TntBuilder
+                .UseContract<ITestContract, TestContractMock>()
+                .UseTls(ServerTls())
+                .CreateTcpServer(IPAddress.Loopback, port);
+            server.Start();
+
+            // X509Certificate2.Thumbprint is SHA-1; pins are SHA-256 only.
+            var sha1Pin = new TntClientTlsOptions
+            {
+                ExpectedServerThumbprints = new[] { _certificate.Thumbprint },
+            };
+
+            Assert.ThrowsAsync<AuthenticationException>(() => TntBuilder
+                .UseContract<ITestContract>()
+                .UseTls(sha1Pin)
+                .CreateTcpClientConnectionAsync(IPAddress.Loopback, port));
+        }
+
+        [Test]
+        public void EmptyPins_MeanStandardValidation()
+        {
+            const int port = 12510;
+
+            using var server = TntBuilder
+                .UseContract<ITestContract, TestContractMock>()
+                .UseTls(ServerTls())
+                .CreateTcpServer(IPAddress.Loopback, port);
+            server.Start();
+
+            Assert.ThrowsAsync<AuthenticationException>(() => TntBuilder
+                .UseContract<ITestContract>()
+                .UseTls(new TntClientTlsOptions { ExpectedServerThumbprints = new[] { "", " " } })
+                .CreateTcpClientConnectionAsync(IPAddress.Loopback, port));
+        }
+
+        [Test]
+        public void Thumbprint_NormalizesAndCompares()
+        {
+            Assert.That(TntThumbprint.Normalize("ab:12 cd"), Is.EqualTo("AB12CD"));
+            Assert.That(TntThumbprint.Normalize("  "), Is.Null);
+            Assert.That(TntThumbprint.AreEqual("AB:12", "ab12"), Is.True);
+            Assert.That(TntThumbprint.AreEqual("", ""), Is.False);
+            Assert.That(TntThumbprint.Of(_certificate), Has.Length.EqualTo(64));
         }
 
         [Test]

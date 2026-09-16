@@ -1,5 +1,6 @@
-using System;
+﻿using System;
 using System.Buffers;
+using System.Collections.Generic;
 using System.Net;
 using System.Net.Security;
 using System.Net.Sockets;
@@ -28,7 +29,7 @@ namespace TheNetTunnel.Tls
         private readonly IPEndPoint IPEndPoint;
 
         private readonly X509Certificate2 _serverCertificate;
-        private readonly string _expectedServerThumbprint;
+        private readonly HashSet<string> _expectedServerThumbprints;
         private readonly string _targetHost;
 
         private SslStream _sslStream;
@@ -45,6 +46,12 @@ namespace TheNetTunnel.Tls
         /// null on the server side (clients do not present certificates).
         /// </summary>
         public X509Certificate2 RemoteCertificate { get; private set; }
+
+        /// <summary>
+        /// SHA-256 thumbprint of <see cref="RemoteCertificate"/> (see <see cref="TntThumbprint"/>);
+        /// null until the handshake completes or when the remote side presented no certificate.
+        /// </summary>
+        public string RemoteThumbprint => RemoteCertificate == null ? null : TntThumbprint.Of(RemoteCertificate);
 
         public event Action<object, ErrorMessage> OnDisconnect;
 
@@ -67,7 +74,7 @@ namespace TheNetTunnel.Tls
 
             Client = new TcpClient();
             IPEndPoint = endPoint;
-            _expectedServerThumbprint = NormalizeThumbprint(options.ExpectedServerThumbprint);
+            _expectedServerThumbprints = NormalizeThumbprints(options.ExpectedServerThumbprints);
             _targetHost = options.TargetHost ?? endPoint.Address.ToString();
         }
 
@@ -151,21 +158,30 @@ namespace TheNetTunnel.Tls
 
         private bool ValidateServerCertificate(object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors)
         {
-            if (_expectedServerThumbprint == null)
+            if (_expectedServerThumbprints == null)
                 return sslPolicyErrors == SslPolicyErrors.None;
 
             if (certificate == null)
                 return false;
 
-            return NormalizeThumbprint(certificate.GetCertHashString()) == _expectedServerThumbprint;
+            return _expectedServerThumbprints.Contains(TntThumbprint.Of(certificate));
         }
 
-        private static string NormalizeThumbprint(string thumbprint)
+        // Null when nothing is pinned, so that standard chain validation applies.
+        private static HashSet<string> NormalizeThumbprints(string[] thumbprints)
         {
-            if (string.IsNullOrWhiteSpace(thumbprint))
+            if (thumbprints == null)
                 return null;
 
-            return thumbprint.Replace(":", "").Replace(" ", "").ToUpperInvariant();
+            var set = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var thumbprint in thumbprints)
+            {
+                var normalized = TntThumbprint.Normalize(thumbprint);
+                if (normalized != null)
+                    set.Add(normalized);
+            }
+
+            return set.Count == 0 ? null : set;
         }
 
         // SslStream decrypts into its own buffer, so socket.Available says nothing
