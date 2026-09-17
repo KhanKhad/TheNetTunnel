@@ -173,7 +173,7 @@ var connection = TntBuilder.UseContract<IExampleContract>()
 ```
 
 - **`ExpectedServerThumbprints`** — when set and not empty, the client accepts the server only if the SHA-256 thumbprint of its certificate matches one of the listed ones (case-insensitive, `:` and spaces ignored), regardless of chain trust. This is the way to use self-signed certificates; listing several pins lets a client survive a certificate rotation. Compute a pin with `TntThumbprint.Of(certificate)` — note that `X509Certificate2.Thumbprint` is SHA-1 and is **not** accepted.
-- When no thumbprint is set, the certificate goes through the standard OS chain validation; `TargetHost` (defaults to the endpoint IP) is the name matched against it.
+- When no thumbprint is set, the server certificate is **not validated at all** — any certificate is accepted, so the connection is encrypted but the server is not authenticated. Set pins for anything beyond a trusted network. `TargetHost` (defaults to the endpoint IP) is only sent as SNI.
 - After connecting, the peer's certificate and its SHA-256 thumbprint are available on the channel:
 
 ```csharp
@@ -181,7 +181,7 @@ var tls = (TntTlsChannel)connection.Channel;
 Console.WriteLine(tls.RemoteThumbprint);
 ```
 
-A client whose handshake fails gets an `AuthenticationException` from `CreateTcpClientConnection`; on the server the failed connection is logged through `TntLog` and never surfaces as a connection.
+A client whose handshake fails gets an `SslAuthenticateException` (carrying the presented certificate's thumbprint in `RemoteThumbprint`) from `CreateTcpClientConnection`; on the server the failed connection is logged through `TntLog` and never surfaces as a connection.
 
 ## Diagnostics
 

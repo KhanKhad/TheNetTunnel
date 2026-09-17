@@ -173,10 +173,12 @@ namespace TheNetTunnel.Tls
         {
             _presentedServerThumbprint = certificate == null ? null : TntThumbprint.Of(certificate);
 
+            // No pins: accept whatever the server presents, ignoring sslPolicyErrors
+            // (self-signed certificates and name mismatches included).
             if (_expectedServerThumbprints == null || _expectedServerThumbprints.Count == 0)
-                return sslPolicyErrors == SslPolicyErrors.None;
+                return true;
 
-            if (_presentedServerThumbprint == null || _expectedServerThumbprints.Count == 0)
+            if (_presentedServerThumbprint == null)
                 return false;
 
             return _expectedServerThumbprints.Contains(_presentedServerThumbprint);

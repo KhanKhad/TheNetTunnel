@@ -1,13 +1,13 @@
 using System;
 using System.Net;
 using System.Net.Sockets;
-using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using CommonTestTools;
 using CommonTestTools.Contracts;
 using NUnit.Framework;
 using TheNetTunnel.Api;
+using TheNetTunnel.Exceptions.Local;
 using TheNetTunnel.Tcp;
 using TheNetTunnel.Tls;
 
@@ -91,7 +91,7 @@ namespace TheNetTunnel.Tests.Tls
                 ExpectedServerThumbprints = new[] { new string('0', 64) },
             };
 
-            Assert.ThrowsAsync<AuthenticationException>(() => TntBuilder
+            Assert.ThrowsAsync<SslAuthenticateException>(() => TntBuilder
                 .UseContract<ITestContract>()
                 .UseTls(wrongPin)
                 .CreateTcpClientConnectionAsync(IPAddress.Loopback, port));
@@ -145,27 +145,23 @@ namespace TheNetTunnel.Tests.Tls
                 ExpectedServerThumbprints = new[] { _certificate.Thumbprint },
             };
 
-            Assert.ThrowsAsync<AuthenticationException>(() => TntBuilder
+            Assert.ThrowsAsync<SslAuthenticateException>(() => TntBuilder
                 .UseContract<ITestContract>()
                 .UseTls(sha1Pin)
                 .CreateTcpClientConnectionAsync(IPAddress.Loopback, port));
         }
 
         [Test]
-        public void EmptyPins_MeanStandardValidation()
+        public async Task EmptyPins_AcceptAnyCertificate()
         {
-            const int port = 12510;
+            // Blank entries normalize to nothing, which is the same as no pins at all.
+            var blankPins = new TntClientTlsOptions { ExpectedServerThumbprints = new[] { "", " " } };
 
-            using var server = TntBuilder
-                .UseContract<ITestContract, TestContractMock>()
-                .UseTls(ServerTls())
-                .CreateTcpServer(IPAddress.Loopback, port);
-            server.Start();
+            using var serverAndClient = await ServerAndClient<ITestContract, ITestContract, TestContractMock>
+                .CreateAsync(12510, ServerTls(), blankPins);
 
-            Assert.ThrowsAsync<AuthenticationException>(() => TntBuilder
-                .UseContract<ITestContract>()
-                .UseTls(new TntClientTlsOptions { ExpectedServerThumbprints = new[] { "", " " } })
-                .CreateTcpClientConnectionAsync(IPAddress.Loopback, port));
+            var answer = await serverAndClient.ClientSideConnection.Contract.AskAsync("no pins");
+            Assert.That(answer, Is.EqualTo("no pins"));
         }
 
         [Test]
@@ -179,20 +175,18 @@ namespace TheNetTunnel.Tests.Tls
         }
 
         [Test]
-        public void SelfSignedWithoutPin_Fails()
+        public async Task SelfSignedWithoutPin_IsAccepted()
         {
-            const int port = 12504;
+            // No pins: the self-signed certificate is accepted without any validation.
+            using var serverAndClient = await ServerAndClient<ITestContract, ITestContract, TestContractMock>
+                .CreateAsync(12504, ServerTls(), new TntClientTlsOptions());
 
-            using var server = TntBuilder
-                .UseContract<ITestContract, TestContractMock>()
-                .UseTls(ServerTls())
-                .CreateTcpServer(IPAddress.Loopback, port);
-            server.Start();
+            var answer = await serverAndClient.ClientSideConnection.Contract.AskAsync("self-signed");
+            Assert.That(answer, Is.EqualTo("self-signed"));
 
-            Assert.ThrowsAsync<AuthenticationException>(() => TntBuilder
-                .UseContract<ITestContract>()
-                .UseTls(new TntClientTlsOptions())
-                .CreateTcpClientConnectionAsync(IPAddress.Loopback, port));
+            var clientChannel = serverAndClient.ClientSideConnection.Channel as TntTlsChannel;
+            Assert.That(clientChannel, Is.Not.Null);
+            Assert.That(clientChannel.RemoteThumbprint, Is.EqualTo(TntThumbprint.Of(_certificate)));
         }
 
         [Test]
