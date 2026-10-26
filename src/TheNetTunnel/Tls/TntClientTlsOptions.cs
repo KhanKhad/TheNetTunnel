@@ -1,3 +1,5 @@
+using System;
+
 namespace TheNetTunnel.Tls
 {
     /// <summary>
@@ -21,5 +23,19 @@ namespace TheNetTunnel.Tls
         /// Host name sent in SNI. Defaults to the endpoint IP address.
         /// </summary>
         public string TargetHost { get; set; }
+
+        private TimeSpan _handshakeTimeout = TntTlsChannel.DefaultHandshakeTimeout;
+
+        /// <summary>
+        /// How long the client waits for the TLS handshake to complete, counted from the
+        /// moment the TCP connection is established. A slow server (a weak controller right
+        /// after start, or one busy with other handshakes) needs a longer value.
+        /// Defaults to <see cref="TntTlsChannel.DefaultHandshakeTimeout"/>.
+        /// </summary>
+        public TimeSpan HandshakeTimeout
+        {
+            get => _handshakeTimeout;
+            set => _handshakeTimeout = TntTlsChannel.ValidateHandshakeTimeout(value);
+        }
     }
 }
