@@ -1,5 +1,4 @@
 using System;
-using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
@@ -236,85 +235,6 @@ namespace TheNetTunnel.Tests.Tls
 
             var answer = await goodClient.Contract.AskAsync("still alive");
             Assert.That(answer, Is.EqualTo("still alive"));
-        }
-
-        [Test]
-        public void ClientHandshakeTimeout_IsTakenFromOptions()
-        {
-            const int port = 12509;
-
-            // The OS completes the TCP connection, but nobody ever answers the ClientHello.
-            var silentServer = new TcpListener(IPAddress.Loopback, port);
-            silentServer.Start();
-
-            try
-            {
-                var clientTls = PinnedClientTls();
-                clientTls.HandshakeTimeout = TimeSpan.FromSeconds(1);
-
-                var stopwatch = Stopwatch.StartNew();
-
-                var exception = Assert.ThrowsAsync<SslAuthenticateException>(() => TntBuilder
-                    .UseContract<ITestContract>()
-                    .UseTls(clientTls)
-                    .CreateTcpClientConnectionAsync(IPAddress.Loopback, port));
-
-                stopwatch.Stop();
-
-                Assert.That(exception.InnerException, Is.InstanceOf<OperationCanceledException>());
-                Assert.That(stopwatch.ElapsedMilliseconds, Is.LessThan(ConnectTimeoutMs),
-                    "Client must give up after its own handshake timeout, not the default one");
-            }
-            finally
-            {
-                silentServer.Stop();
-            }
-        }
-
-        [Test]
-        public async Task ServerHandshakeTimeout_IsTakenFromOptions()
-        {
-            const int port = 12510;
-
-            var serverTls = ServerTls();
-            serverTls.HandshakeTimeout = TimeSpan.FromSeconds(1);
-
-            using var server = TntBuilder
-                .UseContract<ITestContract, TestContractMock>()
-                .UseTls(serverTls)
-                .CreateTcpServer(IPAddress.Loopback, port);
-            server.Start();
-
-            using var silent = new TcpClient();
-            await silent.ConnectAsync(IPAddress.Loopback, port);
-
-            var dropped = Task.Run(async () =>
-            {
-                try
-                {
-                    var read = await silent.Client.ReceiveAsync(new byte[1], SocketFlags.None);
-                    return read == 0;
-                }
-                catch (SocketException)
-                {
-                    return true;
-                }
-            });
-
-            // Well below the default handshake timeout.
-            var completed = await Task.WhenAny(dropped, Task.Delay(ConnectTimeoutMs));
-            Assert.That(completed, Is.EqualTo(dropped), "Server must drop the silent client after its own handshake timeout");
-            Assert.That(await dropped, Is.True);
-        }
-
-        [Test]
-        public void HandshakeTimeout_MustBePositive()
-        {
-            Assert.Throws<ArgumentOutOfRangeException>(() => new TntClientTlsOptions { HandshakeTimeout = TimeSpan.Zero });
-            Assert.Throws<ArgumentOutOfRangeException>(() => ServerTls().HandshakeTimeout = TimeSpan.FromSeconds(-1));
-
-            Assert.That(new TntClientTlsOptions().HandshakeTimeout, Is.EqualTo(TntTlsChannel.DefaultHandshakeTimeout));
-            Assert.That(ServerTls().HandshakeTimeout, Is.EqualTo(TntTlsChannel.DefaultHandshakeTimeout));
         }
 
         [Test]

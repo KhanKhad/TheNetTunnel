@@ -23,23 +23,10 @@ namespace TheNetTunnel.Tls
     /// </summary>
     public class TntTlsChannel : IChannel
     {
-        /// <summary>
-        /// Handshake timeout used when the options do not set their own.
-        /// </summary>
-        public static readonly TimeSpan DefaultHandshakeTimeout = TimeSpan.FromSeconds(10);
-
-        internal static TimeSpan ValidateHandshakeTimeout(TimeSpan timeout)
-        {
-            if (timeout <= TimeSpan.Zero)
-                throw new ArgumentOutOfRangeException(nameof(timeout), timeout, "Handshake timeout must be positive");
-
-            return timeout;
-        }
+        private static readonly TimeSpan HandshakeTimeout = TimeSpan.FromSeconds(10);
 
         private readonly TcpClient Client;
         private readonly IPEndPoint IPEndPoint;
-
-        private readonly TimeSpan _handshakeTimeout;
 
         private readonly X509Certificate2 _serverCertificate;
         private readonly HashSet<string> _expectedServerThumbprints;
@@ -93,7 +80,6 @@ namespace TheNetTunnel.Tls
             IPEndPoint = endPoint;
             _expectedServerThumbprints = NormalizeThumbprints(options.ExpectedServerThumbprints);
             _targetHost = options.TargetHost ?? endPoint.Address.ToString();
-            _handshakeTimeout = options.HandshakeTimeout;
         }
 
         /// <summary>
@@ -106,7 +92,6 @@ namespace TheNetTunnel.Tls
 
             Client = client;
             _serverCertificate = options.Certificate;
-            _handshakeTimeout = options.HandshakeTimeout;
         }
 
         private TntTlsChannel()
@@ -152,7 +137,7 @@ namespace TheNetTunnel.Tls
 
         private async Task AuthenticateAsync()
         {
-            using var handshakeCts = new CancellationTokenSource(_handshakeTimeout);
+            using var handshakeCts = new CancellationTokenSource(HandshakeTimeout);
 
             try
             {

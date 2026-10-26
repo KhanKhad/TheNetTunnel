@@ -55,11 +55,7 @@ namespace TheNetTunnel.Tcp
             _maxConnections = maxConnections;
         }
 
-        private static readonly TimeSpan DefaultPrepareConnectionTimeout = TimeSpan.FromSeconds(10);
-
-        // With TLS the preparation is dominated by the handshake, so it gets the handshake budget.
-        private TimeSpan PrepareConnectionTimeout =>
-            _connectionBuilder.ServerTlsOptions?.HandshakeTimeout ?? DefaultPrepareConnectionTimeout;
+        private static readonly TimeSpan PrepareConnectionTimeout = TimeSpan.FromSeconds(10);
 
         private volatile bool _alreadyStarted;
         public void Start()

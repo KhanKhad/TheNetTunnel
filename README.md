@@ -174,7 +174,6 @@ var connection = TntBuilder.UseContract<IExampleContract>()
 
 - **`ExpectedServerThumbprints`** — when set and not empty, the client accepts the server only if the SHA-256 thumbprint of its certificate matches one of the listed ones (case-insensitive, `:` and spaces ignored), regardless of chain trust. This is the way to use self-signed certificates; listing several pins lets a client survive a certificate rotation. Compute a pin with `TntThumbprint.Of(certificate)` — note that `X509Certificate2.Thumbprint` is SHA-1 and is **not** accepted.
 - When no thumbprint is set, the server certificate is **not validated at all** — any certificate is accepted, so the connection is encrypted but the server is not authenticated. Set pins for anything beyond a trusted network. `TargetHost` (defaults to the endpoint IP) is only sent as SNI.
-- **`HandshakeTimeout`** (both options, default 10 s) — how long the handshake may take before the connection is dropped. Raise it for slow servers; keep the server's value not shorter than the clients', otherwise the server drops a live client that is still waiting.
 - After connecting, the peer's certificate and its SHA-256 thumbprint are available on the channel:
 
 ```csharp
