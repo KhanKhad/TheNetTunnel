@@ -17,7 +17,7 @@ namespace TheNetTunnel.Tests.Tls
     public class TlsTests
     {
         private const int ConnectTimeoutMs = 5000;
-        // Mirrors the server-side prepare/handshake timeout.
+        // Server-side prepare/handshake timeout set explicitly via SetMaxAnsTimeout.
         private const int HandshakeTimeoutMs = 10000;
 
         private static X509Certificate2 _certificate;
@@ -197,6 +197,7 @@ namespace TheNetTunnel.Tests.Tls
             using var server = TntBuilder
                 .UseContract<ITestContract, TestContractMock>()
                 .UseTls(ServerTls())
+                .SetMaxAnsTimeout(HandshakeTimeoutMs)
                 .CreateTcpServer(IPAddress.Loopback, port);
             server.Start();
 

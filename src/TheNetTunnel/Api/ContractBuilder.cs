@@ -41,6 +41,8 @@ namespace TheNetTunnel.Api
         /// </summary>
         public Func<IChannel, TContract> OriginContractFactory { get; }
 
+        public int MaxAnsDelay => _maxAnsDelay;
+
         internal ContractBuilder()
         {
             OriginContractFactory = null;

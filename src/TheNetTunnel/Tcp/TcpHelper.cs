@@ -58,7 +58,7 @@ namespace TheNetTunnel.Tcp
             where TContract : class
         {
             if (builder.ClientTlsOptions != null)
-                return new TntTlsChannel(endPoint, builder.ClientTlsOptions);
+                return new TntTlsChannel(endPoint, builder.ClientTlsOptions, builder.MaxAnsDelay);
 
             return new TntTcpClient(endPoint);
         }

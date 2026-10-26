@@ -23,7 +23,7 @@ namespace TheNetTunnel.Tls
     /// </summary>
     public class TntTlsChannel : IChannel
     {
-        private static readonly TimeSpan HandshakeTimeout = TimeSpan.FromSeconds(10);
+        private TimeSpan _handshakeTimeout;
 
         private readonly TcpClient Client;
         private readonly IPEndPoint IPEndPoint;
@@ -71,7 +71,7 @@ namespace TheNetTunnel.Tls
         /// <summary>
         /// Client side: connects to <paramref name="endPoint"/> and authenticates the server.
         /// </summary>
-        public TntTlsChannel(IPEndPoint endPoint, TntClientTlsOptions options) : this()
+        public TntTlsChannel(IPEndPoint endPoint, TntClientTlsOptions options, int handshakeTimeout) : this(handshakeTimeout)
         {
             if (options == null)
                 throw new ArgumentNullException(nameof(options));
@@ -85,7 +85,7 @@ namespace TheNetTunnel.Tls
         /// <summary>
         /// Server side: wraps an accepted <paramref name="client"/> and presents the certificate.
         /// </summary>
-        public TntTlsChannel(TcpClient client, TntServerTlsOptions options) : this()
+        public TntTlsChannel(TcpClient client, TntServerTlsOptions options, int handshakeTimeout) : this(handshakeTimeout)
         {
             if (options == null)
                 throw new ArgumentNullException(nameof(options));
@@ -94,13 +94,15 @@ namespace TheNetTunnel.Tls
             _serverCertificate = options.Certificate;
         }
 
-        private TntTlsChannel()
+        private TntTlsChannel(int handshakeTimeout)
         {
             ResponsesChannel = Channel.CreateUnbounded<TcpData>(new UnboundedChannelOptions()
             {
                 SingleReader = true,
                 SingleWriter = true,
             });
+
+            _handshakeTimeout = TimeSpan.FromMilliseconds(handshakeTimeout);
         }
 
         private volatile bool _alreadyStarted;
@@ -137,7 +139,7 @@ namespace TheNetTunnel.Tls
 
         private async Task AuthenticateAsync()
         {
-            using var handshakeCts = new CancellationTokenSource(HandshakeTimeout);
+            using var handshakeCts = new CancellationTokenSource(_handshakeTimeout);
 
             try
             {

@@ -42,6 +42,7 @@ namespace TheNetTunnel.Tcp
             IPEndPoint = endPoint;
 
             _connectionBuilder = channelBuilder;
+            _prepareConnectionTimeout = TimeSpan.FromMilliseconds(_connectionBuilder.MaxAnsDelay);
 
             _tcpListener = new TcpListener(endPoint);
 
@@ -55,7 +56,7 @@ namespace TheNetTunnel.Tcp
             _maxConnections = maxConnections;
         }
 
-        private static readonly TimeSpan PrepareConnectionTimeout = TimeSpan.FromSeconds(10);
+        private readonly TimeSpan _prepareConnectionTimeout;
 
         private volatile bool _alreadyStarted;
         public void Start()
@@ -89,9 +90,7 @@ namespace TheNetTunnel.Tcp
 
                     try
                     {
-                        // With TLS the channel start includes a handshake round-trip;
-                        // a client that connects but never speaks is dropped by timeout.
-                        await PrepareConnectionAsync(tcpClient).WaitAsync(PrepareConnectionTimeout, token).ConfigureAwait(false);
+                        await PrepareConnectionAsync(tcpClient).WaitAsync(_prepareConnectionTimeout, token).ConfigureAwait(false);
                     }
                     catch (TimeoutException)
                     {
@@ -115,7 +114,7 @@ namespace TheNetTunnel.Tcp
             var newId = Interlocked.Increment(ref _maxId);
 
             IChannel channel = _connectionBuilder.ServerTlsOptions != null
-                ? new TntTlsChannel(tcpClient, _connectionBuilder.ServerTlsOptions)
+                ? new TntTlsChannel(tcpClient, _connectionBuilder.ServerTlsOptions, _connectionBuilder.MaxAnsDelay)
                 : new TntTcpClient(tcpClient);
 
             channel.OnDisconnect += (_, error) => OnClientDisconnect(newId, error);
